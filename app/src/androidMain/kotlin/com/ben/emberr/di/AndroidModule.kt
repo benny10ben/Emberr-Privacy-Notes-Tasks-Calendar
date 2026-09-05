@@ -217,7 +217,7 @@ val androidModule = module {
     single<com.ben.emberr.data.local.room.SelfHostDeletedApiConfigDao> { get<AppDatabase>().selfHostDeletedApiConfigDao() }
 
     // SQLDelight
-    single<SqlDriver> { DatabaseDriverFactory(androidContext()).createDriver() }
+    single<SqlDriver> { DatabaseDriverFactory(androidContext(), get<ByteArray>()).createDriver() }
     single { EmberrDatabase(get()) }
 
     // AI

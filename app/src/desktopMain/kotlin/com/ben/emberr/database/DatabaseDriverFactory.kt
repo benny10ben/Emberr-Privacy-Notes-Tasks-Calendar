@@ -5,12 +5,12 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.emberr.database.EmberrDatabase
 import java.io.File
 
-actual class DatabaseDriverFactory {
-    actual fun createDriver(): SqlDriver {
+class DatabaseDriverFactory {
+    fun createDriver(): SqlDriver {
         val appDir = File(System.getProperty("user.home"), ".emberr")
         appDir.mkdirs()
 
-        val dbFile = File(appDir, "emberr.db")
+        val dbFile = File(appDir, "emberr_ai_index.db")
         val isNewDatabase = !dbFile.exists()
         val driver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.absolutePath}")
 
