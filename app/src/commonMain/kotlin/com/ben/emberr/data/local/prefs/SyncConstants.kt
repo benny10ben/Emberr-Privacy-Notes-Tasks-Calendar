@@ -15,6 +15,8 @@ object SyncConstants {
     const val KEY_CALENDAR_VIEW_MODE = "calendar_view_mode"
     const val DEFAULT_CALENDAR_VIEW_MODE = "DAY"
     // Appearance
+    const val KEY_THEME_PREFERENCE = "theme_preference"
+    const val DEFAULT_THEME_PREFERENCE = "SYSTEM"
     const val KEY_FONT_SIZE_PREFERENCE = "font_size_preference"
     const val DEFAULT_FONT_SIZE_PREFERENCE = "DEFAULT"
     const val KEY_FONT_STYLE_PREFERENCE = "font_style_preference"

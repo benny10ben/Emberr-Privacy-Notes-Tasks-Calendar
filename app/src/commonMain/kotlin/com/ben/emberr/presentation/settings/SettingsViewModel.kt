@@ -85,6 +85,16 @@ class SettingsViewModel(
         backupRescheduler.rescheduleNow(frequency, time, day)
     }
 
+    val themePreference: StateFlow<String> = settingsManager.themePreferenceFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = com.ben.emberr.data.local.prefs.SyncConstants.DEFAULT_THEME_PREFERENCE
+    )
+
+    fun setThemePreference(preference: String) {
+        settingsManager.saveThemePreference(preference)
+    }
+
     val fontSizePreference: StateFlow<String> = settingsManager.fontSizePreferenceFlow.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

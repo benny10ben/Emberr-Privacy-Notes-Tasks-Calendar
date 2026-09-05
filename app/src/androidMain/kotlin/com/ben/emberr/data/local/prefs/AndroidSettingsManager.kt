@@ -217,6 +217,17 @@ class AndroidSettingsManager(
         _calendarViewMode.value = mode
     }
 
+    private val _themePreference = MutableStateFlow(
+        sharedPreferences.getString(SyncConstants.KEY_THEME_PREFERENCE, SyncConstants.DEFAULT_THEME_PREFERENCE)
+            ?: SyncConstants.DEFAULT_THEME_PREFERENCE
+    )
+    override val themePreferenceFlow: Flow<String> = _themePreference
+
+    override fun saveThemePreference(preference: String) {
+        sharedPreferences.edit { putString(SyncConstants.KEY_THEME_PREFERENCE, preference) }
+        _themePreference.value = preference
+    }
+
     private val _fontSizePreference = MutableStateFlow(
         sharedPreferences.getString(SyncConstants.KEY_FONT_SIZE_PREFERENCE, SyncConstants.DEFAULT_FONT_SIZE_PREFERENCE)
             ?: SyncConstants.DEFAULT_FONT_SIZE_PREFERENCE

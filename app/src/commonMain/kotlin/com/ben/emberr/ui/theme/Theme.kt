@@ -41,6 +41,11 @@ private val DarkColorScheme = darkColorScheme(
 
 val LocalAppIsDark = staticCompositionLocalOf { false }
 enum class FontSizePreference { SMALL, DEFAULT, LARGE }
+enum class ThemePreference(val displayName: String) {
+    SYSTEM("System"),
+    LIGHT("Light"),
+    DARK("Dark")
+}
 
 @Composable
 fun EmberrTheme(

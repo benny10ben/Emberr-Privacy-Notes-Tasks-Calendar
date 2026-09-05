@@ -73,6 +73,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.ben.emberr.ui.theme.FontSizePreference
 import com.ben.emberr.ui.theme.FontStylePreference
+import com.ben.emberr.ui.theme.ThemePreference
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import com.ben.emberr.data.worker.BackupScheduler
 import com.ben.emberr.domain.model.NoteBlock
@@ -198,7 +200,16 @@ class MainActivity : ComponentActivity() {
             val fontStylePreference = runCatching { FontStylePreference.valueOf(fontStylePreferenceName) }
                 .getOrDefault(FontStylePreference.POPPINS)
 
-            EmberrTheme(fontSizePreference = fontSizePreference, fontStylePreference = fontStylePreference) {
+            val themePreferenceName by settingsViewModel.themePreference.collectAsState()
+            val themePreference = runCatching { ThemePreference.valueOf(themePreferenceName) }
+                .getOrDefault(ThemePreference.SYSTEM)
+            val darkTheme = when (themePreference) {
+                ThemePreference.LIGHT -> false
+                ThemePreference.DARK -> true
+                ThemePreference.SYSTEM -> isSystemInDarkTheme()
+            }
+
+            EmberrTheme(darkTheme = darkTheme, fontSizePreference = fontSizePreference, fontStylePreference = fontStylePreference) {
                 Surface(color = Color.Transparent, modifier = Modifier.fillMaxSize()) {
                     KoinAndroidContext {
                         val context = LocalContext.current

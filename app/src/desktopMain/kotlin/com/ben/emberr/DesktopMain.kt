@@ -1,5 +1,6 @@
 package com.ben.emberr
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,8 +39,10 @@ import com.ben.emberr.presentation.desktop.DesktopSearchShortcutBus
 import com.ben.emberr.presentation.mobile.home.note.NoteScreen
 import com.ben.emberr.presentation.shared.StickyNoteWindowBus
 import com.ben.emberr.domain.sync.startSyncServer
+import com.ben.emberr.domain.theme.resolveLinuxSystemIsDark
 import com.ben.emberr.ui.theme.FontSizePreference
 import com.ben.emberr.ui.theme.FontStylePreference
+import com.ben.emberr.ui.theme.ThemePreference
 import com.ben.emberr.ui.theme.EmberrTheme
 import com.ben.emberr.domain.util.handleExportBackup
 import com.ben.emberr.domain.util.handleExportMarkdown
@@ -170,7 +173,20 @@ fun main() = application {
         val fontStylePreference = runCatching { FontStylePreference.valueOf(fontStylePreferenceName) }
             .getOrDefault(FontStylePreference.POPPINS)
 
-        EmberrTheme(fontSizePreference = fontSizePreference, fontStylePreference = fontStylePreference) {
+        val themePreferenceName by settingsManager.themePreferenceFlow.collectAsState(
+            initial = SyncConstants.DEFAULT_THEME_PREFERENCE
+        )
+        val themePreference = runCatching { ThemePreference.valueOf(themePreferenceName) }
+            .getOrDefault(ThemePreference.SYSTEM)
+        val linuxSystemIsDark = remember { resolveLinuxSystemIsDark() }
+        val systemIsDark = isSystemInDarkTheme()
+        val darkTheme = when (themePreference) {
+            ThemePreference.LIGHT -> false
+            ThemePreference.DARK -> true
+            ThemePreference.SYSTEM -> linuxSystemIsDark ?: systemIsDark
+        }
+
+        EmberrTheme(darkTheme = darkTheme, fontSizePreference = fontSizePreference, fontStylePreference = fontStylePreference) {
             EmberrApp(
                 startRoute = Screen.Splash.route,
                 onPickImage = { onPathSelected ->
@@ -272,9 +288,22 @@ fun main() = application {
                 val fontStylePreference = runCatching { FontStylePreference.valueOf(fontStylePreferenceName) }
                     .getOrDefault(FontStylePreference.POPPINS)
 
+                val themePreferenceName by settingsManager.themePreferenceFlow.collectAsState(
+                    initial = SyncConstants.DEFAULT_THEME_PREFERENCE
+                )
+                val themePreference = runCatching { ThemePreference.valueOf(themePreferenceName) }
+                    .getOrDefault(ThemePreference.SYSTEM)
+                val linuxSystemIsDark = remember { resolveLinuxSystemIsDark() }
+                val systemIsDark = isSystemInDarkTheme()
+                val darkTheme = when (themePreference) {
+                    ThemePreference.LIGHT -> false
+                    ThemePreference.DARK -> true
+                    ThemePreference.SYSTEM -> linuxSystemIsDark ?: systemIsDark
+                }
+
                 val stickyWindow = this.window as Frame
 
-                EmberrTheme(fontSizePreference = fontSizePreference, fontStylePreference = fontStylePreference) {
+                EmberrTheme(darkTheme = darkTheme, fontSizePreference = fontSizePreference, fontStylePreference = fontStylePreference) {
                     NoteScreen(
                         noteId = stickyNoteId,
                         isStickyNote = true,

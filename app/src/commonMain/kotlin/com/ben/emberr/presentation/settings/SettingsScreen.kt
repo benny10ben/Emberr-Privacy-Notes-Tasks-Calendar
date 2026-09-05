@@ -42,6 +42,7 @@ import com.ben.emberr.domain.util.showNativeToast
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import com.ben.emberr.ui.theme.FontStylePreference
+import com.ben.emberr.ui.theme.ThemePreference
 import com.ben.emberr.ui.theme.fontFamilyFor
 import emberr.app.generated.resources.Res
 import emberr.app.generated.resources.astroid
@@ -99,6 +100,9 @@ fun SettingsScreen(
     val backupDay by viewModel.backupDay.collectAsState()
     var showTimePicker by remember { mutableStateOf(false) }
     var showDayPicker by remember { mutableStateOf(false) }
+
+    val themePreference by viewModel.themePreference.collectAsState()
+    var showThemeSheet by remember { mutableStateOf(false) }
 
     val fontSizePreference by viewModel.fontSizePreference.collectAsState()
     val fontStylePreference by viewModel.fontStylePreference.collectAsState()
@@ -309,8 +313,9 @@ fun SettingsScreen(
                     SettingsActionRow(
                         icon = painterResource(Res.drawable.palette),
                         title = "Theme",
-                        trailingLabel = "System",
-                        onClick = {}
+                        trailingLabel = runCatching { ThemePreference.valueOf(themePreference) }
+                            .getOrDefault(ThemePreference.SYSTEM).displayName,
+                        onClick = { showThemeSheet = true }
                     )
                     SettingsDivider()
                     SettingsFontSizeSliderRow(
@@ -591,6 +596,64 @@ fun SettingsScreen(
                     EmberrButtonSecondary(text = "Cancel", onClick = { showDayPicker = false }, modifier = Modifier.weight(1f))
                     EmberrButtonPrimary(text = "Save", onClick = { viewModel.saveBackupSchedule(backupFrequency, backupTime, days[selectedIndex]); showDayPicker = false }, modifier = Modifier.weight(1f))
                 }
+            }
+        }
+    }
+
+    if (showThemeSheet) {
+        EmberrBottomSheet(
+            expanded = true,
+            onDismiss = { showThemeSheet = false },
+            title = "Theme",
+            contentHorizontalPadding = 0.dp
+        ) {
+            val selectedTheme = runCatching { ThemePreference.valueOf(themePreference) }
+                .getOrDefault(ThemePreference.SYSTEM)
+
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+                ThemePreference.entries.forEachIndexed { index, option ->
+                    val isSelectedTheme = option == selectedTheme
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isSelectedTheme) SelectedOptionBackground else Color.Transparent
+                            )
+                            .clickable {
+                                viewModel.setThemePreference(option.name)
+                                showThemeSheet = false
+                            }
+                            .padding(horizontal = 12.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = option.displayName,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isSelectedTheme)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    if (index != ThemePreference.entries.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            thickness = 1.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+                        )
+                    }
+                }
+
+                EmberrButtonPrimary(
+                    text = "Close",
+                    onClick = { showThemeSheet = false },
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(top = 12.dp, start = 20.dp, end = 20.dp)
+                )
             }
         }
     }

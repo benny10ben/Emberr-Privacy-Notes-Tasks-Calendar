@@ -65,6 +65,9 @@ interface SettingsManager {
     fun saveCalendarViewMode(mode: String)
 
     // Appearance
+    val themePreferenceFlow: Flow<String>
+    fun saveThemePreference(preference: String)
+
     val fontSizePreferenceFlow: Flow<String>
     fun saveFontSizePreference(preference: String)
 
