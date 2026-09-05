@@ -166,15 +166,26 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(
-                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Rpm
             )
             packageName = "Emberr"
             packageVersion = "1.0.0"
 
+            modules(
+                "java.sql",
+                "java.prefs",
+                "java.net.http",
+                "java.naming",
+                "java.management",
+                "java.instrument",
+                "jdk.unsupported",
+                "jdk.crypto.cryptoki",
+                "jdk.security.auth",
+                "jdk.net"
+            )
+
             linux {
                 packageName = "emberr"
-                debMaintainer = "developer.ben10@gmail.com"
                 rpmLicenseType = "AGPL-3.0-or-later"
                 appCategory = "Office"
                 menuGroup = "Office"
