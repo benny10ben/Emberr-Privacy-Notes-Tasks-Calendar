@@ -41,6 +41,9 @@ interface SettingsManager {
     fun getSyncEncryptionKey(): String
     fun saveSyncEncryptionKey(key: String)
 
+    fun isSyncPairingConfirmed(): Boolean
+    fun saveSyncPairingConfirmed(confirmed: Boolean)
+
     fun clearSyncPairing()
 
     // Automatic Backups

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -33,6 +35,7 @@ import com.ben.emberr.presentation.shared.stableStatusBarsPadding
 import com.ben.emberr.presentation.shared.components.EmberrBottomSheet
 import com.ben.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.ben.emberr.presentation.shared.components.EmberrButtonSecondary
+import com.ben.emberr.presentation.shared.components.EmberrTextField
 import com.ben.emberr.presentation.shared.components.SelectedOptionBackground
 import com.ben.emberr.presentation.shared.components.TopBarIconButton
 import com.ben.emberr.presentation.sync.SyncPairingDialog
@@ -90,6 +93,7 @@ fun SettingsScreen(
     var activePairingData by remember { mutableStateOf<SyncPairingData?>(null) }
     var showScannerDialog by remember { mutableStateOf(false) }
     var showUnpairConfirmation by remember { mutableStateOf(false) }
+    var syncPortInput by remember { mutableStateOf(syncViewModel.getSyncPort().toString()) }
 
     // Backup States
     val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsState()
@@ -266,6 +270,30 @@ fun SettingsScreen(
 
             item {
                 SettingsGroup(title = "LAN Sync") {
+                    val serverStatus = syncViewModel.serverStatus?.collectAsState()?.value
+                    if (isDesktopPlatform && serverStatus is com.ben.emberr.domain.sync.SyncServerStatus.Unavailable) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.error.copy(alpha = 0.07f))
+                                .padding(14.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = serverStatus.reason,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
                     if (isPaired) {
                         if (isDesktopPlatform) {
                             Text(
@@ -290,6 +318,36 @@ fun SettingsScreen(
                             onClick = { showUnpairConfirmation = true }
                         )
                     } else if (isDesktopPlatform) {
+                        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                            Text(
+                                text = "Sync Port",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            EmberrTextField(
+                                value = syncPortInput,
+                                onValueChange = { input ->
+                                    val digitsOnly = input.filter { it.isDigit() }.take(5)
+                                    syncPortInput = digitsOnly
+                                    val port = digitsOnly.toIntOrNull()
+                                    if (port != null && port in 1024..65535) {
+                                        syncViewModel.setSyncPort(port)
+                                    }
+                                },
+                                placeholder = "8080",
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = "Only takes effect after restarting Emberr. Change this if another " +
+                                    "program on this computer is already using the current port.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                        SettingsDivider()
                         SettingsActionRow(
                             icon = painterResource(Res.drawable.qr_code),
                             title = "Pair Mobile Device",

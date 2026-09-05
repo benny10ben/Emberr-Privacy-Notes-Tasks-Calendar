@@ -52,6 +52,7 @@ object SyncConstants {
     const val KEY_SYNC_IP_ADDRESS = "sync_ip_address"
     const val KEY_SYNC_PORT = "sync_port"
     const val KEY_SYNC_ENCRYPTION_KEY = "sync_encryption_key"
+    const val KEY_SYNC_PAIRING_CONFIRMED = "sync_pairing_confirmed"
     // Defaults
     const val DEFAULT_PORT = 8080
     const val DEFAULT_SORT_TYPE = "LAST_EDITED"

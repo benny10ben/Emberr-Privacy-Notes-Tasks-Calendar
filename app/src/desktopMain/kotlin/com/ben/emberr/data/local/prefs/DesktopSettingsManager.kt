@@ -145,11 +145,16 @@ class DesktopSettingsManager : SettingsManager {
     override fun getSyncPort(): Int = prefs.getInt(SyncConstants.KEY_SYNC_PORT, SyncConstants.DEFAULT_PORT)
     override fun saveSyncPort(port: Int) = prefs.putInt(SyncConstants.KEY_SYNC_PORT, port)
 
+    override fun isSyncPairingConfirmed(): Boolean = prefs.getBoolean(SyncConstants.KEY_SYNC_PAIRING_CONFIRMED, false)
+    override fun saveSyncPairingConfirmed(confirmed: Boolean) =
+        prefs.putBoolean(SyncConstants.KEY_SYNC_PAIRING_CONFIRMED, confirmed)
+
     override fun clearSyncPairing() {
         saveSecureString(SyncConstants.KEY_SYNC_AUTH_TOKEN, "")
         saveSecureString(SyncConstants.KEY_SYNC_ENCRYPTION_KEY, "")
         prefs.put(SyncConstants.KEY_SYNC_IP_ADDRESS, "")
         prefs.putInt(SyncConstants.KEY_SYNC_PORT, SyncConstants.DEFAULT_PORT)
+        prefs.putBoolean(SyncConstants.KEY_SYNC_PAIRING_CONFIRMED, false)
     }
 
     // Automatic Backups

@@ -10,9 +10,11 @@ import com.ben.emberr.domain.sync.SyncClient
 import com.ben.emberr.domain.sync.SyncPairingData
 import com.ben.emberr.domain.sync.SyncPairingState
 import com.ben.emberr.domain.sync.SyncRepository
+import com.ben.emberr.domain.sync.SyncServerStatus
 import com.ben.emberr.domain.util.isDesktopPlatform
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -27,7 +29,8 @@ class SyncViewModel(
     private val settingsManager: SettingsManager,
     private val hmacSigner: SyncHmacSigner,
     private val syncEncryptionManager: SyncEncryptionManager,
-    private val pairingState: SyncPairingState
+    private val pairingState: SyncPairingState,
+    val serverStatus: StateFlow<SyncServerStatus>? = null
 ) : ViewModel() {
 
     private val _syncStatus = MutableStateFlow("Idle")
@@ -64,12 +67,15 @@ class SyncViewModel(
         _syncStatus.value = "Idle"
     }
 
+    fun getSyncPort(): Int = settingsManager.getSyncPort()
+
+    fun setSyncPort(port: Int) = settingsManager.saveSyncPort(port)
+
     fun generatePairingData(): SyncPairingData {
         val token = generateSecureToken()
         val encryptionKey = generateSecureToken() + generateSecureToken()
         settingsManager.saveSyncAuthToken(token)
         settingsManager.saveSyncEncryptionKey(encryptionKey)
-        pairingState.markPaired()
         return SyncPairingData(
             ipAddress = getLocalNetworkIp(),
             port = settingsManager.getSyncPort(),

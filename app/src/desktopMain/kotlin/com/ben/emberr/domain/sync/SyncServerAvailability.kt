@@ -4,12 +4,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.net.BindException
 
-sealed interface SyncServerStatus {
-    data object Starting : SyncServerStatus
-    data class Running(val port: Int) : SyncServerStatus
-    data class Unavailable(val port: Int, val reason: String) : SyncServerStatus
-}
-
 class SyncServerAvailability {
 
     private val _status = MutableStateFlow<SyncServerStatus>(SyncServerStatus.Starting)

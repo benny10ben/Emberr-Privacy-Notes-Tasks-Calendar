@@ -151,12 +151,21 @@ class AndroidSettingsManager(
         sharedPreferences.edit { putString(SyncConstants.KEY_SYNC_ENCRYPTION_KEY, key) }
     }
 
+    override fun isSyncPairingConfirmed(): Boolean {
+        return sharedPreferences.getBoolean(SyncConstants.KEY_SYNC_PAIRING_CONFIRMED, false)
+    }
+
+    override fun saveSyncPairingConfirmed(confirmed: Boolean) {
+        sharedPreferences.edit { putBoolean(SyncConstants.KEY_SYNC_PAIRING_CONFIRMED, confirmed) }
+    }
+
     override fun clearSyncPairing() {
         sharedPreferences.edit {
             putString(SyncConstants.KEY_SYNC_AUTH_TOKEN, "")
             putString(SyncConstants.KEY_SYNC_IP_ADDRESS, "")
             putString(SyncConstants.KEY_SYNC_ENCRYPTION_KEY, "")
             putInt(SyncConstants.KEY_SYNC_PORT, SyncConstants.DEFAULT_PORT)
+            putBoolean(SyncConstants.KEY_SYNC_PAIRING_CONFIRMED, false)
         }
     }
 

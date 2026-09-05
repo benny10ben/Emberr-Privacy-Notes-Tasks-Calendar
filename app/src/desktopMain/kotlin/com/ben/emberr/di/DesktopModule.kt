@@ -99,7 +99,7 @@ val desktopModule = module {
     single { com.ben.emberr.domain.sync.SyncServerAvailability() }
     single<com.ben.emberr.domain.sync.SyncClient> { com.ben.emberr.domain.sync.SyncClient(get(), get(), get()) }
     single<SyncRepository> { SyncRepositoryImpl(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
-    factory { SyncViewModel(get(), get(), get(), get(), get()) }
+    factory { SyncViewModel(get(), get(), get(), get(), get(), get<com.ben.emberr.domain.sync.SyncServerAvailability>().status) }
 
     // Automatic Backup
     single<BackupRescheduler> { DesktopBackupRescheduler() }

@@ -5,10 +5,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class SyncPairingState(private val settingsManager: SettingsManager) {
-    private val _isPaired = MutableStateFlow(settingsManager.getSyncAuthToken().isNotBlank())
+    private val _isPaired = MutableStateFlow(settingsManager.isSyncPairingConfirmed())
     val isPaired = _isPaired.asStateFlow()
 
     fun markPaired() {
+        settingsManager.saveSyncPairingConfirmed(true)
         _isPaired.value = true
     }
 

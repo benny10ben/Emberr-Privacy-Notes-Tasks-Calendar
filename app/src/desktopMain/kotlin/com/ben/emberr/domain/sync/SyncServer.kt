@@ -78,6 +78,8 @@ fun startSyncServer(
                     return@get
                 }
 
+                pairingState.markPaired()
+
                 // Fetches changes since the client's provided timestamp (idempotent snapshot).
                 val since = call.request.queryParameters["since"]?.toLongOrNull() ?: 0L
                 val changes = syncRepository.collectLocalChanges(since)
@@ -89,6 +91,7 @@ fun startSyncServer(
                     call.respond(io.ktor.http.HttpStatusCode.Unauthorized, "Invalid or expired sync signature")
                     return@post
                 }
+                pairingState.markPaired()
 
                 try {
                     val payload = call.receive<SyncPayload>()
@@ -251,7 +254,7 @@ fun startSyncServer(
                 val mediaDir = java.io.File(System.getProperty("user.home"), ".emberr/media")
                 val tempFile = java.io.File(mediaDir, "$fileName.upload.tmp")
                 val receivedBytes = if (tempFile.exists()) tempFile.length() else 0L
-                call.respond(com.ben.emberr.domain.sync.MediaUploadStatus(receivedBytes))
+                call.respond(MediaUploadStatus(receivedBytes))
             }
 
             get("/sync/media/list") {
@@ -263,8 +266,8 @@ fun startSyncServer(
                 val mediaDir = java.io.File(System.getProperty("user.home"), ".emberr/media")
                 val entries = (mediaDir.listFiles() ?: emptyArray())
                     .filter { it.isFile }
-                    .map { com.ben.emberr.domain.sync.RemoteMediaEntry(fileName = it.name, lastModified = it.lastModified()) }
-                call.respond(com.ben.emberr.domain.sync.RemoteMediaList(entries))
+                    .map { RemoteMediaEntry(fileName = it.name, lastModified = it.lastModified()) }
+                call.respond(RemoteMediaList(entries))
             }
 
             delete("/sync/media/{fileName}") {
