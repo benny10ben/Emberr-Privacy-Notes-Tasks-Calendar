@@ -42,6 +42,7 @@ data class SelfHostSetupFormState(
     val hasAcknowledgedRisk: Boolean = false,
     val connectionTestStatus: ConnectionTestStatus = ConnectionTestStatus.NOT_TESTED,
     val connectionTestMessage: String? = null,
+    val configurationWarningMessage: String? = null,
     val vaultMode: VaultMode = VaultMode.UNKNOWN,
     val setupPhase: SetupPhase = SetupPhase.FORM,
     val errorMessage: String? = null
@@ -170,6 +171,7 @@ class SelfHostSetupViewModel(
                 serverUrl = value,
                 connectionTestStatus = ConnectionTestStatus.NOT_TESTED,
                 connectionTestMessage = null,
+                configurationWarningMessage = null,
                 errorMessage = null
             )
         }
@@ -181,6 +183,7 @@ class SelfHostSetupViewModel(
                 username = value,
                 connectionTestStatus = ConnectionTestStatus.NOT_TESTED,
                 connectionTestMessage = null,
+                configurationWarningMessage = null,
                 errorMessage = null
             )
         }
@@ -192,6 +195,7 @@ class SelfHostSetupViewModel(
                 password = value,
                 connectionTestStatus = ConnectionTestStatus.NOT_TESTED,
                 connectionTestMessage = null,
+                configurationWarningMessage = null,
                 errorMessage = null
             )
         }
@@ -199,6 +203,10 @@ class SelfHostSetupViewModel(
 
     fun onAcknowledgeRiskChanged(acknowledged: Boolean) {
         updateForm { it.copy(hasAcknowledgedRisk = acknowledged) }
+    }
+
+    fun dismissConfigurationWarning() {
+        updateForm { it.copy(configurationWarningMessage = null) }
     }
 
     fun regeneratePassphrase() {
@@ -246,6 +254,11 @@ class SelfHostSetupViewModel(
                         is WebDavConnectionTestResult.NetworkFailure -> current.copy(
                             connectionTestStatus = ConnectionTestStatus.FAILED,
                             connectionTestMessage = result.cause.message ?: "Could not reach the server"
+                        )
+
+                        is WebDavConnectionTestResult.InvalidConfiguration -> current.copy(
+                            connectionTestStatus = ConnectionTestStatus.FAILED,
+                            configurationWarningMessage = result.message
                         )
 
                         WebDavConnectionTestResult.Success -> current

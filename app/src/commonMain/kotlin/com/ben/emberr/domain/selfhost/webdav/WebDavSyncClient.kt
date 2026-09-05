@@ -173,7 +173,7 @@ class WebDavSyncClient(
                 else -> WebDavConnectionTestResult.ServerError(response.status.value)
             }
         } catch (cause: WebDavConfigurationException) {
-            WebDavConnectionTestResult.NetworkFailure(cause)
+            WebDavConnectionTestResult.InvalidConfiguration(cause.message ?: "This server address isn't valid")
         } catch (cause: Exception) {
             WebDavConnectionTestResult.NetworkFailure(cause)
         }

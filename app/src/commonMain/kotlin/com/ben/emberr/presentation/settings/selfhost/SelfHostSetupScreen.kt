@@ -65,6 +65,7 @@ import androidx.compose.ui.zIndex
 import com.ben.emberr.domain.selfhost.sync.SelfHostSyncLog
 import com.ben.emberr.domain.util.isDesktopPlatform
 import com.ben.emberr.presentation.settings.SettingsGroup
+import com.ben.emberr.presentation.shared.components.EmberrAlertDialog
 import com.ben.emberr.presentation.shared.components.EmberrBlur
 import com.ben.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.ben.emberr.presentation.shared.components.EmberrTextField
@@ -205,6 +206,25 @@ private fun SetupForm(
             item {
                 ErrorMessageCard(message = message)
             }
+        }
+    }
+
+    if (form.configurationWarningMessage != null) {
+        EmberrAlertDialog(
+            onDismissRequest = viewModel::dismissConfigurationWarning,
+            title = "Server Address Rejected"
+        ) {
+            Text(
+                text = form.configurationWarningMessage,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Spacer(Modifier.height(20.dp))
+            EmberrButtonPrimary(
+                text = "Got it",
+                onClick = viewModel::dismissConfigurationWarning,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
