@@ -76,7 +76,7 @@ import com.ben.emberr.ui.theme.FontStylePreference
 import com.ben.emberr.ui.theme.ThemePreference
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
-import com.ben.emberr.data.worker.BackupScheduler
+import com.ben.emberr.domain.backup.automatic.BackupScheduler
 import com.ben.emberr.domain.model.NoteBlock
 import com.ben.emberr.data.local.prefs.SettingsManager
 import com.ben.emberr.domain.util.generateAndSaveAndroidPdf
@@ -102,6 +102,8 @@ class MainActivity : ComponentActivity() {
     private var currentPhotoUri: Uri? = null
 
     private val mediaStorageHelper: com.ben.emberr.domain.util.MediaStorageHelper by inject()
+    private val manualBackupExporter: com.ben.emberr.domain.backup.manual.AndroidManualBackupExporter by inject()
+    private val manualBackupImporter: com.ben.emberr.domain.backup.manual.AndroidManualBackupImporter by inject()
 
     private val takePhoto = registerForActivityResult(
         ActivityResultContracts.TakePicture()
@@ -262,23 +264,20 @@ class MainActivity : ComponentActivity() {
                             uri?.let { generateAndSaveAndroidPdf(context, it, pendingPdfTitle, pendingPdfBlocks, mediaStorageHelper) }
                         }
 
-                        var pendingBackupJson by remember { mutableStateOf("") }
                         val exportBackupLauncher = rememberLauncherForActivityResult(
                             ActivityResultContracts.CreateDocument("application/zip")
                         ) { uri ->
                             uri?.let { destinationUri ->
                                 lifecycleScope.launch(Dispatchers.IO) {
                                     try {
-                                        val filesDir = context.filesDir
-                                        val exporter = com.ben.emberr.domain.util.AndroidBackupExporter(context)
-                                        exporter.exportToZip(destinationUri, pendingBackupJson, filesDir)
+                                        manualBackupExporter.exportToZip(destinationUri)
 
                                         withContext(Dispatchers.Main) {
                                             Toast.makeText(context, "Backup saved!", Toast.LENGTH_SHORT).show()
                                         }
-                                    } catch (_: Exception) {
+                                    } catch (e: Exception) {
                                         withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "Export failed.", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
@@ -292,23 +291,10 @@ class MainActivity : ComponentActivity() {
                             uri?.let { sourceUri ->
                                 lifecycleScope.launch(Dispatchers.IO) {
                                     try {
-                                        val filesDir = context.filesDir
-                                        val exporter = com.ben.emberr.domain.util.AndroidBackupExporter(context)
+                                        manualBackupImporter.importFromZip(sourceUri)
 
-                                        // Unzip and extract JSON
-                                        val jsonString = exporter.importFromZip(sourceUri, filesDir)
-
-                                        if (jsonString != null) {
-                                            // Send JSON directly to our commonMain ViewModel to handle the merge!
-                                            settingsViewModel.mergeBackupJson(jsonString)
-
-                                            withContext(Dispatchers.Main) {
-                                                Toast.makeText(context, "Backup restored successfully!", Toast.LENGTH_LONG).show()
-                                            }
-                                        } else {
-                                            withContext(Dispatchers.Main) {
-                                                Toast.makeText(context, "Invalid backup file.", Toast.LENGTH_SHORT).show()
-                                            }
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, "Backup restored successfully!", Toast.LENGTH_LONG).show()
                                         }
                                     } catch (e: Exception) {
                                         withContext(Dispatchers.Main) {
@@ -388,8 +374,7 @@ class MainActivity : ComponentActivity() {
                                 pendingPdfBlocks = blocks
                                 exportPdfLauncher.launch(fileName)
                             },
-                            onExportBackup = { jsonContent ->
-                                pendingBackupJson = jsonContent
+                            onExportBackup = {
                                 val fileName = "EmberrBackup_${System.currentTimeMillis()}.emberr"
                                 exportBackupLauncher.launch(fileName)
                             },

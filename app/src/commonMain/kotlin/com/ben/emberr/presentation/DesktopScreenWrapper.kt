@@ -17,7 +17,7 @@ expect fun DesktopMainScreenWrapper(
     onOpenFile: (String, String) -> Unit,
     onExportMarkdown: (String, String) -> Unit,
     onExportPdf: (String, String, List<NoteBlock>) -> Unit,
-    onExportBackup: (String) -> Unit,
+    onExportBackup: () -> Unit,
     onImportBackupClick: () -> Unit,
     onAiIconTap: () -> Unit,
     isRagChatVisible: Boolean = false,

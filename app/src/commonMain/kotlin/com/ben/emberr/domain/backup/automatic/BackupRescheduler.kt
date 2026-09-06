@@ -1,4 +1,4 @@
-package com.ben.emberr.data.worker
+package com.ben.emberr.domain.backup.automatic
 
 interface BackupRescheduler {
     fun rescheduleNow(frequency: String, time: String, day: String)

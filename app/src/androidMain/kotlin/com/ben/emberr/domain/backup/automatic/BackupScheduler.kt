@@ -1,4 +1,4 @@
-package com.ben.emberr.data.worker
+package com.ben.emberr.domain.backup.automatic
 
 import android.content.Context
 import androidx.work.Constraints
@@ -63,12 +63,9 @@ class BackupScheduler(
         WorkManager.getInstance(context).cancelUniqueWork("EmberrAutoBackup")
     }
 
-    /**
-     * Calculates the milliseconds between right now and the target backup time.
-     */
     private fun calculateDelay(frequency: String, timeString: String, dayString: String): Long {
         val parts = timeString.split(":")
-        val targetHour = parts.getOrNull(0)?.toIntOrNull() ?: 2 // Default to 2 AM
+        val targetHour = parts.getOrNull(0)?.toIntOrNull() ?: 2
         val targetMinute = parts.getOrNull(1)?.toIntOrNull() ?: 0
 
         val now = Calendar.getInstance()
@@ -92,12 +89,11 @@ class BackupScheduler(
             target.set(Calendar.DAY_OF_WEEK, targetDay)
         }
 
-        // If the calculated target is in the past, add the interval to push it to the next occurrence
         if (target.before(now)) {
             if (frequency == "Weekly") {
                 target.add(Calendar.WEEK_OF_YEAR, 1)
             } else {
-                target.add(Calendar.DAY_OF_MONTH, 1) // Daily
+                target.add(Calendar.DAY_OF_MONTH, 1)
             }
         }
 
@@ -105,7 +101,6 @@ class BackupScheduler(
     }
 }
 
-// Data class to hold all config pieces for the Flow combine
 data class BackupConfig(
     val enabled: Boolean,
     val freq: String,

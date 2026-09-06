@@ -108,8 +108,8 @@ val sharedModule = module {
         )
     }
 
-    single<com.ben.emberr.domain.repository.BackupRepository> {
-        com.ben.emberr.domain.repository.BackupRepositoryImpl(
+    single<com.ben.emberr.domain.backup.manual.BackupRepository> {
+        com.ben.emberr.domain.backup.manual.BackupRepositoryImpl(
             noteDao = get(),
             folderDao = get(),
             tagDao = get(),
@@ -123,8 +123,6 @@ val sharedModule = module {
 
     viewModel {
         com.ben.emberr.presentation.settings.SettingsViewModel(
-            backupRepository = get(),
-            noteRepository = get(),
             settingsManager = get(),
             backupRescheduler = get(),
             disableAiFeaturesUseCase = get(),

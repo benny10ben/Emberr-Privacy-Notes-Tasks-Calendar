@@ -237,7 +237,7 @@ fun DesktopMainScreen(
     onOpenFile: (filePath: String, mimeType: String) -> Unit = { _, _ -> },
     onExportMarkdown: (fileName: String, content: String) -> Unit = { _, _ -> },
     onExportPdf: (fileName: String, title: String, blocks: List<NoteBlock>) -> Unit = { _, _, _ -> },
-    onExportBackup: (String) -> Unit = {},
+    onExportBackup: () -> Unit = {},
     onImportBackupClick: () -> Unit = {},
     onAiIconTap: () -> Unit = {},
     isRagChatVisible: Boolean = false,

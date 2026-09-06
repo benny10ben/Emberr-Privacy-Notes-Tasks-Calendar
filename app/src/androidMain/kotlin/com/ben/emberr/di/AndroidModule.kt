@@ -22,11 +22,14 @@ import com.ben.emberr.data.local.room.NoteDao
 import com.ben.emberr.data.local.room.SelfHostDeletedNoteDao
 import com.ben.emberr.data.local.room.TagDao
 import com.ben.emberr.domain.sync.SyncRepositoryImpl
-import com.ben.emberr.data.worker.AndroidBackupRescheduler
-import com.ben.emberr.data.worker.BackupNotifier
-import com.ben.emberr.data.worker.BackupScheduler
-import com.ben.emberr.data.worker.BackupWorker
-import com.ben.emberr.data.worker.BackupRescheduler
+import com.ben.emberr.domain.backup.automatic.AndroidBackupRescheduler
+import com.ben.emberr.domain.backup.automatic.BackupNotifier
+import com.ben.emberr.domain.backup.automatic.BackupScheduler
+import com.ben.emberr.domain.backup.automatic.BackupSnapshotExporter
+import com.ben.emberr.domain.backup.automatic.BackupWorker
+import com.ben.emberr.domain.backup.automatic.BackupRescheduler
+import com.ben.emberr.domain.backup.manual.AndroidManualBackupExporter
+import com.ben.emberr.domain.backup.manual.AndroidManualBackupImporter
 import com.ben.emberr.database.DatabaseDriverFactory
 import com.ben.emberr.domain.ai.RagRepository
 import com.ben.emberr.domain.selfhost.crypto.KeyDerivationManager
@@ -271,16 +274,33 @@ val androidModule = module {
     single<SyncRepository> { SyncRepositoryImpl(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { SyncViewModel(get(), get(), get(), get(), get()) }
 
+    // Manual export/import (unrelated to automatic backups below)
+    single {
+        AndroidManualBackupExporter(
+            context = androidContext(),
+            appDatabase = get(),
+            settingsManager = get()
+        )
+    }
+    single {
+        AndroidManualBackupImporter(
+            context = androidContext(),
+            settingsManager = get(),
+            backupRepository = get(),
+            noteRepository = get(),
+            backupRescheduler = get()
+        )
+    }
+
     // Automatic backups
-    single { com.ben.emberr.domain.util.AndroidBackupExporter(androidContext()) }
+    single { BackupSnapshotExporter(context = androidContext(), appDatabase = get(), settingsManager = get()) }
     worker {
         BackupWorker(
             appContext = get(),
             workerParams = get(),
-            backupRepository = get(),
             settingsManager = get(),
-            backupExporter = get(),
             backupNotifier = get(),
+            backupExporter = get(),
             backupScheduler = get()
         )
     }

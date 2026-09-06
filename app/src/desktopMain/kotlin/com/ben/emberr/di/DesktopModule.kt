@@ -17,8 +17,10 @@ import com.ben.emberr.data.local.room.NoteDao
 import com.ben.emberr.data.local.room.SelfHostDeletedNoteDao
 import com.ben.emberr.data.local.room.TagDao
 import com.ben.emberr.domain.sync.SyncRepositoryImpl
-import com.ben.emberr.data.worker.DesktopBackupRescheduler
-import com.ben.emberr.data.worker.BackupRescheduler
+import com.ben.emberr.domain.backup.automatic.DesktopBackupRescheduler
+import com.ben.emberr.domain.backup.automatic.BackupRescheduler
+import com.ben.emberr.domain.backup.manual.DesktopManualBackupExporter
+import com.ben.emberr.domain.backup.manual.DesktopManualBackupImporter
 import com.ben.emberr.database.DatabaseDriverFactory
 import com.ben.emberr.domain.ai.LocalAiEngine
 import com.ben.emberr.domain.ai.RagRepository
@@ -103,4 +105,15 @@ val desktopModule = module {
 
     // Automatic Backup
     single<BackupRescheduler> { DesktopBackupRescheduler() }
+
+    // Manual export/import
+    single { DesktopManualBackupExporter(appDatabase = get(), settingsManager = get()) }
+    single {
+        DesktopManualBackupImporter(
+            settingsManager = get(),
+            backupRepository = get(),
+            noteRepository = get(),
+            backupRescheduler = get()
+        )
+    }
 }

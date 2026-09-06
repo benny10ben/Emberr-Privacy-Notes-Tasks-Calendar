@@ -18,6 +18,12 @@ fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
     )
 }
 
+fun getDatabaseBuilder(dbFilePath: String): RoomDatabase.Builder<AppDatabase> {
+    return Room.databaseBuilder<AppDatabase>(
+        name = dbFilePath
+    )
+}
+
 actual fun getRoomDatabase(builder: RoomDatabase.Builder<AppDatabase>): AppDatabase {
     return builder
         .setDriver(BundledSQLiteDriver())

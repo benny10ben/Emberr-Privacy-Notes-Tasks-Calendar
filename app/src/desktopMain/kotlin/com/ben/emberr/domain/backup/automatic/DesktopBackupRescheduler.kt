@@ -1,4 +1,4 @@
-package com.ben.emberr.data.worker
+package com.ben.emberr.domain.backup.automatic
 
 class DesktopBackupRescheduler : BackupRescheduler {
     override fun rescheduleNow(frequency: String, time: String, day: String) = Unit

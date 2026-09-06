@@ -246,8 +246,8 @@ fun main() = application {
                 onExportPdf = { fileName, title, blocks ->
                     Thread { handleExportPdf(currentWindow, fileName, title, blocks) }.start()
                 },
-                onExportBackup = { jsonContent ->
-                    Thread { handleExportBackup(currentWindow, jsonContent) }.start()
+                onExportBackup = {
+                    Thread { handleExportBackup(currentWindow) }.start()
                 },
                 onImportBackupClick = {
                     Thread { handleImportBackup(currentWindow) }.start()

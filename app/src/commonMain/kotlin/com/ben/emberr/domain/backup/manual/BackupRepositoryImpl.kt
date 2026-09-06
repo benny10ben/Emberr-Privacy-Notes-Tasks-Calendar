@@ -1,4 +1,4 @@
-package com.ben.emberr.domain.repository
+package com.ben.emberr.domain.backup.manual
 
 import com.ben.emberr.data.local.room.BlockDao
 import com.ben.emberr.data.local.room.BookmarkBlockDao
@@ -8,7 +8,6 @@ import com.ben.emberr.data.local.room.FolderDao
 import com.ben.emberr.data.local.room.ImageBlockDao
 import com.ben.emberr.data.local.room.NoteDao
 import com.ben.emberr.data.local.room.TagDao
-import com.ben.emberr.domain.model.backup.EmberrBackupData
 import kotlinx.coroutines.flow.first
 
 class BackupRepositoryImpl(
@@ -23,10 +22,8 @@ class BackupRepositoryImpl(
 ) : BackupRepository {
 
     override suspend fun createBackupData(): EmberrBackupData {
-        // We must collect all notes, even trashed ones, to ensure a complete backup.
         val allNotes = noteDao.getAllNotesForBackup()
 
-        // Fetch everything else. We use .first() to grab the current state from the Flow.
         val allFolders = folderDao.getAllFolders().first()
         val allTags = tagDao.getAllTags().first()
         val allTasks = calendarTaskDao.getAllTasksFlow().first()
@@ -34,8 +31,6 @@ class BackupRepositoryImpl(
         val allDocuments = documentBlockDao.getAllDocumentsFlow().first()
         val allBookmarks = bookmarkBlockDao.getAllBookmarksFlow().first()
 
-        // For blocks, we need to iterate through all notes and fetch their blocks.
-        // We include deleted blocks (tombstones) because they are crucial for a healthy merge!
         val allBlocks = mutableListOf<com.ben.emberr.data.local.room.NoteBlockEntity>()
         for (note in allNotes) {
             val blocksForNote = blockDao.getAllBlocksForNoteIncludingDeleted(note.noteId)
@@ -58,30 +53,23 @@ class BackupRepositoryImpl(
 
     override suspend fun restoreBackup(backupData: EmberrBackupData) {
 
-        // Restore Folders and Tags
         backupData.folders.forEach { folderDao.insertFolder(it) }
         backupData.tags.forEach { tagDao.insertOrUpdateTag(it) }
 
-        // Daily Note ID Mapper
-        // Keeps track of backup Note IDs that need to be rerouted to local Note IDs
         val noteIdMapping = mutableMapOf<String, String>()
 
-        /// Merge Note Metadata (Now with Trash Rescue!)
         for (backupNote in backupData.notes) {
 
-            // Check for Daily Note Date Collisions
             if (backupNote.isDaily && backupNote.dateString != null) {
                 val localDailyNote = noteDao.getDailyNoteMetadata(backupNote.dateString)
                 if (localDailyNote != null && localDailyNote.noteId != backupNote.noteId) {
-                    // Collision! Map the backup's blocks to the local note's ID.
                     noteIdMapping[backupNote.noteId] = localDailyNote.noteId
-                    continue // Skip inserting the backup metadata, keep the local one
+                    continue
                 }
             }
 
             val localNote = noteDao.getNoteById(backupNote.noteId)
 
-            // Is the local note in the trash, but the backup note is healthy?
             val isNoteRescued = localNote != null && localNote.trashedAt != null && backupNote.trashedAt == null
 
             if (localNote == null || backupNote.updatedAt > localNote.updatedAt || isNoteRescued) {
@@ -89,7 +77,6 @@ class BackupRepositoryImpl(
             }
         }
 
-        // Merge Blocks (Now with Tombstone Rescue!)
         val backupBlocksByNote = backupData.blocks.groupBy { it.noteId }
 
         for ((originalNoteId, backupBlocks) in backupBlocksByNote) {
@@ -112,7 +99,7 @@ class BackupRepositoryImpl(
                         blocksToSave.add(
                             mappedBackupBlock.copy(
                                 displayOrder = localBlock.displayOrder,
-                                isDeleted = mappedBackupBlock.isDeleted // Restores it to life
+                                isDeleted = mappedBackupBlock.isDeleted
                             )
                         )
                     }
@@ -127,7 +114,6 @@ class BackupRepositoryImpl(
             }
         }
 
-        // Restore Media/Task index tables (Also using the ID Mapper!)
         if (backupData.calendarTasks.isNotEmpty()) {
             val mappedTasks = backupData.calendarTasks.map {
                 it.copy(noteId = noteIdMapping[it.noteId] ?: it.noteId)

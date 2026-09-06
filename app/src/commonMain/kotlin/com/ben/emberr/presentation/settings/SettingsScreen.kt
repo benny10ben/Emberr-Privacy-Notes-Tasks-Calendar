@@ -68,7 +68,6 @@ import emberr.app.generated.resources.timer_reset
 import emberr.app.generated.resources.triangle_alert
 import com.ben.emberr.presentation.shared.SubNoteOpenMode
 import com.ben.emberr.presentation.shared.components.EmberrBlur
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.roundToInt
@@ -77,15 +76,13 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onImportClick: () -> Unit = {},
-    onExportReady: (String) -> Unit = {},
+    onExportReady: () -> Unit = {},
     onRequestBackupFolder: () -> Unit = {},
     onNavigateToSelfHostSetup: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
     syncViewModel: SyncViewModel = koinViewModel()
 ) {
-    val coroutineScope = rememberCoroutineScope()
     var showImportExportSheet by remember { mutableStateOf(false) }
-    var isExporting by remember { mutableStateOf(false) }
 
     val isPaired by syncViewModel.isPaired.collectAsState()
     val syncStatus by syncViewModel.syncStatus.collectAsState()
@@ -543,21 +540,10 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     EmberrButtonPrimary(
-                        text = if (isExporting) "Preparing..." else "Export",
+                        text = "Export",
                         onClick = {
-                            if (!isExporting) {
-                                isExporting = true
-                                coroutineScope.launch {
-                                    try {
-                                        val json = viewModel.getBackupJson()
-                                        showImportExportSheet = false
-                                        isExporting = false
-                                        onExportReady(json)
-                                    } catch (e: Exception) {
-                                        isExporting = false
-                                    }
-                                }
-                            }
+                            showImportExportSheet = false
+                            onExportReady()
                         },
                         modifier = Modifier.fillMaxWidth()
                     )

@@ -1,8 +1,8 @@
 package com.ben.emberr.domain.util
 
+import com.ben.emberr.domain.backup.manual.DesktopManualBackupExporter
+import com.ben.emberr.domain.backup.manual.DesktopManualBackupImporter
 import com.ben.emberr.domain.model.NoteBlock
-import com.ben.emberr.presentation.settings.SettingsViewModel
-import com.ben.emberr.util.DesktopBackupExporter
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.GlobalContext
 import java.awt.FileDialog
@@ -74,7 +74,7 @@ fun handleExportPdf(window: Frame, fileName: String, title: String, blocks: List
     }
 }
 
-fun handleExportBackup(window: Frame, jsonContent: String) {
+fun handleExportBackup(window: Frame) {
     try {
         val fileName = "EmberrBackup_${System.currentTimeMillis()}.emberr"
         val dialog = FileDialog(window, "Export Emberr Backup", FileDialog.SAVE)
@@ -86,8 +86,8 @@ fun handleExportBackup(window: Frame, jsonContent: String) {
         val saveFile = if (chosenDirStr != null) java.io.File(chosenDirStr, chosenFileStr)
         else java.io.File(chosenFileStr)
 
-        val mediaDir = java.io.File(System.getProperty("user.home"), ".emberr/media")
-        DesktopBackupExporter().exportToZip(saveFile, jsonContent, mediaDir)
+        val exporter = GlobalContext.get().get<DesktopManualBackupExporter>()
+        runBlocking { exporter.exportToZip(saveFile) }
 
         SwingUtilities.invokeLater {
             JOptionPane.showMessageDialog(window, "Backup saved successfully!", "Success", JOptionPane.INFORMATION_MESSAGE)
@@ -111,20 +111,11 @@ fun handleImportBackup(window: Frame) {
         val sourceFile = if (chosenDirStr != null) java.io.File(chosenDirStr, chosenFileStr)
         else java.io.File(chosenFileStr)
 
-        val mediaDir = java.io.File(System.getProperty("user.home"), ".emberr/media")
-        val jsonString = DesktopBackupExporter().importFromZip(sourceFile, mediaDir)
+        val importer = GlobalContext.get().get<DesktopManualBackupImporter>()
+        runBlocking { importer.importFromZip(sourceFile) }
 
-        if (jsonString != null) {
-            val settingsViewModel = GlobalContext.get().get<SettingsViewModel>()
-            runBlocking { settingsViewModel.mergeBackupJson(jsonString) }
-
-            SwingUtilities.invokeLater {
-                JOptionPane.showMessageDialog(window, "Backup restored successfully!", "Success", JOptionPane.INFORMATION_MESSAGE)
-            }
-        } else {
-            SwingUtilities.invokeLater {
-                JOptionPane.showMessageDialog(window, "Invalid or corrupted backup file.", "Error", JOptionPane.ERROR_MESSAGE)
-            }
+        SwingUtilities.invokeLater {
+            JOptionPane.showMessageDialog(window, "Backup restored successfully!", "Success", JOptionPane.INFORMATION_MESSAGE)
         }
     } catch (e: Throwable) {
         e.printStackTrace()

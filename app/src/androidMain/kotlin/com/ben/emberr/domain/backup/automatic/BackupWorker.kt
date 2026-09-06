@@ -1,4 +1,4 @@
-package com.ben.emberr.data.worker
+package com.ben.emberr.domain.backup.automatic
 
 import android.content.Context
 import android.net.Uri
@@ -7,12 +7,9 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.ben.emberr.data.local.prefs.SettingsManager
-import com.ben.emberr.domain.repository.BackupRepository
-import com.ben.emberr.domain.util.AndroidBackupExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -20,18 +17,11 @@ import java.util.Locale
 class BackupWorker(
     appContext: Context,
     workerParams: WorkerParameters,
-    private val backupRepository: BackupRepository,
     private val settingsManager: SettingsManager,
     private val backupNotifier: BackupNotifier,
-    private val backupExporter: AndroidBackupExporter,
+    private val backupExporter: BackupSnapshotExporter,
     private val backupScheduler: BackupScheduler
 ) : CoroutineWorker(appContext, workerParams) {
-
-    // Safe parser identical to your SettingsViewModel
-    private val safeJson = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
@@ -67,11 +57,12 @@ class BackupWorker(
             val newBackupFile = pickedDir.createFile("application/zip", fileName)
                 ?: throw java.io.IOException("Failed to create file. Storage might be full.")
 
-            val backupData = backupRepository.createBackupData()
-            val jsonContent = safeJson.encodeToString(backupData)
-            val filesDir = applicationContext.filesDir
-
-            backupExporter.exportToZip(newBackupFile.uri, jsonContent, filesDir)
+            try {
+                backupExporter.exportToZip(newBackupFile.uri)
+            } catch (e: Exception) {
+                newBackupFile.delete()
+                throw e
+            }
             backupNotifier.showBackupSuccessNotification(fileName)
 
             Log.d("BackupWorker", "Background backup completed successfully: $fileName")
@@ -85,7 +76,7 @@ class BackupWorker(
                 "Storage Full",
                 "Your automated backup failed because the device is out of storage space."
             )
-            return@withContext Result.failure() // No reschedule — combine flow handles recovery on next app launch
+            return@withContext Result.failure()
 
         } catch (e: SecurityException) {
             e.printStackTrace()
@@ -97,6 +88,10 @@ class BackupWorker(
 
         } catch (e: Exception) {
             e.printStackTrace()
+            backupNotifier.showBackupFailedNotification(
+                "Backup Failed",
+                "Something went wrong while creating your backup: ${e.message}"
+            )
             return@withContext Result.failure()
         }
     }
@@ -111,19 +106,13 @@ class BackupWorker(
         }
     }
 
-    /**
-     * Scans the target directory for old Emberr backups and deletes the oldest ones,
-     * ensuring we only keep a rolling window of [keepCount] backups.
-     */
     private fun enforceRetentionPolicy(dir: DocumentFile, keepCount: Int) {
         try {
             val existingBackups = dir.listFiles()
                 .filter { it.name?.contains("EmberrBackup_") == true }
-                .sortedByDescending { it.lastModified() } // Newest first
+                .sortedByDescending { it.lastModified() }
 
-            // If we already have [keepCount] or more, delete the oldest to make room for the new one
             if (existingBackups.size >= keepCount) {
-                // Keep one slot open for the backup we are about to create
                 val backupsToDelete = existingBackups.drop(keepCount - 1)
                 backupsToDelete.forEach { it.delete() }
             }
