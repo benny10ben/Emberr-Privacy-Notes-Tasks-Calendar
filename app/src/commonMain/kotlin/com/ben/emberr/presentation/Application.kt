@@ -38,7 +38,8 @@ import dev.chrisbanes.haze.HazeState
 import com.ben.emberr.presentation.splash.LoadingScreen
 import com.ben.emberr.domain.model.NoteBlock
 import com.ben.emberr.domain.repository.EmojiRepository
-import com.ben.emberr.domain.util.rememberMicrophonePermissionLauncher
+import com.ben.emberr.domain.util.AppPermission
+import com.ben.emberr.domain.util.rememberAppPermissionCoordinator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -129,10 +130,24 @@ fun EmberrApp(
     val hazeState = remember { HazeState() }
     val density = LocalDensity.current
 
-    val requestMicPermission = rememberMicrophonePermissionLauncher { isGranted ->
-        if (isGranted) {
+    val micPermissionCoordinator = rememberAppPermissionCoordinator()
+    val hasMicPermission = micPermissionCoordinator.isGranted(AppPermission.Microphone)
+    var isMicPermissionPending by remember { mutableStateOf(false) }
+
+    LaunchedEffect(hasMicPermission) {
+        if (isMicPermissionPending && hasMicPermission) {
+            isMicPermissionPending = false
             HomeViewModel.startVoiceTaskListening()
-        } else {}
+        }
+    }
+
+    val requestMicPermission: () -> Unit = {
+        if (hasMicPermission) {
+            HomeViewModel.startVoiceTaskListening()
+        } else {
+            isMicPermissionPending = true
+            micPermissionCoordinator.request(AppPermission.Microphone)
+        }
     }
 
     var activeTab by remember { mutableStateOf(Screen.Daily.route) }
