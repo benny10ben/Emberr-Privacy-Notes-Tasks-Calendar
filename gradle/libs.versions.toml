@@ -29,7 +29,7 @@ navigationComposeKmp = "2.9.2"
 
 # Local Storage Architecture
 room = "2.8.4"
-sqlcipher = "4.5.4"
+sqlcipher = "4.17.0"
 sqliteBundled = "2.6.2"
 sqliteKtx = "2.6.2"
 securityCrypto = "1.1.0-alpha06"
@@ -78,7 +78,7 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 # Core Storage Driver & Encryption Engine
-sqlcipher = { group = "net.zetetic", name = "android-database-sqlcipher", version.ref = "sqlcipher" }
+sqlcipher = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
 androidx-sqlite-ktx = { group = "androidx.sqlite", name = "sqlite-ktx", version.ref = "sqliteKtx" }
 androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqliteBundled" }
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto-ktx", version.ref = "securityCrypto" }

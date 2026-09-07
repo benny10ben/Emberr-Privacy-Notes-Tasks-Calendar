@@ -53,7 +53,7 @@ import com.ben.emberr.presentation.sync.SyncViewModel
 import com.ben.emberr.domain.sync.discovery.AndroidDiscoveryManager
 import com.ben.emberr.domain.sync.discovery.SyncDiscoveryManager
 import com.emberr.database.EmberrDatabase
-import net.sqlcipher.database.SupportFactory
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.workmanager.dsl.worker
 import org.koin.core.module.dsl.viewModel
@@ -89,7 +89,8 @@ val androidModule = module {
 
     single<AppDatabase> {
         val passphrase = get<ByteArray>()
-        val supportFactory = SupportFactory(passphrase)
+        System.loadLibrary("sqlcipher")
+        val supportFactory = SupportOpenHelperFactory(passphrase)
 
         val builder = com.ben.emberr.data.local.room.getDatabaseBuilder(androidContext())
         builder

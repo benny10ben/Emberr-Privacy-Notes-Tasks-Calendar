@@ -7,8 +7,8 @@
     native <methods>;
 }
 
--keep class net.sqlcipher.** { *; }
--keepclassmembers class net.sqlcipher.** { *; }
+-keep class net.zetetic.database.** { *; }
+-keepclassmembers class net.zetetic.database.** { *; }
 
 -keepclassmembers enum com.ben.emberr.** {
     public static **[] values();
