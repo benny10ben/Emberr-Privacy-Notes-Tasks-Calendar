@@ -4,6 +4,7 @@ import com.ben.emberr.core.security.SyncEncryptionManager
 import com.ben.emberr.core.security.SyncHmacSigner
 import com.ben.emberr.data.local.prefs.SettingsManager
 import com.ben.emberr.data.local.prefs.SyncConstants
+import com.ben.emberr.domain.util.LocalNetworkHostValidator
 import io.ktor.client.*
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
@@ -76,10 +77,15 @@ class SyncClient(
         client.close()
     }
 
-    // Helper to dynamically get the URL
     private val serverUrl: String
         get() {
             val ip = settingsManager.getSyncIpAddress()
+            if (!LocalNetworkHostValidator.isLocalNetworkHost(ip)) {
+                throw LanSyncConfigurationException(
+                    "Sync target '$ip' is not a local network address - refusing to send " +
+                            "unencrypted-transport traffic outside the LAN"
+                )
+            }
             val port = settingsManager.getSyncPort()
             return "http://$ip:$port"
         }
