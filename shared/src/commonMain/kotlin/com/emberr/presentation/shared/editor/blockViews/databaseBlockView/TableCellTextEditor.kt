@@ -64,6 +64,13 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.domain.model.ColumnType
+import com.emberr.presentation.shared.editor.rememberWebLinkActions
+import com.emberr.presentation.shared.editor.LinkContextMenu
+import com.emberr.presentation.shared.editor.LinkHoverCard
+import com.emberr.presentation.shared.editor.linkHover
+import com.emberr.presentation.shared.editor.openLinksOnPress
+import com.emberr.presentation.shared.editor.rememberLinkHoverState
+import com.emberr.presentation.shared.editor.webLinkAtPosition
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.list_sort_descending
 import emberr.shared.generated.resources.plus
@@ -102,6 +109,8 @@ fun TableCellTextEditor(
     var isFocused by remember { mutableStateOf(false) }
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     val validNoteIds = remember(allLinkableNotes) { allLinkableNotes.map { it.noteId }.toSet() }
+    val webLinkActions = rememberWebLinkActions()
+    val linkHoverState = rememberLinkHoverState()
 
     LaunchedEffect(initialText) {
         if (tfv.text != initialText && initialText != lastSentText) {
@@ -142,7 +151,18 @@ fun TableCellTextEditor(
         mentionStartIndex = -1
     }
 
-    Box(modifier = modifier.fillMaxWidth()) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .linkHover(linkHoverState, validNoteIds) { textLayoutResult }
+            .openLinksOnPress(
+                validNoteIds = validNoteIds,
+                onOpenWebLink = { webLinkActions.openLink(it) },
+                onOpenNoteLink = onNoteLinkClick,
+                onRightClickLink = { link, at -> linkHoverState.openMenuFor(link, at) },
+                currentTextLayout = { textLayoutResult }
+            )
+    ) {
         BasicTextField(
             value = tfv,
             onValueChange = { newValue ->
@@ -227,6 +247,7 @@ fun TableCellTextEditor(
                     .pointerInput(tfv.text) {
                         detectTapGestures(
                             onTap = { position ->
+                                val tappedWebLink = textLayoutResult?.webLinkAtPosition(position)
                                 val tappedNoteId = textLayoutResult?.let { layout ->
                                     val offset = layout.getOffsetForPosition(position)
                                     layout.layoutInput.text.getStringAnnotations(
@@ -236,16 +257,34 @@ fun TableCellTextEditor(
                                     ).firstOrNull()?.item
                                 }
 
-                                if (tappedNoteId != null && validNoteIds.contains(tappedNoteId)) {
-                                    onNoteLinkClick(tappedNoteId)
-                                } else {
-                                    focusRequester.requestFocus()
+                                when {
+                                    tappedWebLink != null -> webLinkActions.openLink(tappedWebLink)
+                                    tappedNoteId != null && validNoteIds.contains(tappedNoteId) ->
+                                        onNoteLinkClick(tappedNoteId)
+                                    else -> focusRequester.requestFocus()
                                 }
+                            },
+                            onLongPress = { position ->
+                                val pressedWebLink = textLayoutResult?.webLinkAtPosition(position)
+                                if (pressedWebLink != null) webLinkActions.copyLink(pressedWebLink)
+                                else focusRequester.requestFocus()
                             }
                         )
                     }
             )
         }
+
+        LinkHoverCard(
+            hoverState = linkHoverState,
+            onOpenNoteLink = onNoteLinkClick,
+            findNote = { noteId -> allLinkableNotes.find { it.noteId == noteId } }
+        )
+
+        LinkContextMenu(
+            hoverState = linkHoverState,
+            onOpenNoteLink = onNoteLinkClick,
+            findNote = { noteId -> allLinkableNotes.find { it.noteId == noteId } }
+        )
 
         val currentQuery = mentionQuery
         if (currentQuery != null) {

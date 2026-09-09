@@ -52,6 +52,7 @@ import com.emberr.domain.model.displayText
 import com.emberr.domain.util.isDesktopPlatform
 import com.emberr.domain.util.triggerHapticFeedback
 import com.emberr.presentation.shared.editor.RichTextVisualTransformation
+import com.emberr.presentation.shared.editor.rememberWebLinkColor
 import com.emberr.presentation.shared.components.smoothWheelScroll
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.file_text
@@ -171,6 +172,7 @@ private fun EditableTextCell(
                     RichTextVisualTransformation(
                         linkColor = MaterialTheme.colorScheme.primary,
                         fadedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                        webLinkColor = rememberWebLinkColor(),
                         validNoteIds = validNoteIds
                     )
                 } else VisualTransformation.None,

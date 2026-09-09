@@ -63,6 +63,7 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -80,7 +81,16 @@ import com.emberr.presentation.shared.components.EmberrBottomSheet
 import com.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.emberr.presentation.shared.components.EmberrDesktopMenu
 import com.emberr.presentation.shared.components.rememberKeyboardHandoff
+import com.emberr.presentation.shared.editor.WebLinkVisualTransformation
 import com.emberr.presentation.shared.editor.blockViews.databaseBlockView.SheetMenuRow
+import com.emberr.presentation.shared.editor.rememberWebLinkActions
+import com.emberr.presentation.shared.editor.LinkContextMenu
+import com.emberr.presentation.shared.editor.LinkHoverCard
+import com.emberr.presentation.shared.editor.linkHover
+import com.emberr.presentation.shared.editor.openLinksOnPress
+import com.emberr.presentation.shared.editor.rememberLinkHoverState
+import com.emberr.presentation.shared.editor.rememberWebLinkColor
+import com.emberr.presentation.shared.editor.webLinkAtPosition
 import com.emberr.presentation.shared.editor.components.DesktopCursor
 import com.emberr.presentation.shared.editor.components.desktopPointerCursor
 import com.emberr.presentation.shared.components.EmberrHorizontalScrollbar
@@ -113,6 +123,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val DefaultColumnWidth = 140
 private val CellMinHeight = 44.dp
+private val CellHorizontalPadding = 12.dp
+private val CellVerticalPadding = 9.dp
 private val GutterSize = 44.dp
 private val SidePadding = 18.dp
 
@@ -643,7 +655,12 @@ private fun TableGridCell(
     onLongPress: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     val focusRequester = remember { FocusRequester() }
+    val webLinkActions = rememberWebLinkActions()
+    val linkHoverState = rememberLinkHoverState()
+    val webLinkColor = rememberWebLinkColor()
+    val webLinkTransformation = remember(webLinkColor) { WebLinkVisualTransformation(webLinkColor) }
 
     val backgroundColor = style.backgroundColorHex?.toColorOrNull() ?: Color.Transparent
     val textColor = style.textColorHex?.toColorOrNull() ?: MaterialTheme.colorScheme.onBackground
@@ -673,8 +690,9 @@ private fun TableGridCell(
             }
             .then(if (isHighlighted) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary) else Modifier)
             .pointerInput(inSelectionMode) {
+                val textAreaStart = Offset(CellHorizontalPadding.toPx(), CellVerticalPadding.toPx())
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
+                    val down = awaitFirstDown(requireUnconsumed = false)
                     var isLongPress = false
                     try {
                         withTimeout(viewConfiguration.longPressTimeoutMillis) {
@@ -685,17 +703,26 @@ private fun TableGridCell(
                         currentEvent.changes.forEach { it.consume() }
                     }
                     if (isLongPress && !inSelectionMode) {
-                        onLongPress()
+                        val pressedWebLink = if (isFocused) {
+                            null
+                        } else {
+                            textLayoutResult?.webLinkAtPosition(down.position - textAreaStart)
+                        }
+
+                        if (pressedWebLink != null) webLinkActions.copyLink(pressedWebLink)
+                        else onLongPress()
                     }
                 }
             }
-            .padding(horizontal = 12.dp, vertical = 9.dp),
+            .padding(horizontal = CellHorizontalPadding, vertical = CellVerticalPadding),
         contentAlignment = Alignment.CenterStart
     ) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             enabled = !inSelectionMode,
+            visualTransformation = webLinkTransformation,
+            onTextLayout = { textLayoutResult = it },
             textStyle = TextStyle(
                 fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                 fontFamily = if (style.isCode) FontFamily.Monospace else FontFamily.Default,
@@ -708,9 +735,19 @@ private fun TableGridCell(
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
+                .linkHover(linkHoverState) { textLayoutResult }
+                .openLinksOnPress(
+                    onOpenWebLink = { webLinkActions.openLink(it) },
+                    onRightClickLink = { link, at -> linkHoverState.openMenuFor(link, at) },
+                    currentTextLayout = { textLayoutResult }
+                )
                 .focusRequester(focusRequester)
                 .onFocusChanged { isFocused = it.isFocused }
         )
+
+        LinkHoverCard(linkHoverState)
+
+        LinkContextMenu(linkHoverState)
 
         // Raw touches only reach the BasicTextField once it's already focused - while unfocused,
         // this overlay claims the tap so the field's own long-press-to-select gesture (which would
@@ -721,8 +758,13 @@ private fun TableGridCell(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight()
+                    .linkHover(linkHoverState) { textLayoutResult }
                     .pointerInput(Unit) {
-                        detectTapGestures(onTap = { focusRequester.requestFocus() })
+                        detectTapGestures(onTap = { position ->
+                            val tappedWebLink = textLayoutResult?.webLinkAtPosition(position)
+                            if (tappedWebLink != null) webLinkActions.openLink(tappedWebLink)
+                            else focusRequester.requestFocus()
+                        })
                     }
             )
         }

@@ -4,7 +4,6 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -25,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
@@ -81,10 +79,8 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.ui.zIndex
 import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.domain.model.SolidDividerBlock
 import com.emberr.domain.model.TableBlock
@@ -199,6 +195,8 @@ fun NoteBlockItem(
     var isReminderPickerOpening by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val webLinkActions = rememberWebLinkActions()
+    val linkHoverState = rememberLinkHoverState()
     val imeInsets = WindowInsets.ime
     val isKeyboardOpen = imeInsets.getBottom(density) > 0
 
@@ -221,9 +219,6 @@ fun NoteBlockItem(
     }
 
     val isDatabase = block is DatabaseBlock
-
-    var isHovered by remember { mutableStateOf(false) }
-    var gutterZone by remember { mutableIntStateOf(0) }
 
     var lastTappedYInBlock by remember { mutableFloatStateOf(0f) }
 
@@ -336,72 +331,11 @@ fun NoteBlockItem(
     }
     val endPadding = (if (isDatabase || block is TableBlock) 0.dp else 16.dp) + desktopExtraPadding
 
-    // INSERT-HOVER LINE (synced with the +above/+below buttons)
-    val insertLineZone = if (isDesktopPlatform) gutterZone else 0
-    val insertLineAlpha = if (isDesktopPlatform) {
-        val animatedAlpha by animateFloatAsState(
-            targetValue = if (insertLineZone != 0) 0.6f else 0f,
-            animationSpec = tween(durationMillis = 120),
-            label = "insertLineAlpha"
-        )
-        animatedAlpha
-    } else 0f
-    val indicatorColor = MaterialTheme.colorScheme.primary
-
     // RENDER BLOCK CONTENT
     Box(
         modifier = modifier
             .fillMaxWidth()
             .background(selectionBg)
-            .then(
-                if (!isDesktopPlatform) Modifier else Modifier
-                    .drawWithContent {
-                        drawContent()
-
-                        // hover-insert line (synced with + button)
-                        if (insertLineAlpha > 0.01f) {
-                            val stroke = 2.dp.toPx()
-                            val dotR = 3.dp.toPx()
-                            val c = indicatorColor.copy(alpha = insertLineAlpha)
-                            when (insertLineZone) {
-                                -1 -> {
-                                    drawLine(c, Offset(dotR * 2, stroke), Offset(size.width, stroke), stroke, cap = StrokeCap.Round)
-                                    drawCircle(c, dotR, Offset(dotR, stroke))
-                                }
-                                1 -> {
-                                    val y = size.height - stroke
-                                    drawLine(c, Offset(dotR * 2, y), Offset(size.width, y), stroke, cap = StrokeCap.Round)
-                                    drawCircle(c, dotR, Offset(dotR, y))
-                                }
-                            }
-                        }
-                    }
-                    .pointerInput(inSelectionMode) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent(PointerEventPass.Main)
-                                when (event.type) {
-                                    PointerEventType.Enter -> isHovered = true
-                                    PointerEventType.Exit -> {
-                                        isHovered = false
-                                        gutterZone = 0
-                                    }
-                                    PointerEventType.Move -> {
-                                        if (!inSelectionMode) {
-                                            val y = event.changes.firstOrNull()?.position?.y ?: 0f
-                                            val h = size.height.toFloat()
-                                            gutterZone = when {
-                                                h > 0f && y < 6.dp.toPx()     -> -1
-                                                h > 0f && y > h - 6.dp.toPx() ->  1
-                                                else                          ->  0
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-            )
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -427,65 +361,6 @@ fun NoteBlockItem(
                     onSetAlignment = { actions.onSetBlockAlignment(it) },
                     onInsertMediaBlock = { actions.onInsertMediaBlock(it) }
                 )
-            }
-        }
-
-        // + ABOVE overlay
-        if (isDesktopPlatform) {
-            val showInsert = isHovered && !inSelectionMode
-            AnimatedVisibility(
-                visible = showInsert && gutterZone == -1,
-                enter = fadeIn(tween(80)),
-                exit  = fadeOut(tween(80)),
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .offset(x = 4.dp, y = (-7).dp)
-                    .zIndex(10f)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(14.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f))
-                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), CircleShape)
-                        .clickable { actions.onAddBlockAbove(block.id) }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Insert block above",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(10.dp)
-                    )
-                }
-            }
-
-            // + BELOW overlay
-            AnimatedVisibility(
-                visible = showInsert && gutterZone == 1,
-                enter = fadeIn(tween(80)),
-                exit  = fadeOut(tween(80)),
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .offset(x = 4.dp, y = 7.dp)
-                    .zIndex(10f)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(14.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f))
-                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), CircleShape)
-                        .clickable { actions.onAddBlockBelow(block.id) }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Insert block below",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(10.dp)
-                    )
-                }
             }
         }
 
@@ -567,17 +442,29 @@ fun NoteBlockItem(
 
             val linkColor = MaterialTheme.colorScheme.primary
             val fadedLinkColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            val webLinkColor = rememberWebLinkColor()
             val inlineSpans = block.inlineSpansOrEmpty()
             val richTextTransformation: VisualTransformation = remember(
-                block is CodeBlock, linkColor, fadedLinkColor, validNoteIds, inlineSpans
+                block is CodeBlock, linkColor, fadedLinkColor, webLinkColor, validNoteIds, inlineSpans
             ) {
                 if (block is CodeBlock) VisualTransformation.None
-                else RichTextVisualTransformation(linkColor, fadedLinkColor, validNoteIds, inlineSpans)
+                else RichTextVisualTransformation(linkColor, fadedLinkColor, webLinkColor, validNoteIds, inlineSpans)
             }
 
             Column(modifier = textFieldWrapperModifier) {
                 if (isTextBased) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .linkHover(linkHoverState, validNoteIds) { textLayoutResult }
+                            .openLinksOnPress(
+                                validNoteIds = validNoteIds,
+                                onOpenWebLink = { webLinkActions.openLink(it) },
+                                onOpenNoteLink = { actions.onNoteLinkClick(it) },
+                                onRightClickLink = { link, at -> linkHoverState.openMenuFor(link, at) },
+                                currentTextLayout = { textLayoutResult }
+                            )
+                    ) {
                         CompositionLocalProvider(LocalTextSelectionColors provides customTextSelectionColors) {
 
                             IsolatedEditorTextField(
@@ -609,27 +496,29 @@ fun NoteBlockItem(
                                     .pointerInput(block.id) {
                                         detectTapGestures(
                                             onTap = { pos ->
-                                                var linkTapped = false
-                                                val tappedOffset = textLayoutResult?.let { layoutResult ->
-                                                    val offset = layoutResult.getOffsetForPosition(pos)
-
+                                                val layoutResult = textLayoutResult
+                                                val tappedWebLink = layoutResult?.webLinkAtPosition(pos)
+                                                val tappedNoteId = layoutResult?.let { result ->
+                                                    val offset = result.getOffsetForPosition(pos)
                                                     val start = maxOf(0, offset - 1)
-                                                    val end = minOf(layoutResult.layoutInput.text.length, offset + 1)
+                                                    val end = minOf(result.layoutInput.text.length, offset + 1)
+                                                    result.layoutInput.text
+                                                        .getStringAnnotations(NOTE_LINK_TAG, start, end)
+                                                        .firstOrNull()
+                                                        ?.item
+                                                }
 
-                                                    val annotations = layoutResult.layoutInput.text.getStringAnnotations("NOTE_LINK", start, end)
-                                                    if (annotations.isNotEmpty()) {
-                                                        val noteId = annotations.first().item
-                                                        if (validNoteIds.contains(noteId)) {
-                                                            linkTapped = true
-                                                            actions.onNoteLinkClick(noteId)
+                                                when {
+                                                    tappedWebLink != null -> webLinkActions.openLink(tappedWebLink)
+                                                    tappedNoteId != null && validNoteIds.contains(tappedNoteId) ->
+                                                        actions.onNoteLinkClick(tappedNoteId)
+                                                    else -> {
+                                                        focusRequester.requestFocus()
+                                                        keyboardController?.show()
+                                                        layoutResult?.getOffsetForPosition(pos)?.let {
+                                                            actions.onRequestCursorPosition(block.id, it)
                                                         }
                                                     }
-                                                    offset
-                                                }
-                                                if (!linkTapped) {
-                                                    focusRequester.requestFocus()
-                                                    keyboardController?.show()
-                                                    if (tappedOffset != null) actions.onRequestCursorPosition(block.id, tappedOffset)
                                                 }
                                             },
                                             onDoubleTap = { pos ->
@@ -637,11 +526,27 @@ fun NoteBlockItem(
                                                 keyboardController?.show()
                                                 textLayoutResult?.getOffsetForPosition(pos)?.let { actions.onRequestCursorPosition(block.id, it) }
                                             },
-                                            onLongPress = { actions.onToggleSelection(block.id) }
+                                            onLongPress = { pos ->
+                                                val pressedWebLink = textLayoutResult?.webLinkAtPosition(pos)
+                                                if (pressedWebLink != null) webLinkActions.copyLink(pressedWebLink)
+                                                else actions.onToggleSelection(block.id)
+                                            }
                                         )
                                     }
                             )
                         }
+
+                        LinkHoverCard(
+                            hoverState = linkHoverState,
+                            onOpenNoteLink = { actions.onNoteLinkClick(it) },
+                            findNote = { noteId -> allLinkableNotes.find { it.noteId == noteId } }
+                        )
+
+                        LinkContextMenu(
+                            hoverState = linkHoverState,
+                            onOpenNoteLink = { actions.onNoteLinkClick(it) },
+                            findNote = { noteId -> allLinkableNotes.find { it.noteId == noteId } }
+                        )
                     }
 
                     if (block is CheckboxBlock) {
@@ -1219,6 +1124,7 @@ fun IsolatedEditorTextField(
 data class RichTextVisualTransformation(
     private val linkColor: Color,
     private val fadedColor: Color,
+    private val webLinkColor: Color,
     private val validNoteIds: Set<String>,
     private val inlineSpans: List<InlineSpan> = emptyList()
 ) : VisualTransformation {
@@ -1226,11 +1132,13 @@ data class RichTextVisualTransformation(
         val originalText = text.text
 
         if (inlineSpans.isEmpty() && !originalText.contains(NOTE_LINK_MARKER)) {
-            return TransformedText(text, OffsetMapping.Identity)
+            return TransformedText(text.withWebLinksHighlighted(webLinkColor), OffsetMapping.Identity)
         }
 
         val matches = NoteLinkRegex.findAll(originalText).toList()
-        if (matches.isEmpty() && inlineSpans.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
+        if (matches.isEmpty() && inlineSpans.isEmpty()) {
+            return TransformedText(text.withWebLinksHighlighted(webLinkColor), OffsetMapping.Identity)
+        }
 
         val builder = AnnotatedString.Builder()
         val mapping = IntArray(originalText.length * 2 + 50)
@@ -1288,7 +1196,7 @@ data class RichTextVisualTransformation(
             val finalColor = if (link.isMissing) fadedColor else linkColor
             val decoration = if (link.isMissing) TextDecoration.LineThrough else TextDecoration.None
             builder.addStyle(SpanStyle(color = finalColor, fontWeight = FontWeight.SemiBold, textDecoration = decoration), link.start, link.end)
-            builder.addStringAnnotation(tag = "NOTE_LINK", annotation = link.noteId, start = link.start, end = link.end)
+            builder.addStringAnnotation(tag = NOTE_LINK_TAG, annotation = link.noteId, start = link.start, end = link.end)
         }
 
         inlineSpans.forEach { span ->
@@ -1316,7 +1224,7 @@ data class RichTextVisualTransformation(
         }
 
         return TransformedText(
-            builder.toAnnotatedString(),
+            builder.toAnnotatedString().withWebLinksHighlighted(webLinkColor),
             object : OffsetMapping {
                 override fun originalToTransformed(offset: Int): Int {
                     if (offset <= 0) return 0

@@ -39,7 +39,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -51,6 +50,7 @@ import coil3.request.crossfade
 import com.emberr.domain.model.BookmarkBlock
 import com.emberr.domain.util.isDesktopPlatform
 import com.emberr.domain.util.showNativeToast
+import com.emberr.presentation.shared.editor.rememberWebLinkActions
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.components.emberrBlur
 import com.emberr.presentation.shared.editor.DefaultBlockShape
@@ -71,7 +71,7 @@ fun BookmarkBlockView(
 ) {
     var isEditing by remember { mutableStateOf(block.url.isEmpty()) }
     var inputUrl by remember { mutableStateOf(block.url) }
-    val uriHandler = LocalUriHandler.current
+    val webLinkActions = rememberWebLinkActions()
     val clipboardManager = LocalClipboardManager.current
 
     Box(
@@ -84,7 +84,7 @@ fun BookmarkBlockView(
                 onClick = {
                     if (inSelectionMode) onToggleSelection()
                     else if (!isEditing && block.url.isNotEmpty()) {
-                        try { uriHandler.openUri(block.url) } catch (_: Exception) {}
+                        webLinkActions.openLink(block.url)
                     }
                 },
                 onLongClick = onToggleSelection
