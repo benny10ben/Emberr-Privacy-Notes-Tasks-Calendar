@@ -409,6 +409,7 @@ fun EditorScreen(
             override fun onUpdateText(id: String, text: String) {
                 actions.onUpdateText(id, text)
 
+                val hasSeenThisBlockBefore = previousTextMap.containsKey(id)
                 val prevText = previousTextMap[id] ?: ""
                 previousTextMap[id] = text
 
@@ -417,10 +418,20 @@ fun EditorScreen(
                     isSlashKilled = false
                 }
 
-                val lastSlashIndex = text.lastIndexOf('/')
-                val textAfterSlash = if (lastSlashIndex != -1) text.substring(lastSlashIndex + 1) else ""
+                val arrivedInOneChunk = hasSeenThisBlockBefore && text.length - prevText.length > 1
+                if (arrivedInOneChunk) {
+                    isSlashKilled = true
+                }
 
-                if (lastSlashIndex != -1) {
+                val lastSlashIndex = text.lastIndexOf('/')
+                val opensASlashCommand = lastSlashIndex != -1 && (
+                    lastSlashIndex == 0 ||
+                        text[lastSlashIndex - 1] == ' ' ||
+                        text[lastSlashIndex - 1] == '\n'
+                    )
+                val textAfterSlash = if (opensASlashCommand) text.substring(lastSlashIndex + 1) else ""
+
+                if (opensASlashCommand) {
                     if (textAfterSlash.contains(" ")) {
                         isSlashKilled = true
                     }
@@ -433,7 +444,7 @@ fun EditorScreen(
                     }
                 }
 
-                if (lastSlashIndex != -1 && !isSlashKilled) {
+                if (opensASlashCommand && !isSlashKilled) {
                     if (isDesktopPlatform) {
                         showSlashMenu = true
                     } else {
