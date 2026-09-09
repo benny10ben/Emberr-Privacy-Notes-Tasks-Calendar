@@ -20,9 +20,6 @@ secrets.properties
 google-services.json
 .env
 
-# Dependencies
-gradle/wrapper/gradle-wrapper.jar
-
 # Logs/Diagnostics
 **/*.hprof
 
