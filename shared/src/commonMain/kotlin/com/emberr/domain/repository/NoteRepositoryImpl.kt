@@ -131,8 +131,6 @@ class NoteRepositoryImpl(
     private val noteContentCache = MutableStateFlow<Map<String, NoteContent>>(emptyMap())
 
     // In-memory cache for daily notes keyed by dateString (e.g. "2025-06-01").
-    // global_pinned is intentionally excluded from this cache to avoid pinned block
-    // emissions triggering unnecessary editor refreshes.
     private val dailyNoteCache = MutableStateFlow<Map<String, NoteContent>>(emptyMap())
 
     // Exposes a Flow that emits whenever the cache entry for this noteId changes.
@@ -150,14 +148,7 @@ class NoteRepositoryImpl(
         withContext(Dispatchers.IO) {
             // Return from cache if available — avoids a DB round-trip on repeat reads
             // and ensures callers always see the most recently written content.
-            // global_pinned is excluded on the write side below, so it must also be
-            // excluded here: caching it on read while saveDailyNote never refreshes that
-            // entry left the cache permanently frozen at whatever was first read, so every
-            // pin/edit written afterwards was invisible to every future read for the rest
-            // of the process lifetime.
-            if (dateString != "global_pinned") {
-                dailyNoteCache.value[dateString]?.let { return@withContext it }
-            }
+            dailyNoteCache.value[dateString]?.let { return@withContext it }
 
             val metadata = noteDao.getDailyNoteMetadata(dateString) ?: return@withContext null
             val entities = blockDao.getAllBlocksForNoteIncludingDeleted(metadata.noteId)
@@ -170,14 +161,20 @@ class NoteRepositoryImpl(
             val content = NoteContent(blocks = blocks)
 
             // Populate the cache so subsequent reads and observers get this value.
-            if (dateString != "global_pinned") {
-                dailyNoteCache.update { it + (dateString to content) }
-            }
+            dailyNoteCache.update { it + (dateString to content) }
             content
         }
 
     override fun refreshDailyNoteCache(dateString: String, content: NoteContent) {
-        if (dateString != "global_pinned") {
+        dailyNoteCache.update { it + (dateString to content) }
+    }
+
+    private fun savedContentOmitsTombstones(dateString: String) = dateString == "global_pinned"
+
+    private fun cacheSavedDailyContent(dateString: String, content: NoteContent) {
+        if (savedContentOmitsTombstones(dateString)) {
+            dailyNoteCache.update { it - dateString }
+        } else {
             dailyNoteCache.update { it + (dateString to content) }
         }
     }
@@ -240,9 +237,7 @@ class NoteRepositoryImpl(
             noteDao.deleteNoteMetadata(loser.noteId)
         }
 
-        if (dateString != "global_pinned") {
-            dailyNoteCache.update { it + (dateString to NoteContent(blocks = decodedBlocks)) }
-        }
+        dailyNoteCache.update { it + (dateString to NoteContent(blocks = decodedBlocks)) }
 
         return losers.size
     }
@@ -312,11 +307,7 @@ class NoteRepositoryImpl(
             // Update the cache synchronously before the DB write.
             // This means any observer (DailyEditorViewModel) sees the new content
             // immediately, without waiting for Room to finish writing.
-            // global_pinned is excluded because pinned blocks are merged into daily
-            // content by DailyEditorViewModel and don't need their own cache entry.
-            if (dateString != "global_pinned") {
-                dailyNoteCache.update { it + (dateString to content) }
-            }
+            cacheSavedDailyContent(dateString, content)
 
             val existing = noteDao.getDailyNoteMetadata(dateString)
             val noteId = existing?.noteId ?: remoteMeta?.noteId ?: UUID.randomUUID().toString()
