@@ -47,10 +47,13 @@ private fun ApplicationCall.hasValidSyncSignature(settingsManager: SettingsManag
     val age = System.currentTimeMillis() - timestampMillis
     if (age > SyncConstants.MAX_REQUEST_AGE_MS || age < -SyncConstants.MAX_REQUEST_AGE_MS) return false
 
+    val secretKey = settingsManager.getSyncEncryptionKey()
+    if (secretKey.isBlank()) return false
+
     val expectedSignature = hmacSigner.sign(
         path = request.path(),
         timestampMillis = timestampMillis,
-        secretKey = settingsManager.getSyncEncryptionKey()
+        secretKey = secretKey
     )
     // Uses constant-time comparison to prevent timing attacks.
     return MessageDigest.isEqual(expectedSignature.toByteArray(), signature.toByteArray())

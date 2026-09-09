@@ -364,6 +364,10 @@ fun SettingsScreen(
             }
 
             item {
+                SecretStorageSettingsSection()
+            }
+
+            item {
                 SettingsGroup(title = "Appearance") {
                     SettingsActionRow(
                         icon = painterResource(Res.drawable.palette),

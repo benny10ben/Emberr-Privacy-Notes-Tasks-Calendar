@@ -23,6 +23,7 @@ import androidx.compose.ui.window.rememberWindowState
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.network.ktor3.KtorNetworkFetcherFactory
+import com.emberr.core.security.secrets.DesktopSecretStore
 import com.emberr.data.local.prefs.SettingsManager
 import com.emberr.data.local.prefs.SyncConstants
 import com.emberr.di.desktopModule
@@ -35,6 +36,7 @@ import com.emberr.domain.selfhost.sync.SelfHostSyncLog
 import com.emberr.domain.selfhost.sync.SelfHostSyncScheduler
 import com.emberr.domain.sync.SyncRepository
 import com.emberr.presentation.EmberrApp
+import com.emberr.presentation.settings.PlainTextSecretWarningDialog
 import com.emberr.presentation.desktop.DesktopSearchShortcutBus
 import com.emberr.presentation.mobile.home.note.NoteScreen
 import com.emberr.presentation.shared.StickyNoteWindowBus
@@ -79,7 +81,14 @@ fun main() = application {
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
+            GlobalContext.get().get<DesktopSecretStore>().initialise()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
             val koin = GlobalContext.get()
+            koin.get<DesktopSecretStore>().awaitReadyState()
             val settingsManager = koin.get<SettingsManager>()
             val syncRepository = koin.get<SyncRepository>()
             val hmacSigner = koin.get<com.emberr.core.security.SyncHmacSigner>()
@@ -108,6 +117,7 @@ fun main() = application {
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             val koin = GlobalContext.get()
+            koin.get<DesktopSecretStore>().awaitReadyState()
             val secureSyncKeyStorage = koin.get<SecureSyncKeyStorage>()
             val selfHostSyncScheduler = koin.get<SelfHostSyncScheduler>()
             val foregroundSyncPoller = koin.get<ForegroundSyncPoller>()
@@ -270,6 +280,8 @@ fun main() = application {
                     }
                 }
             )
+
+            PlainTextSecretWarningDialog()
         }
     }
     }

@@ -1,5 +1,6 @@
 package com.emberr.data.local.prefs
 
+import com.emberr.core.security.OwnerOnlyFilePermissions
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -13,7 +14,10 @@ class DesktopPreferenceStore(storageDirectory: File) {
     private val writeLock = Any()
 
     init {
-        runCatching { storageDirectory.mkdirs() }
+        runCatching {
+            storageDirectory.mkdirs()
+            OwnerOnlyFilePermissions.restrictDirectoryToOwner(storageDirectory.toPath())
+        }
 
         if (settingsFile.exists()) loadFromDisk()
     }
@@ -69,6 +73,7 @@ class DesktopPreferenceStore(storageDirectory: File) {
                     settingsFile.toPath(),
                     StandardCopyOption.REPLACE_EXISTING
                 )
+                OwnerOnlyFilePermissions.restrictFileToOwner(settingsFile.toPath())
             }
         }
     }

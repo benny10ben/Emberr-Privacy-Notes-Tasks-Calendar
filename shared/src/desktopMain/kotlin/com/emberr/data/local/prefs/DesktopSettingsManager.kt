@@ -1,29 +1,17 @@
 package com.emberr.data.local.prefs
 
-import com.github.javakeyring.Keyring
-import com.github.javakeyring.PasswordAccessException
+import com.emberr.core.security.secrets.DesktopSecretStore
+import com.emberr.core.security.secrets.SecretNamespace
 import java.io.File
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
-class DesktopSettingsManager : SettingsManager {
+class DesktopSettingsManager(private val secretStore: DesktopSecretStore) : SettingsManager {
     // Standard unencrypted preferences for basic app state, stored alongside the
     // database and media so that removing the app folder resets the app completely.
     private val prefs = DesktopPreferenceStore(
         storageDirectory = File(System.getProperty("user.home"), ".emberr")
     )
-
-    // The identifier that will show up in the OS Keychain/Credential Manager
-    private val serviceName = "EmberrAppVault"
-
-    // Lazily initialize the native OS keyring bridge
-    private val keyring by lazy {
-        try {
-            Keyring.create()
-        } catch (e: Exception) {
-            null // Fallback if the OS doesn't have an active secret service (e.g. headless Linux)
-        }
-    }
 
     private val _sortType = MutableStateFlow(prefs.get(SyncConstants.KEY_SORT_TYPE, SyncConstants.DEFAULT_SORT_TYPE))
     private val _sortOrder = MutableStateFlow(prefs.get(SyncConstants.KEY_SORT_ORDER, SyncConstants.DEFAULT_SORT_ORDER))
@@ -109,35 +97,19 @@ class DesktopSettingsManager : SettingsManager {
         }
     }
 
-    // SECURE STORAGE IMPLEMENTATION
-
     private fun saveSecureString(account: String, secret: String) {
-        try {
-            keyring?.setPassword(serviceName, account, secret)
-        } catch (e: Exception) {
-            // Fallback to obfuscated prefs if the OS keyring rejects the request
-            prefs.put("SECURE_$account", secret)
-        }
+        secretStore.writeSecret(SecretNamespace.AppSettings, account, secret)
     }
 
-    private fun getSecureString(account: String): String {
-        return try {
-            keyring?.getPassword(serviceName, account) ?: prefs.get("SECURE_$account", "")
-        } catch (e: PasswordAccessException) {
-            prefs.get("SECURE_$account", "")
-        } catch (e: Exception) {
-            ""
-        }
-    }
+    private fun getSecureString(account: String): String =
+        secretStore.readSecret(SecretNamespace.AppSettings, account).orEmpty()
 
-    // Route sensitive Auth and Encryption keys to the OS Keyring
     override fun getSyncAuthToken(): String = getSecureString(SyncConstants.KEY_SYNC_AUTH_TOKEN)
     override fun saveSyncAuthToken(token: String) = saveSecureString(SyncConstants.KEY_SYNC_AUTH_TOKEN, token)
 
     override fun getSyncEncryptionKey(): String = getSecureString(SyncConstants.KEY_SYNC_ENCRYPTION_KEY)
     override fun saveSyncEncryptionKey(key: String) = saveSecureString(SyncConstants.KEY_SYNC_ENCRYPTION_KEY, key)
 
-    // Route non-sensitive connection details to standard prefs
     override fun getSyncIpAddress(): String = prefs.get(SyncConstants.KEY_SYNC_IP_ADDRESS, "")
     override fun saveSyncIpAddress(ip: String) = prefs.put(SyncConstants.KEY_SYNC_IP_ADDRESS, ip)
 
@@ -149,8 +121,8 @@ class DesktopSettingsManager : SettingsManager {
         prefs.putBoolean(SyncConstants.KEY_SYNC_PAIRING_CONFIRMED, confirmed)
 
     override fun clearSyncPairing() {
-        saveSecureString(SyncConstants.KEY_SYNC_AUTH_TOKEN, "")
-        saveSecureString(SyncConstants.KEY_SYNC_ENCRYPTION_KEY, "")
+        secretStore.removeSecret(SecretNamespace.AppSettings, SyncConstants.KEY_SYNC_AUTH_TOKEN)
+        secretStore.removeSecret(SecretNamespace.AppSettings, SyncConstants.KEY_SYNC_ENCRYPTION_KEY)
         prefs.put(SyncConstants.KEY_SYNC_IP_ADDRESS, "")
         prefs.putInt(SyncConstants.KEY_SYNC_PORT, SyncConstants.DEFAULT_PORT)
         prefs.putBoolean(SyncConstants.KEY_SYNC_PAIRING_CONFIRMED, false)

@@ -1,6 +1,10 @@
 package com.emberr.di
 
 import com.emberr.core.security.AesGcmEncryptionManager
+import com.emberr.core.security.secrets.DesktopSecretStore
+import com.emberr.core.security.secrets.PlaintextSecretBackend
+import com.emberr.core.security.secrets.SecretBackendProbe
+import com.emberr.core.security.secrets.SecretBackendSelector
 import com.emberr.core.security.SyncEncryptionManager
 import com.emberr.data.local.prefs.DesktopSettingsManager
 import com.emberr.data.local.prefs.SettingsManager
@@ -77,13 +81,21 @@ val desktopModule = module {
     // AI
     single { LocalAiEngine(aiSettingsRepository = get()) }
     single { RagRepository(get(), get(), get(), get()) }
-    single<com.emberr.domain.ai.external.SecureAiKeyStorage> { com.emberr.domain.ai.external.SecureAiKeyStorage() }
+    single<com.emberr.domain.ai.external.SecureAiKeyStorage> {
+        com.emberr.domain.ai.external.SecureAiKeyStorage(get())
+    }
     single { com.emberr.domain.ai.models.LocalModelUploadManager() }
     single { com.emberr.domain.ai.models.ModelDownloadScheduler(modelDownloadManager = get()) }
     factory { RagViewModel(get(), get(), get(), get(), get(), get()) }
 
+    // Secret storage
+    single { SecretBackendProbe() }
+    single { PlaintextSecretBackend(java.io.File(System.getProperty("user.home"), ".emberr")) }
+    single { SecretBackendSelector(probe = get(), plaintextBackend = get()) }
+    single { DesktopSecretStore(backendSelector = get(), plaintextBackend = get()) }
+
     // Platform implementations
-    single<SettingsManager> { DesktopSettingsManager() }
+    single<SettingsManager> { DesktopSettingsManager(get()) }
     single<ReminderScheduler> { DesktopReminderScheduler() }
     single<MediaStorageHelper> { DesktopMediaStorageHelper() }
     single<ImageDownloader> { DesktopImageDownloader() }
@@ -91,7 +103,7 @@ val desktopModule = module {
 
     // Self-hosted WebDAV sync
     single<KeyDerivationManager> { Pbkdf2KeyDerivationManager() }
-    single<SecureSyncKeyStorage> { SecureSyncKeyStorage() }
+    single<SecureSyncKeyStorage> { SecureSyncKeyStorage(get()) }
     single { SelfHostSyncScheduler(selfHostSyncEngine = get()) }
 
     // Sync
