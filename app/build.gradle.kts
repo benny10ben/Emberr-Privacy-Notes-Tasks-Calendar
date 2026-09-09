@@ -5,11 +5,11 @@ plugins {
 val javaToolchainVersion = libs.versions.javaToolchain.get()
 
 android {
-    namespace = "com.ben.emberr.app"
+    namespace = "com.emberr.app"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.ben.emberr"
+        applicationId = "com.emberr"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 1

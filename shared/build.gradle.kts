@@ -53,7 +53,7 @@ kotlin {
     jvmToolchain(javaToolchainVersion.toInt())
 
     androidLibrary {
-        namespace = "com.ben.emberr"
+        namespace = "com.emberr"
         compileSdk = libs.versions.compileSdk.get().toInt()
         minSdk = libs.versions.minSdk.get().toInt()
 
@@ -64,7 +64,7 @@ kotlin {
 
     jvm("desktop") {
         mainRun {
-            mainClass.set("com.ben.emberr.DesktopMainKt")
+            mainClass.set("com.emberr.DesktopMainKt")
         }
     }
 
@@ -165,7 +165,7 @@ val desktopRuntimeJdk = javaToolchains.launcherFor {
     languageVersion.set(JavaLanguageVersion.of(javaToolchainVersion.toInt()))
 }
 
-val desktopMainClass = "com.ben.emberr.DesktopMainKt"
+val desktopMainClass = "com.emberr.DesktopMainKt"
 val desktopWindowClassName = desktopMainClass.replace('.', '-')
 val applicationName = "Emberr"
 val applicationVersion = "1.0.0"

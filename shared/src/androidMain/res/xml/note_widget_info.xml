@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:configure="com.ben.emberr.presentation.widget.note.NoteWidgetPickerActivity"
+    android:configure="com.emberr.presentation.widget.note.NoteWidgetPickerActivity"
     android:description="@string/note_widget_description"
     android:initialLayout="@layout/glance_default_loading_layout"
     android:minHeight="110dp"

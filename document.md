@@ -30,7 +30,7 @@ The editor follows a **block-based content model** inspired by Notion — a note
 ## 2. Package Structure
 
 ```
-com.ben.emberr
+com.emberr
 ├── core.security
 │   └── EncryptionManager
 ├── data.local
@@ -143,7 +143,7 @@ Room indexes **metadata** (title, folder, timestamps, file path). Heavy content 
 
 ## 4. Domain Models
 
-All models live in `com.ben.emberr.domain.model` and are annotated with `@Serializable` for kotlinx.serialization.
+All models live in `com.emberr.domain.model` and are annotated with `@Serializable` for kotlinx.serialization.
 
 ### 4.1 NoteContent
 

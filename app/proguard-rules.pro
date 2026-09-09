@@ -7,13 +7,13 @@
     native <methods>;
 }
 
--keepclassmembers enum com.ben.emberr.** {
+-keepclassmembers enum com.emberr.** {
     public static **[] values();
     public static ** valueOf(java.lang.String);
     <fields>;
 }
 
--keepclassmembers class com.ben.emberr.**$$serializer {
+-keepclassmembers class com.emberr.**$$serializer {
     *;
 }
 

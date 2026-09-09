@@ -193,8 +193,8 @@
             android:enabled="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.ben.emberr.widget.calendaragenda.SHOW_PREVIOUS_MONTH" />
-                <action android:name="com.ben.emberr.widget.calendaragenda.SHOW_NEXT_MONTH" />
+                <action android:name="com.emberr.widget.calendaragenda.SHOW_PREVIOUS_MONTH" />
+                <action android:name="com.emberr.widget.calendaragenda.SHOW_NEXT_MONTH" />
             </intent-filter>
         </receiver>
 
@@ -229,8 +229,8 @@
             android:enabled="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.ben.emberr.widget.calendar.SHOW_PREVIOUS_MONTH" />
-                <action android:name="com.ben.emberr.widget.calendar.SHOW_NEXT_MONTH" />
+                <action android:name="com.emberr.widget.calendar.SHOW_PREVIOUS_MONTH" />
+                <action android:name="com.emberr.widget.calendar.SHOW_NEXT_MONTH" />
             </intent-filter>
         </receiver>
 
@@ -239,7 +239,7 @@
             android:enabled="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.ben.emberr.widget.todaytasks.TOGGLE_TASK" />
+                <action android:name="com.emberr.widget.todaytasks.TOGGLE_TASK" />
             </intent-filter>
         </receiver>
 
@@ -248,8 +248,8 @@
             android:enabled="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.ben.emberr.widget.tasks.TOGGLE_COMPLETED_VIEW" />
-                <action android:name="com.ben.emberr.widget.tasks.TOGGLE_TASK" />
+                <action android:name="com.emberr.widget.tasks.TOGGLE_COMPLETED_VIEW" />
+                <action android:name="com.emberr.widget.tasks.TOGGLE_TASK" />
             </intent-filter>
         </receiver>
 
