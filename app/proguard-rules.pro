@@ -1,14 +1,11 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
--keep class com.llamatik.** { *; }
+-keep,includedescriptorclasses class com.llamatik.** { *; }
 
 -keepclasseswithmembernames,includedescriptorclasses class * {
     native <methods>;
 }
-
--keep class net.zetetic.database.** { *; }
--keepclassmembers class net.zetetic.database.** { *; }
 
 -keepclassmembers enum com.ben.emberr.** {
     public static **[] values();
@@ -20,7 +17,23 @@
     *;
 }
 
--dontwarn com.google.errorprone.annotations.CanIgnoreReturnValue
--dontwarn com.google.errorprone.annotations.CheckReturnValue
--dontwarn com.google.errorprone.annotations.Immutable
--dontwarn com.google.errorprone.annotations.RestrictedApi
+-keep class com.google.crypto.tink.proto.** { *; }
+-keep class * implements com.google.crypto.tink.KeyManager { *; }
+-dontwarn com.google.crypto.tink.**
+
+-dontwarn com.google.errorprone.annotations.**
+
+-keep class * implements com.google.firebase.components.ComponentRegistrar {
+    <init>();
+}
+
+-keepnames class * extends androidx.work.ListenableWorker
+-keep class * extends androidx.work.ListenableWorker { <init>(...); }
+
+-keep class androidx.work.InputMerger {
+    <init>();
+}
+
+-keep class * extends androidx.work.InputMerger {
+    <init>();
+}
