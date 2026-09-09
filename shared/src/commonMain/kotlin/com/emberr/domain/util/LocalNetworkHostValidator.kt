@@ -36,8 +36,8 @@ object LocalNetworkHostValidator {
         if (compressionParts.size > 2) return null
         val hasCompression = compressionParts.size == 2
 
-        val headGroups = compressionParts[0].split(":").filter { it.isNotEmpty() }
-        val tailGroups = if (hasCompression) compressionParts[1].split(":").filter { it.isNotEmpty() } else emptyList()
+        val headGroups = splitIntoGroups(compressionParts[0]) ?: return null
+        val tailGroups = if (hasCompression) splitIntoGroups(compressionParts[1]) ?: return null else emptyList()
 
         if (!hasCompression && headGroups.size != 8) return null
         val missingGroupCount = 8 - headGroups.size - tailGroups.size
@@ -47,5 +47,13 @@ object LocalNetworkHostValidator {
         if (allGroups.size != 8) return null
 
         return allGroups.map { group -> group.toIntOrNull(16)?.takeIf { it in 0..0xFFFF } ?: return null }
+    }
+
+    private fun splitIntoGroups(addressPart: String): List<String>? {
+        if (addressPart.isEmpty()) return emptyList()
+
+        val groups = addressPart.split(":")
+        if (groups.any { it.isEmpty() }) return null
+        return groups
     }
 }
