@@ -6,6 +6,7 @@ import app.cash.sqldelight.db.SqlDriver
 import com.emberr.core.security.AesGcmEncryptionManager
 import com.emberr.core.security.AndroidSecretCipher
 import com.emberr.core.security.EncryptionManager
+import com.emberr.core.security.SqlCipherRuntime
 import com.emberr.core.security.TinkSecretStore
 import com.emberr.core.security.SyncEncryptionManager
 import com.emberr.data.local.prefs.AndroidSettingsManager
@@ -92,8 +93,8 @@ val androidModule = module {
 
     single<AppDatabase> {
         val passphrase = get<ByteArray>()
-        System.loadLibrary("sqlcipher")
-        val supportFactory = SupportOpenHelperFactory(passphrase)
+        SqlCipherRuntime.loadNativeLibraryAndLimitConnections()
+        val supportFactory = SupportOpenHelperFactory(SqlCipherRuntime.asRawKey(passphrase))
 
         val builder = com.emberr.data.local.room.getDatabaseBuilder(androidContext())
         builder
