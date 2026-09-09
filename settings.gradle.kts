@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Emberr"
 include(":app")
+include(":shared")
