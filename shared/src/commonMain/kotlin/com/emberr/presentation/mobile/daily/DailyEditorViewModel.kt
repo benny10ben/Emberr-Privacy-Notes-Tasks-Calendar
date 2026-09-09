@@ -14,6 +14,7 @@ import com.emberr.domain.util.SyncCoordinator
 import com.emberr.domain.util.SyncEventBus
 import com.emberr.domain.util.VoiceTaskEventBus
 import com.emberr.presentation.reminders.ReminderScheduler
+import com.emberr.presentation.shared.FirstContentRenderSignal
 import com.emberr.presentation.shared.editor.BaseEditorViewModel
 import com.emberr.presentation.shared.editor.FocusRequest
 import kotlinx.coroutines.CancellationException
@@ -302,6 +303,10 @@ class DailyEditorViewModel(
     // Init
     init {
         loadDailyNote(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
+        viewModelScope.launch {
+            _loadedDateString.filterNotNull().first()
+            FirstContentRenderSignal.reportContentRendered()
+        }
         viewModelScope.launch {
             VoiceTaskEventBus.taskAddedEvent.collect { event ->
                 if (event.dateString == currentDateString) {

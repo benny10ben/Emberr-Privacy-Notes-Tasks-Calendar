@@ -98,8 +98,8 @@ actual class SelfHostSyncScheduler(
     }
 
     init {
-        ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
         mainHandler.post {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
             WorkManager.getInstance(context)
                 .getWorkInfosForUniqueWorkLiveData(WORK_NAME_MANUAL)
                 .observeForever(manualSyncObserver)

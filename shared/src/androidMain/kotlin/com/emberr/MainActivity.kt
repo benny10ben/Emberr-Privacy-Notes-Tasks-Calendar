@@ -27,6 +27,7 @@ import com.emberr.domain.util.WidgetCalendarDateBus
 import com.emberr.domain.util.WidgetCalendarEventBus
 import com.emberr.domain.util.WidgetNavigationBus
 import com.emberr.domain.util.ShareEventBus
+import com.emberr.presentation.shared.FirstContentRenderSignal
 import com.emberr.presentation.shared.editor.ActiveEditorRegistry
 import com.emberr.presentation.widget.calendar.refreshCalendarWidgets
 import com.emberr.presentation.widget.calendaragenda.refreshCalendarAgendaWidgets
@@ -53,6 +54,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.KoinAndroidContext
 import java.util.UUID
@@ -76,7 +78,6 @@ import com.emberr.ui.theme.FontStylePreference
 import com.emberr.ui.theme.ThemePreference
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
-import com.emberr.domain.backup.automatic.BackupScheduler
 import com.emberr.domain.model.NoteBlock
 import com.emberr.data.local.prefs.SettingsManager
 import com.emberr.domain.util.generateAndSaveAndroidPdf
@@ -85,6 +86,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import androidx.core.content.IntentCompat
 import android.provider.OpenableColumns
 
+
+private val aiWarmUpFallbackDelay = 8000L.milliseconds
 
 class MainActivity : ComponentActivity() {
 
@@ -115,7 +118,6 @@ class MainActivity : ComponentActivity() {
 
     private val settingsViewModel: com.emberr.presentation.settings.SettingsViewModel by inject()
     private val settingsManager: SettingsManager by inject()
-    private val backupScheduler: BackupScheduler by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -128,7 +130,11 @@ class MainActivity : ComponentActivity() {
             overridePendingTransition(0, 0)
         }
         enableEdgeToEdge()
-        (application as? EmberrApplication)?.warmUpAiEngineOnce()
+
+        lifecycleScope.launch {
+            withTimeoutOrNull(aiWarmUpFallbackDelay) { FirstContentRenderSignal.awaitFirstContent() }
+            (application as? EmberrApplication)?.warmUpAiEngineOnce()
+        }
 
         val routeForThisLaunch = consumeWidgetRoute(intent) ?: if (settingsManager.isOnboardingCompleted()) {
             Screen.Daily.route
@@ -137,7 +143,6 @@ class MainActivity : ComponentActivity() {
         }
 
         handleIntent(intent)
-        backupScheduler.toString()
 
         val syncViewModel: SyncViewModel by inject()
         val discoveryManager: SyncDiscoveryManager by inject()

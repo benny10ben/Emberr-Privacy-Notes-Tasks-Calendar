@@ -6,6 +6,7 @@ import com.emberr.data.local.room.AppDatabase
 import com.emberr.di.androidModule
 import com.emberr.di.sharedModule
 import com.emberr.domain.ai.LocalAiEngine
+import com.emberr.domain.backup.automatic.BackupScheduler
 import com.emberr.domain.selfhost.sync.SelfHostSyncScheduler
 import com.emberr.presentation.reminders.ReminderRescheduler
 import kotlinx.coroutines.CoroutineScope
@@ -33,8 +34,6 @@ class EmberrApplication : Application() {
             modules(sharedModule, androidModule)
         }
 
-        getKoin().get<SelfHostSyncScheduler>()
-
         CoroutineScope(Dispatchers.IO).launch {
             getKoin().get<AppDatabase>()
             getKoin().get<SharedPreferences>()
@@ -48,6 +47,8 @@ class EmberrApplication : Application() {
             getKoin().get<com.emberr.presentation.widget.calendaragenda.CalendarAgendaWidgetCoordinator>().start()
             getKoin().get<com.emberr.presentation.widget.upcomingevents.UpcomingEventsWidgetCoordinator>().start()
             getKoin().get<ReminderRescheduler>().rescheduleUpcomingReminders()
+            getKoin().get<BackupScheduler>()
+            getKoin().get<SelfHostSyncScheduler>()
         }
 
     }
