@@ -14,14 +14,17 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
-class HeuristicTaskExtractor : TaskExtractor {
+class HeuristicTaskExtractor(
+    private val clock: Clock = Clock.System,
+    private val currentTimeZone: () -> TimeZone = { TimeZone.currentSystemDefault() }
+) : TaskExtractor {
 
     override fun extractTasks(transcript: String): List<ParsedTask> {
         if (transcript.isBlank()) return emptyList()
 
         val stripped = stripLeadingFillers(transcript.trim())
-        val now = Clock.System.now()
-        val tz = TimeZone.currentSystemDefault()
+        val now = clock.now()
+        val tz = currentTimeZone()
 
         return stripped.split(SPLIT_CONNECTORS).mapNotNull { raw ->
             val segment = stripLeadingFillers(raw.trim())

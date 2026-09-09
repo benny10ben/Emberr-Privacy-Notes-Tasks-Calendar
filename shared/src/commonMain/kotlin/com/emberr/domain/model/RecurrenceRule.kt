@@ -89,8 +89,11 @@ object RecurrenceEngine {
         return result
     }
 
-    fun retargetTimestampToDate(originalTimestamp: Long, newDate: LocalDate): Long {
-        val timeZone = TimeZone.currentSystemDefault()
+    fun retargetTimestampToDate(
+        originalTimestamp: Long,
+        newDate: LocalDate,
+        timeZone: TimeZone = TimeZone.currentSystemDefault()
+    ): Long {
         val originalDateTime = Instant.fromEpochMilliseconds(originalTimestamp).toLocalDateTime(timeZone)
         val retargeted = LocalDateTime(
             newDate.year, newDate.monthNumber, newDate.dayOfMonth,
