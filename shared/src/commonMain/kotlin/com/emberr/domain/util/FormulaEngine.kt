@@ -2,6 +2,8 @@ package com.emberr.domain.util
 
 import com.emberr.domain.model.CellData
 import com.emberr.domain.model.DatabaseColumn
+import kotlin.math.abs
+import kotlin.math.roundToLong
 
 /**
  * A lightweight engine used to parse and calculate math formulas inside database blocks.
@@ -33,11 +35,22 @@ object FormulaEngine {
 
         val resultText = try {
             val result = evalMath(parsedExpression)
-            if (result % 1.0 == 0.0) result.toLong().toString() else "%.2f".format(result)
+            if (result % 1.0 == 0.0) result.toLong().toString() else formatWithTwoDecimalPlaces(result)
         } catch (_: Exception) {
             "Error"
         }
         return CellData.Formula(resultText)
+    }
+
+    private fun formatWithTwoDecimalPlaces(value: Double): String {
+        if (!value.isFinite()) return value.toString()
+
+        val hundredths = (abs(value) * 100.0).roundToLong()
+        val sign = if (value < 0.0) "-" else ""
+        val wholePart = hundredths / 100
+        val fractionPart = hundredths % 100
+
+        return "$sign$wholePart.${fractionPart.toString().padStart(2, '0')}"
     }
 
     /**
