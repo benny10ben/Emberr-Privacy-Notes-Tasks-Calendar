@@ -218,6 +218,8 @@ private val MIN_RAG_PANEL_WIDTH = 320.dp
 private val MAX_RAG_PANEL_WIDTH = 640.dp
 private val DEFAULT_RAG_PANEL_WIDTH = 400.dp
 
+private const val NEARBY_DAILY_PREFETCH_RADIUS = 3
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class,
     ExperimentalSharedTransitionApi::class
 )
@@ -282,6 +284,14 @@ fun DesktopMainScreen(
     // Daily data (for strip + sheets)
     val selectedDate by dailyViewModel.selectedDate.collectAsState()
     val calendarTaskMap by dailyViewModel.calendarTaskMap.collectAsState()
+
+    LaunchedEffect(selectedDate) {
+        val nearbyDateStrings = (-NEARBY_DAILY_PREFETCH_RADIUS..NEARBY_DAILY_PREFETCH_RADIUS).map { dayOffset ->
+            selectedDate.plus(dayOffset, DateTimeUnit.DAY).toString()
+        }
+        dailyViewModel.evictPreviewCache(nearbyDateStrings.toSet())
+        nearbyDateStrings.forEach { dateString -> dailyViewModel.prefetchDateIfNeeded(dateString) }
+    }
 
     val isSelectionMode = selectedNoteIds.isNotEmpty() || selectedFolderIds.isNotEmpty()
 

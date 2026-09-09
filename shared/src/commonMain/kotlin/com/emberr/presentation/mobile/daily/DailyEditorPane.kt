@@ -70,7 +70,14 @@ fun DailyEditorPane(
     val allLinkableNotes by viewModel.allLinkableNotes.collectAsState()
     val clipboardManager = LocalClipboardManager.current
 
-    val blocks by viewModel.visibleBlocks.collectAsState()
+    val loadedBlocks by viewModel.visibleBlocks.collectAsState()
+    val selectedDate by viewModel.selectedDate.collectAsState()
+    val loadedDateString by viewModel.loadedDateString.collectAsState()
+    val previewCache by viewModel.previewCache.collectAsState()
+
+    val selectedDateString = selectedDate.toString()
+    val isSelectedDayLive = loadedDateString == selectedDateString
+    val blocks = if (isSelectedDayLive) loadedBlocks else previewCache[selectedDateString] ?: emptyList()
     val selectedBlockIds by viewModel.selectedBlockIds.collectAsState()
     val focusRequest by viewModel.focusRequest.collectAsState()
     val selectionRequest by viewModel.selectionRequest.collectAsState()
@@ -283,8 +290,8 @@ fun DailyEditorPane(
             allLinkableNotes = allLinkableNotes,
             globalTags = globalTags,
             actions = actions,
-            focusRequest = focusRequest,
-            selectionRequest = selectionRequest,
+            focusRequest = if (isSelectedDayLive) focusRequest else null,
+            selectionRequest = if (isSelectedDayLive) selectionRequest else null,
             selectedBlockIds = selectedBlockIds,
             mobileMenuState = mobileMenuState,
             onMobileMenuStateChange = { mobileMenuState = it },
