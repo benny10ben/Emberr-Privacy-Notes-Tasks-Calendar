@@ -9,6 +9,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.presentation.shared.components.EmberrTextContextMenu
 
 // Base color palette
 
@@ -86,8 +87,9 @@ fun EmberrTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = AppTypography,
-            content = content
-        )
+            typography = AppTypography
+        ) {
+            EmberrTextContextMenu(content)
+        }
     }
 }
