@@ -4,9 +4,6 @@ import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
-import androidx.room.migration.Migration
-import androidx.sqlite.SQLiteConnection
-import androidx.sqlite.execSQL
 
 @Database(
     entities = [
@@ -44,33 +41,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun selfHostDeletedNoteDao(): SelfHostDeletedNoteDao
     abstract fun chatSessionDao(): ChatSessionDao
     abstract fun selfHostDeletedApiConfigDao(): SelfHostDeletedApiConfigDao
-}
-
-val APP_DATABASE_MIGRATION_1_2 = object : Migration(1, 2) {
-    override fun migrate(connection: SQLiteConnection) {
-        connection.execSQL("ALTER TABLE calendar_tasks ADD COLUMN recurrenceFrequency TEXT")
-        connection.execSQL("ALTER TABLE calendar_tasks ADD COLUMN recurrenceInterval INTEGER NOT NULL DEFAULT 1")
-        connection.execSQL("ALTER TABLE calendar_tasks ADD COLUMN recurrenceDaysOfWeek TEXT")
-        connection.execSQL("ALTER TABLE calendar_tasks ADD COLUMN recurrenceUntil TEXT")
-        connection.execSQL(
-            """
-            CREATE TABLE IF NOT EXISTS calendar_event_exceptions (
-                blockId TEXT NOT NULL,
-                occurrenceDate TEXT NOT NULL,
-                isCancelled INTEGER NOT NULL DEFAULT 0,
-                isChecked INTEGER NOT NULL DEFAULT 0,
-                completedAt INTEGER,
-                overrideTimestamp INTEGER,
-                overrideDurationMinutes INTEGER,
-                overrideText TEXT,
-                overrideCategoryId TEXT,
-                overrideUrl TEXT,
-                overrideDescription TEXT,
-                PRIMARY KEY(blockId, occurrenceDate)
-            )
-            """.trimIndent()
-        )
-    }
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")

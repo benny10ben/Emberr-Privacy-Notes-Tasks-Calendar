@@ -1,6 +1,7 @@
 package com.emberr.data.local.room
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
@@ -11,7 +12,10 @@ import kotlinx.serialization.Serializable
  * This entity just keeps track of titles, dates, and UI state so the app can quickly load lists and search.
  */
 @Serializable
-@Entity(tableName = "notes_metadata")
+@Entity(
+    tableName = "notes_metadata",
+    indices = [Index(value = ["isDaily", "dateString"])]
+)
 data class NoteMetadataEntity(
     @PrimaryKey val noteId: String,
     val title: String,

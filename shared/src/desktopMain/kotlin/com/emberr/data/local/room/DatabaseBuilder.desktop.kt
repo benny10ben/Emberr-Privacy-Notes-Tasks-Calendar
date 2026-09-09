@@ -27,6 +27,5 @@ fun getDatabaseBuilder(dbFilePath: String): RoomDatabase.Builder<AppDatabase> {
 actual fun getRoomDatabase(builder: RoomDatabase.Builder<AppDatabase>): AppDatabase {
     return builder
         .setDriver(BundledSQLiteDriver())
-        .addMigrations(APP_DATABASE_MIGRATION_1_2)
         .build()
 }

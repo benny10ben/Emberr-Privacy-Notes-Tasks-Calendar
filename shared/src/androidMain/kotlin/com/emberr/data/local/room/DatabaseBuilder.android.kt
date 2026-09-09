@@ -24,6 +24,5 @@ fun getDatabaseBuilder(context: Context, dbFilePath: String): RoomDatabase.Build
 
 actual fun getRoomDatabase(builder: RoomDatabase.Builder<AppDatabase>): AppDatabase {
     return builder
-        .addMigrations(APP_DATABASE_MIGRATION_1_2)
         .build()
 }

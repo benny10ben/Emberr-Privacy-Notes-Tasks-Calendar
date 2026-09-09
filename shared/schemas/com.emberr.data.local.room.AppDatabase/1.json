@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "1e5a43159a19a01d9f6a3426ed4e5cb2",
+    "identityHash": "40a68c41ca276424931aad3b47b0d8e3",
     "entities": [
       {
         "tableName": "notes_metadata",
@@ -117,7 +117,19 @@
           "columnNames": [
             "noteId"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_notes_metadata_isDaily_dateString",
+            "unique": false,
+            "columnNames": [
+              "isDaily",
+              "dateString"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notes_metadata_isDaily_dateString` ON `${TABLE_NAME}` (`isDaily`, `dateString`)"
+          }
+        ]
       },
       {
         "tableName": "folders",
@@ -900,7 +912,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1e5a43159a19a01d9f6a3426ed4e5cb2')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '40a68c41ca276424931aad3b47b0d8e3')"
     ]
   }
 }
