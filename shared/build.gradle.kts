@@ -60,6 +60,10 @@ kotlin {
         androidResources {
             enable = true
         }
+
+        withHostTest {
+            isReturnDefaultValues = true
+        }
     }
 
     jvm("desktop") {
@@ -102,6 +106,13 @@ kotlin {
                 implementation(libs.llamatik.library)
                 implementation(libs.sqldelight.coroutines.extensions)
                 implementation(libs.kotlinx.collections.immutable)
+            }
+        }
+
+        getByName("commonTest") {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
 
@@ -154,6 +165,17 @@ kotlin {
                 runtimeOnly(files(llamatikWithLinuxNativesOnly))
             }
         }
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("user.timezone", "UTC")
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
+
+    testLogging {
+        events("failed", "skipped")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
 }
 
