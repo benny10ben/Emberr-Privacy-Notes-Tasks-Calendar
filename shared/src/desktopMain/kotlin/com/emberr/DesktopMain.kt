@@ -16,7 +16,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
@@ -38,6 +37,8 @@ import com.emberr.domain.sync.SyncRepository
 import com.emberr.presentation.EmberrApp
 import com.emberr.presentation.settings.PlainTextSecretWarningDialog
 import com.emberr.presentation.desktop.DesktopSearchShortcutBus
+import com.emberr.presentation.desktop.EmberrSystemTray
+import com.emberr.presentation.desktop.TrayMenuAction
 import com.emberr.presentation.mobile.home.note.NoteScreen
 import com.emberr.presentation.shared.StickyNoteWindowBus
 import com.emberr.domain.sync.startSyncServer
@@ -150,14 +151,15 @@ fun main() = application {
 
     var isMainWindowOpen by remember { mutableStateOf(true) }
 
-    Tray(
-        icon = painterResource("app_icon.png"),
+    EmberrSystemTray(
+        iconResourcePath = "app_icon.png",
         tooltip = "Emberr",
-        onAction = { isMainWindowOpen = true },
-        menu = {
-            Item("Open Emberr", onClick = { isMainWindowOpen = true })
-            Item("Quit", onClick = { exitApplication() })
-        }
+        onIconClick = { isMainWindowOpen = !isMainWindowOpen },
+        actions = listOf(
+            TrayMenuAction("Open Emberr") { isMainWindowOpen = true },
+            TrayMenuAction("Close Window") { isMainWindowOpen = false },
+            TrayMenuAction("Quit") { exitApplication() }
+        )
     )
 
     if (isMainWindowOpen) {

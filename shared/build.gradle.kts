@@ -161,6 +161,8 @@ kotlin {
                 implementation(libs.java.keyring)
                 implementation(libs.pdfbox)
                 implementation(libs.sqldelight.sqlite.driver)
+                implementation(libs.dbus.java.core)
+                implementation(libs.dbus.java.transport.native.unixsocket)
 
                 runtimeOnly(files(llamatikWithLinuxNativesOnly))
             }
