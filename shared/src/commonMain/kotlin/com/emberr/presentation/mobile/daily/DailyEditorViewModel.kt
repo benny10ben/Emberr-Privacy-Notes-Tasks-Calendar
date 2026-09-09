@@ -65,6 +65,10 @@ class DailyEditorViewModel(
     private val _previewCache = MutableStateFlow<Map<String, List<NoteBlock>>>(emptyMap())
     val previewCache: StateFlow<Map<String, List<NoteBlock>>> = _previewCache.asStateFlow()
 
+    private fun cachePreviewBlocks(dateString: String, blocks: List<NoteBlock>) {
+        _previewCache.update { it + (dateString to visibleBlocksOf(blocks)) }
+    }
+
     private fun ensureTrailingEmptyBlock(blocks: List<NoteBlock>, dateString: String): List<NoteBlock> {
         if (blocks.isEmpty() || blocks.lastOrNull() !is TextBlock || (blocks.lastOrNull() as? TextBlock)?.text?.isNotEmpty() == true) {
             val cached = _previewCache.value[dateString]
@@ -96,7 +100,7 @@ class DailyEditorViewModel(
         merged = ensureTrailingEmptyBlock(merged, dateString)
 
         val resolved = recalculateNumberedLists(merged)
-        _previewCache.update { it + (dateString to resolved.filter { b -> !b.isDeleted }) }
+        cachePreviewBlocks(dateString, resolved)
     }
 
     // Strips a single known block out of in-memory state directly rather than reloading the whole note,
@@ -293,7 +297,7 @@ class DailyEditorViewModel(
         autosaveJob?.cancel()
         autosaveJob = viewModelScope.launch {
             currentDateString?.let { date ->
-                _previewCache.update { it + (date to _blocks.value.filter { b -> !b.isDeleted }) }
+                cachePreviewBlocks(date, _blocks.value)
             }
             delay(1000L.milliseconds)
             performSave()
@@ -376,7 +380,7 @@ class DailyEditorViewModel(
                                 val finalBlocks = recalculateNumberedLists(merged)
                                 if (finalBlocks != _blocks.value) {
                                     _blocks.value = finalBlocks
-                                    _previewCache.update { cache -> cache + (dateString to finalBlocks.filter { b -> !b.isDeleted }) }
+                                    cachePreviewBlocks(dateString, finalBlocks)
                                 }
                             }
                         }
@@ -414,7 +418,7 @@ class DailyEditorViewModel(
 
                     if (final != _blocks.value) {
                         _blocks.value = final
-                        _previewCache.update { it + (date to final.filter { b -> !b.isDeleted }) }
+                        cachePreviewBlocks(date, final)
                     }
                 }
         }
@@ -494,7 +498,7 @@ class DailyEditorViewModel(
         if (currentDateString != dateString) return
         if (finalBlocks != _blocks.value) {
             _blocks.value = finalBlocks
-            _previewCache.update { it + (dateString to finalBlocks.filter { b -> !b.isDeleted }) }
+            cachePreviewBlocks(dateString, finalBlocks)
         }
     }
 
@@ -540,7 +544,7 @@ class DailyEditorViewModel(
                         val finalBlocks = recalculateNumberedLists(mergedBlocks)
                         if (currentDateString != dateString) return@launch
                         _blocks.value = finalBlocks
-                        _previewCache.update { it + (dateString to finalBlocks.filter { b -> !b.isDeleted }) }
+                        cachePreviewBlocks(dateString, finalBlocks)
                         _loadedDateString.value = dateString
                         lastIndexedContentHash = 0
 
@@ -578,7 +582,7 @@ class DailyEditorViewModel(
                 val finalBlocks = recalculateNumberedLists(mergedBlocks)
                 if (currentDateString != dateString) return@launch
                 _blocks.value = finalBlocks
-                _previewCache.update { it + (dateString to finalBlocks.filter { b -> !b.isDeleted }) }
+                cachePreviewBlocks(dateString, finalBlocks)
                 _loadedDateString.value = dateString
                 lastIndexedContentHash = 0
                 refreshBlocksIfStale(dateString)
@@ -592,7 +596,7 @@ class DailyEditorViewModel(
                 val finalBlocks = recalculateNumberedLists(mergedBlocks)
                 if (currentDateString != dateString) return@launch
                 _blocks.value = finalBlocks
-                _previewCache.update { it + (dateString to finalBlocks.filter { b -> !b.isDeleted }) }
+                cachePreviewBlocks(dateString, finalBlocks)
                 _loadedDateString.value = dateString
                 lastIndexedContentHash = 0
                 refreshBlocksIfStale(dateString)

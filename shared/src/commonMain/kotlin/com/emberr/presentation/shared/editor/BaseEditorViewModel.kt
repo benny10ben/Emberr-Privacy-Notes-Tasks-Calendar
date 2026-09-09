@@ -128,6 +128,22 @@ abstract class BaseEditorViewModel(
     // accidentally persist a virtual occurrence into the wrong note.
     protected open val extraVisibleBlocks: StateFlow<List<NoteBlock>> = MutableStateFlow(emptyList())
 
+    protected fun visibleBlocksOf(allBlocks: List<NoteBlock>): List<NoteBlock> {
+        val visible = mutableListOf<NoteBlock>()
+        var skipUntilLevel: Int? = null
+        for (block in allBlocks) {
+            if (block.isDeleted) continue
+
+            if (skipUntilLevel != null) {
+                if (block.indentationLevel > skipUntilLevel) continue
+                else skipUntilLevel = null
+            }
+            visible.add(block)
+            if (block is ToggleBlock && !block.isExpanded) skipUntilLevel = block.indentationLevel
+        }
+        return visible
+    }
+
     // Deferred via `by lazy` rather than an eager property initializer: this combines with
     // extraVisibleBlocks, an `open val` a subclass constructor hasn't finished assigning yet at the
     // point this class's own constructor runs - evaluating it eagerly here would observe the
@@ -135,18 +151,7 @@ abstract class BaseEditorViewModel(
     // never happens until after the subclass is fully constructed.
     val visibleBlocks: StateFlow<List<NoteBlock>> by lazy {
         combine(_blocks, extraVisibleBlocks) { allBlocks, extra ->
-            val visible = mutableListOf<NoteBlock>()
-            var skipUntilLevel: Int? = null
-            for (block in allBlocks) {
-                if (block.isDeleted) continue
-
-                if (skipUntilLevel != null) {
-                    if (block.indentationLevel > skipUntilLevel) continue
-                    else skipUntilLevel = null
-                }
-                visible.add(block)
-                if (block is ToggleBlock && !block.isExpanded) skipUntilLevel = block.indentationLevel
-            }
+            val visible = visibleBlocksOf(allBlocks)
             val realIds = visible.mapTo(HashSet()) { it.id }
             val (pinnedReal, unpinnedReal) = visible.partition { it.isPinned }
 
