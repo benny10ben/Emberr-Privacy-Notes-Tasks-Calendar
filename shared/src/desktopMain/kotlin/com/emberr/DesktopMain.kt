@@ -49,8 +49,10 @@ import com.emberr.domain.util.handleExportMarkdown
 import com.emberr.domain.util.handleExportPdf
 import com.emberr.domain.util.handleImportBackup
 import com.emberr.presentation.navigation.Screen
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.withContext
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import java.awt.Frame
@@ -76,54 +78,59 @@ fun main() = application {
     }
 
     LaunchedEffect(Unit) {
-        val koin = GlobalContext.get()
-        val settingsManager = koin.get<SettingsManager>()
-        val syncRepository = koin.get<SyncRepository>()
-        val hmacSigner = koin.get<com.emberr.core.security.SyncHmacSigner>()
-        val syncEncryptionManager = koin.get<com.emberr.core.security.SyncEncryptionManager>()
-        val pairingState = koin.get<com.emberr.domain.sync.SyncPairingState>()
+        withContext(Dispatchers.IO) {
+            val koin = GlobalContext.get()
+            val settingsManager = koin.get<SettingsManager>()
+            val syncRepository = koin.get<SyncRepository>()
+            val hmacSigner = koin.get<com.emberr.core.security.SyncHmacSigner>()
+            val syncEncryptionManager = koin.get<com.emberr.core.security.SyncEncryptionManager>()
+            val pairingState = koin.get<com.emberr.domain.sync.SyncPairingState>()
 
-        val serverAvailability = koin.get<com.emberr.domain.sync.SyncServerAvailability>()
-        val isSyncServerRunning = startSyncServer(
-            settingsManager,
-            syncRepository,
-            hmacSigner,
-            syncEncryptionManager,
-            pairingState,
-            serverAvailability
-        )
+            val serverAvailability = koin.get<com.emberr.domain.sync.SyncServerAvailability>()
+            val isSyncServerRunning = startSyncServer(
+                settingsManager,
+                syncRepository,
+                hmacSigner,
+                syncEncryptionManager,
+                pairingState,
+                serverAvailability
+            )
 
-        if (isSyncServerRunning) {
-            val discoveryManager = koin.get<com.emberr.domain.sync.discovery.SyncDiscoveryManager>()
-            val port = settingsManager.getSyncPort()
-                .let { if (it <= 0) com.emberr.data.local.prefs.SyncConstants.DEFAULT_PORT else it }
-            discoveryManager.startBroadcasting(port, "Emberr Desktop")
+            if (isSyncServerRunning) {
+                val discoveryManager = koin.get<com.emberr.domain.sync.discovery.SyncDiscoveryManager>()
+                val port = settingsManager.getSyncPort()
+                    .let { if (it <= 0) com.emberr.data.local.prefs.SyncConstants.DEFAULT_PORT else it }
+                discoveryManager.startBroadcasting(port, "Emberr Desktop")
+            }
         }
     }
 
     LaunchedEffect(Unit) {
-        val koin = GlobalContext.get()
-        val secureSyncKeyStorage = koin.get<SecureSyncKeyStorage>()
-        val selfHostSyncScheduler = koin.get<SelfHostSyncScheduler>()
-        val foregroundSyncPoller = koin.get<ForegroundSyncPoller>()
+        withContext(Dispatchers.IO) {
+            val koin = GlobalContext.get()
+            val secureSyncKeyStorage = koin.get<SecureSyncKeyStorage>()
+            val selfHostSyncScheduler = koin.get<SelfHostSyncScheduler>()
+            val foregroundSyncPoller = koin.get<ForegroundSyncPoller>()
 
-        val isVaultConfigured = secureSyncKeyStorage.getServerCredentials() != null &&
-                secureSyncKeyStorage.getEncryptionKey() != null
+            val isVaultConfigured = secureSyncKeyStorage.getServerCredentials() != null &&
+                    secureSyncKeyStorage.getEncryptionKey() != null
 
-        if (isVaultConfigured) {
-            SelfHostSyncLog.d("DesktopMain: vault already configured, arming background sync schedules on launch")
-            selfHostSyncScheduler.scheduleDailySync()
-            selfHostSyncScheduler.scheduleMediaSync()
-            foregroundSyncPoller.start()
-        } else {
-            SelfHostSyncLog.d("DesktopMain: no self-host vault configured, skipping background sync schedules")
+            if (isVaultConfigured) {
+                SelfHostSyncLog.d("DesktopMain: vault already configured, arming background sync schedules on launch")
+                selfHostSyncScheduler.scheduleDailySync()
+                selfHostSyncScheduler.scheduleMediaSync()
+                foregroundSyncPoller.start()
+            } else {
+                SelfHostSyncLog.d("DesktopMain: no self-host vault configured, skipping background sync schedules")
+            }
         }
     }
 
     @OptIn(FlowPreview::class)
     LaunchedEffect(Unit) {
-        val koin = GlobalContext.get()
-        val localMediaGarbageCollector = koin.get<LocalMediaGarbageCollector>()
+        val localMediaGarbageCollector = withContext(Dispatchers.IO) {
+            GlobalContext.get().get<LocalMediaGarbageCollector>()
+        }
         LocalMediaGcTrigger.cleanupRequests
             .debounce(2000L.milliseconds)
             .collect {

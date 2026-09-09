@@ -3,12 +3,14 @@ package com.emberr.domain.theme
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-fun resolveLinuxSystemIsDark(): Boolean? {
+private val linuxSystemIsDarkOncePerProcess: Boolean? by lazy {
     val osName = System.getProperty("os.name").orEmpty().lowercase()
-    if (!osName.contains("linux")) return null
+    if (!osName.contains("linux")) return@lazy null
 
-    return readColorSchemeFromDesktopPortal() ?: readColorSchemeFromGnomeSettings()
+    readColorSchemeFromDesktopPortal() ?: readColorSchemeFromGnomeSettings()
 }
+
+fun resolveLinuxSystemIsDark(): Boolean? = linuxSystemIsDarkOncePerProcess
 
 private fun runCommandWithTimeout(vararg command: String): String? {
     return try {
