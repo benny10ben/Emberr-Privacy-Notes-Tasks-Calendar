@@ -1,9 +1,11 @@
 package com.emberr.presentation.mobile.home
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -88,6 +90,7 @@ import emberr.shared.generated.resources.ellipsis
 import emberr.shared.generated.resources.file_text
 import emberr.shared.generated.resources.pen
 import emberr.shared.generated.resources.pen_square
+import emberr.shared.generated.resources.star
 import emberr.shared.generated.resources.folder_plus
 import emberr.shared.generated.resources.template
 import emberr.shared.generated.resources.trash
@@ -157,11 +160,10 @@ fun HomeScreen(
     val calendarTaskMap by dailyEditorViewModel.calendarTaskMap.collectAsState()
 
     val isLoading by viewModel.isLoading.collectAsState()
-    val subFolders by viewModel.currentSubFolders.collectAsState()
-    val breadcrumbs by viewModel.breadcrumbs.collectAsState()
-    val notes by viewModel.notes.collectAsState()
+    val foldersByParent by viewModel.foldersByParent.collectAsState()
+    val notesByFolder by viewModel.notesByFolder.collectAsState()
+    val expandedFolderIds by viewModel.expandedFolderIds.collectAsState()
     val recentNotes by viewModel.recentNotes.collectAsState()
-    val selectedFolderId by viewModel.selectedFolderId.collectAsState()
     val selectedNoteIds by viewModel.selectedNoteIds.collectAsState()
     val selectedFolderIds by viewModel.selectedFolderIds.collectAsState()
     val favoriteNotes by viewModel.favoriteNotes.collectAsState()
@@ -176,63 +178,65 @@ fun HomeScreen(
     val currentSortType by viewModel.sortType.collectAsState()
     val currentSortOrder by viewModel.sortOrder.collectAsState()
 
-    val gridItems: List<HomeItem> = remember(subFolders, notes, currentSortType, currentSortOrder) {
-        sortedHomeItems(subFolders, notes, currentSortType, currentSortOrder)
+    val treeRows: List<HomeItem> = remember(
+        foldersByParent, notesByFolder, expandedFolderIds, currentSortType, currentSortOrder
+    ) {
+        flattenFolderTree(
+            parentId = null,
+            level = 0,
+            foldersByParent = foldersByParent,
+            notesByFolder = notesByFolder,
+            expandedFolderIds = expandedFolderIds,
+            sortType = currentSortType,
+            sortOrder = currentSortOrder
+        )
     }
+
+    val treeGuideLines = remember(treeRows) { treeRows.buildTreeGuideLines() }
 
     val gridState = rememberLazyStaggeredGridState()
-    val gridDragState = rememberMobileGridDragState()
-    val cardCornerRadiusPx = with(LocalDensity.current) { 12.dp.toPx() }
-    var gridOriginInRoot by remember { mutableStateOf(Offset.Zero) }
+    val treeDragState = rememberMobileTreeDragState()
+    var listOriginInRoot by remember { mutableStateOf(Offset.Zero) }
 
-    // While a drag is in flight the grid renders this optimistic order, so cards slide out of
-    // the way under the finger
-    var previewItems by remember { mutableStateOf<List<HomeItem>?>(null) }
-    val displayedItems = previewItems ?: gridItems
-
-    LaunchedEffect(gridItems) { if (!gridDragState.isDragging) previewItems = null }
-
-    LaunchedEffect(gridDragState.draggedKey) {
-        if (gridDragState.isDragging && previewItems == null) previewItems = gridItems
+    val blockedDropKeys = remember(treeRows, treeDragState.draggedKey) {
+        treeRows.subtreeKeys(treeDragState.draggedKey)
     }
+    val currentBlockedDropKeys by rememberUpdatedState(blockedDropKeys)
 
-    val edgeScrollZonePx = with(LocalDensity.current) { 110.dp.toPx() }
-    val edgeScrollStepPx = with(LocalDensity.current) { 14.dp.toPx() }
+    val edgeScrollZonePx = with(LocalDensity.current) { 96.dp.toPx() }
+    val edgeScrollStepPx = with(LocalDensity.current) { 12.dp.toPx() }
 
-    LaunchedEffect(selectedFolderId) { gridState.scrollToItem(0) }
-
-    LaunchedEffect(gridDragState.isDragging) {
-        if (!gridDragState.isDragging) return@LaunchedEffect
+    LaunchedEffect(treeDragState.isDragging) {
+        if (!treeDragState.isDragging) return@LaunchedEffect
         while (isActive) {
             withFrameNanos { }
-            val delta = gridDragState.edgeScrollDelta(gridState, edgeScrollZonePx, edgeScrollStepPx)
+            val delta = treeDragState.edgeScrollDelta(gridState, edgeScrollZonePx, edgeScrollStepPx)
             if (delta != 0f) {
                 gridState.scrollBy(delta)
-                gridDragState.refreshHoverTarget(gridState)
+                treeDragState.refreshDropTarget(gridState, currentBlockedDropKeys)
             }
         }
     }
 
-    LaunchedEffect(gridDragState.hoverKey, gridDragState.hoverMode) {
-        val draggedKey = gridDragState.draggedKey ?: return@LaunchedEffect
-        val hoverKey = gridDragState.hoverKey ?: return@LaunchedEffect
-        if (gridDragState.hoverMode != MobileDropMode.REORDER) return@LaunchedEffect
-        previewItems = (previewItems ?: gridItems).movedTo(draggedKey, hoverKey)
-    }
+    val handleTreeDrop: (String, String?, DropInsertPosition) -> Unit = { draggedKey, targetKey, position ->
+        if (targetKey != null && targetKey != draggedKey) {
+            if (position == DropInsertPosition.INTO && HomeItemKey.isFolder(targetKey)) {
+                val destinationFolderId = HomeItemKey.folderIdOf(targetKey)
+                when {
+                    HomeItemKey.isNote(draggedKey) ->
+                        viewModel.moveNote(HomeItemKey.noteIdOf(draggedKey), destinationFolderId)
 
-    val handleGridDrop: (String, String?, MobileDropMode) -> Unit = { draggedKey, hoverKey, mode ->
-        if (mode == MobileDropMode.INTO && hoverKey != null && HomeItemKey.isFolder(hoverKey)) {
-            previewItems = null
-            val destinationFolderId = HomeItemKey.folderIdOf(hoverKey)
-            when {
-                HomeItemKey.isNote(draggedKey) ->
-                    viewModel.moveNote(HomeItemKey.noteIdOf(draggedKey), destinationFolderId)
-
-                HomeItemKey.isFolder(draggedKey) ->
-                    viewModel.moveFolder(HomeItemKey.folderIdOf(draggedKey), destinationFolderId)
+                    HomeItemKey.isFolder(draggedKey) ->
+                        viewModel.moveFolder(HomeItemKey.folderIdOf(draggedKey), destinationFolderId)
+                }
+            } else {
+                viewModel.reorderItems(
+                    draggedKey = draggedKey,
+                    targetKey = targetKey,
+                    insertBefore = position == DropInsertPosition.BEFORE,
+                    orderedKeys = treeRows.map { it.key }
+                )
             }
-        } else {
-            viewModel.applyManualOrder(displayedItems.map { it.key })
         }
     }
 
@@ -247,6 +251,8 @@ fun HomeScreen(
     var showAddNotePopup by remember { mutableStateOf(false) }
     var showAddFolderPopup by remember { mutableStateOf(false) }
     var addNoteInput by remember { mutableStateOf("") }
+    var addNoteTargetFolderId by remember { mutableStateOf<String?>(null) }
+    var addNoteMenuFolderId by remember { mutableStateOf<String?>(null) }
     var addFolderInput by remember { mutableStateOf("") }
 
     // Mobile sheet + desktop popup toggles for the Templates menu opened from the New Note flow.
@@ -269,9 +275,27 @@ fun HomeScreen(
     val isRecentsExpanded by viewModel.isRecentsSectionExpanded.collectAsState()
 
     val favListState = rememberLazyListState()
-    val recentListState = rememberLazyListState()
 
     val isSelectionMode = selectedNoteIds.isNotEmpty() || selectedFolderIds.isNotEmpty()
+
+    val favoriteNoteIds = remember(favoriteNotes) { favoriteNotes.map { it.noteId }.toSet() }
+    val selectionMenu = remember(selectedNoteIds, selectedFolderIds, favoriteNoteIds) {
+        treeSelectionMenu(selectedNoteIds, selectedFolderIds) { noteId -> noteId in favoriteNoteIds }
+    }
+
+    var showRenameSheet by remember { mutableStateOf(false) }
+    val renameTargetNoteId = if (selectedFolderIds.isEmpty()) selectedNoteIds.singleOrNull() else null
+    val renameTargetFolderId = if (selectedNoteIds.isEmpty()) selectedFolderIds.singleOrNull() else null
+    val renameCurrentName = when {
+        renameTargetNoteId != null ->
+            (notesByFolder.values.flatten() + favoriteNotes + recentNotes)
+                .find { it.noteId == renameTargetNoteId }?.title.orEmpty()
+
+        renameTargetFolderId != null ->
+            foldersByParent.values.flatten().find { it.folderId == renameTargetFolderId }?.name.orEmpty()
+
+        else -> ""
+    }
 
     val syncState by syncViewModel.syncStatus.collectAsState()
 
@@ -283,7 +307,6 @@ fun HomeScreen(
     }
 
     KmpBackHandler(enabled = isSelectionMode) { viewModel.clearSelection() }
-    KmpBackHandler(enabled = selectedFolderId != null) { viewModel.navigateUp() }
 
     LaunchedEffect(isSelectionMode) { onSelectionModeChange(isSelectionMode) }
 
@@ -293,7 +316,7 @@ fun HomeScreen(
     }
 
     val handleCreateNote = { title: String ->
-        viewModel.createNewNote(title = title, forceHomeFolder = false) { newNoteId ->
+        viewModel.createNoteInParent(addNoteTargetFolderId, title = title) { newNoteId ->
             onNavigateToEditor(newNoteId)
         }
         showAddNoteDialog = false
@@ -325,7 +348,7 @@ fun HomeScreen(
     val homeGridContent = @Composable {
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize()
-                .onGloballyPositioned { gridOriginInRoot = it.positionInRoot() }
+                .onGloballyPositioned { listOriginInRoot = it.positionInRoot() }
         ) {
             val cardWidth = (maxWidth - (HORIZONTAL_PADDING * 2) - 10.dp) / 2
 
@@ -342,26 +365,26 @@ fun HomeScreen(
                         bottom = bottomContentPadding + 80.dp
                     ),
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.Start),
-                    verticalItemSpacing = 10.dp,
+                    verticalItemSpacing = 0.dp,
                     modifier = Modifier.fillMaxSize().hazeSource(state = hazeState).background(MaterialTheme.colorScheme.background)
                 ) {
                     item {
-                        Box(Modifier.padding(start = HORIZONTAL_PADDING)) {
+                        Box(Modifier.padding(start = HORIZONTAL_PADDING).padding(bottom = 10.dp)) {
                             OverviewCard("Tasks", "$remindersCount left", onClick = { onNavigateToReminders() })
                         }
                     }
                     item {
-                        Box(Modifier.padding(end = HORIZONTAL_PADDING)) {
+                        Box(Modifier.padding(end = HORIZONTAL_PADDING).padding(bottom = 10.dp)) {
                             OverviewCard("Bookmarks", "$bookmarksCount saved", onClick = { onNavigateToBookmarks() })
                         }
                     }
                     item {
-                        Box(Modifier.padding(start = HORIZONTAL_PADDING)) {
+                        Box(Modifier.padding(start = HORIZONTAL_PADDING).padding(bottom = 10.dp)) {
                             OverviewCard("Images", "$imagesCount saved", onClick = { onNavigateToImages() })
                         }
                     }
                     item {
-                        Box(Modifier.padding(end = HORIZONTAL_PADDING)) {
+                        Box(Modifier.padding(end = HORIZONTAL_PADDING).padding(bottom = 10.dp)) {
                             OverviewCard(
                                 "Documents",
                                 "$documentsCount attached",
@@ -423,7 +446,7 @@ fun HomeScreen(
                         }
                     }
 
-                    if (gridItems.isNotEmpty() || !isSelectionMode) {
+                    if (treeRows.isNotEmpty() || !isSelectionMode) {
                         item(span = StaggeredGridItemSpan.FullLine) {
                             Row(modifier = Modifier.fillMaxWidth().padding(start = HORIZONTAL_PADDING, end = HORIZONTAL_PADDING, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                 Row(modifier = Modifier.clip(RoundedCornerShape(4.dp)).noRippleClickable { viewModel.toggleHomeSection(SyncConstants.HOME_SECTION_NOTES) }.padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -524,7 +547,7 @@ fun HomeScreen(
                                             }
                                         }
                                         Box {
-                                            Icon(painterResource(Res.drawable.pen_square), "New Note", modifier = Modifier.size(22.dp).noRippleClickable { if (isDesktopPlatform) { addNoteInput = ""; showAddNotePopup = true } else showAddNoteDialog = true }, tint = MaterialTheme.colorScheme.onSurface)
+                                            Icon(painterResource(Res.drawable.pen_square), "New Note", modifier = Modifier.size(22.dp).noRippleClickable { addNoteTargetFolderId = null; if (isDesktopPlatform) { addNoteInput = ""; showAddNotePopup = true } else showAddNoteDialog = true }, tint = MaterialTheme.colorScheme.onSurface)
                                             if (isDesktopPlatform) {
                                                 EmberrDesktopMenu(expanded = showAddNotePopup, onDismissRequest = { showAddNotePopup = false }, modifier = Modifier.width(280.dp)) {
                                                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -604,90 +627,98 @@ fun HomeScreen(
                     }
 
                     if (isNotesExpanded) {
-                        if (!isDesktopPlatform && !isSelectionMode && selectedFolderId != null) {
-                            item(span = StaggeredGridItemSpan.FullLine) {
-                                BreadcrumbTrail(
-                                    selectedFolderId = selectedFolderId,
-                                    breadcrumbs = breadcrumbs,
-                                    onNavigate = { viewModel.selectFolder(it) },
-                                    modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING)
-                                )
-                            }
-                        }
-
-                        if (displayedItems.isEmpty()) {
+                        if (treeRows.isEmpty()) {
                             item(span = StaggeredGridItemSpan.FullLine, key = "home_empty_state") {
                                 HomeEmptyState()
                             }
                         }
 
-                        itemsIndexed(displayedItems, key = { _, row -> row.key }) { index, row ->
-                            val sidePad = if (index % 2 == 0) Modifier.padding(start = HORIZONTAL_PADDING) else Modifier.padding(end = HORIZONTAL_PADDING)
+                        itemsIndexed(
+                            treeRows,
+                            key = { _, row -> row.key },
+                            span = { _, _ -> StaggeredGridItemSpan.FullLine }
+                        ) { index, row ->
                             Box(
                                 modifier = Modifier
-                                    .then(
-                                        if (gridDragState.isDragging) Modifier.animateItem(
-                                            fadeInSpec = null,
-                                            fadeOutSpec = null,
-                                            placementSpec = spring(
-                                                stiffness = Spring.StiffnessMediumLow,
-                                                dampingRatio = Spring.DampingRatioNoBouncy
-                                            )
-                                        ) else Modifier
+                                    .animateItem(
+                                        fadeInSpec = tween(200, easing = FastOutSlowInEasing),
+                                        fadeOutSpec = tween(160, easing = FastOutSlowInEasing),
+                                        placementSpec = null
                                     )
-                                    .then(sidePad)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .mobileGridDropFeedback(
-                                            isDragged = gridDragState.isDragged(row.key),
-                                            isIntoTarget = gridDragState.isIntoTarget(row.key),
-                                            cornerRadiusPx = cardCornerRadiusPx
-                                        )
-                                        .mobileGridDragSource(
-                                            itemKey = row.key,
-                                            dragState = gridDragState,
-                                            gridState = gridState,
-                                            gridOriginInRoot = gridOriginInRoot,
-                                            dragEnabled = !isSelectionMode,
-                                            onClick = {
-                                                when (row) {
-                                                    is HomeItem.Folder ->
-                                                        if (isSelectionMode) viewModel.toggleFolderSelection(row.folder.folderId)
-                                                        else viewModel.selectFolder(row.folder.folderId)
+                                    .padding(horizontal = HORIZONTAL_PADDING)
+                                    .mobileTreeDragSource(
+                                        itemKey = row.key,
+                                        dragState = treeDragState,
+                                        gridState = gridState,
+                                        listOriginInRoot = listOriginInRoot,
+                                        blockedTargetKeys = blockedDropKeys,
+                                        dragEnabled = !isSelectionMode,
+                                        onClick = {
+                                            when (row) {
+                                                is HomeItem.Folder ->
+                                                    if (isSelectionMode) viewModel.toggleFolderSelection(row.folder.folderId)
+                                                    else viewModel.toggleFolderExpansion(row.folder.folderId)
 
-                                                    is HomeItem.Note ->
-                                                        if (isSelectionMode) viewModel.toggleNoteSelection(row.note.noteId)
-                                                        else onNavigateToEditor(row.note.noteId)
-                                                }
-                                            },
-                                            onLongPress = {
-                                                when (row) {
-                                                    is HomeItem.Folder -> viewModel.toggleFolderSelection(row.folder.folderId)
-                                                    is HomeItem.Note -> viewModel.toggleNoteSelection(row.note.noteId)
-                                                }
-                                            },
-                                            onDrop = { hoverKey, mode ->
-                                                handleGridDrop(row.key, hoverKey, mode)
+                                                is HomeItem.Note ->
+                                                    if (isSelectionMode) viewModel.toggleNoteSelection(row.note.noteId)
+                                                    else onNavigateToEditor(row.note.noteId)
                                             }
-                                        )
-                                ) {
-                                    when (row) {
-                                        is HomeItem.Folder -> FolderCard(
+                                        },
+                                        onLongPress = {
+                                            when (row) {
+                                                is HomeItem.Folder -> viewModel.toggleFolderSelection(row.folder.folderId)
+                                                is HomeItem.Note -> viewModel.toggleNoteSelection(row.note.noteId)
+                                            }
+                                        },
+                                        onDrop = { targetKey, position ->
+                                            handleTreeDrop(row.key, targetKey, position)
+                                        }
+                                    )
+                            ) {
+                                when (row) {
+                                    is HomeItem.Folder -> {
+                                        MobileTreeFolderRow(
                                             folder = row.folder,
+                                            level = row.level,
+                                            guideLines = treeGuideLines.getOrElse(index) { ROOT_TREE_GUIDE_LINES },
+                                            isExpanded = expandedFolderIds.contains(row.folder.folderId),
                                             isSelected = selectedFolderIds.contains(row.folder.folderId),
                                             noteCount = noteCountsByFolder[row.folder.folderId] ?: 0,
-                                            handlesGestures = false,
-                                            onClick = {},
-                                            onLongClick = {})
+                                            dragState = treeDragState,
+                                            showAddNoteAction = !isSelectionMode && !treeDragState.isDragging,
+                                            onAddNote = {
+                                                addNoteTargetFolderId = row.folder.folderId
+                                                if (isDesktopPlatform) {
+                                                    addNoteInput = ""
+                                                    addNoteMenuFolderId = row.folder.folderId
+                                                } else {
+                                                    showAddNoteDialog = true
+                                                }
+                                            }
+                                        )
 
-                                        is HomeItem.Note -> NoteCard(
-                                            note = row.note,
-                                            isSelected = selectedNoteIds.contains(row.note.noteId),
-                                            handlesGestures = false,
-                                            onClick = {},
-                                            onLongClick = {})
+                                        if (isDesktopPlatform) {
+                                            NewNoteInFolderMenu(
+                                                expanded = addNoteMenuFolderId == row.folder.folderId,
+                                                folderName = row.folder.name,
+                                                input = addNoteInput,
+                                                onInputChange = { addNoteInput = it },
+                                                onDismiss = { addNoteMenuFolderId = null },
+                                                onCreate = { title ->
+                                                    addNoteMenuFolderId = null
+                                                    handleCreateNote(title)
+                                                }
+                                            )
+                                        }
                                     }
+
+                                    is HomeItem.Note -> MobileTreeNoteRow(
+                                        note = row.note,
+                                        level = row.level,
+                                        guideLines = treeGuideLines.getOrElse(index) { ROOT_TREE_GUIDE_LINES },
+                                        isSelected = selectedNoteIds.contains(row.note.noteId),
+                                        dragState = treeDragState
+                                    )
                                 }
                             }
                         }
@@ -714,27 +745,29 @@ fun HomeScreen(
                             }
                         }
                         if (isRecentsExpanded) {
-                            item(span = StaggeredGridItemSpan.FullLine) {
-                                LazyRow(
-                                    state = recentListState,
-                                    modifier = Modifier.fillMaxWidth()
-                                        .smoothWheelScroll(recentListState, horizontal = true),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    contentPadding = PaddingValues(horizontal = HORIZONTAL_PADDING)
+                            items(
+                                recentNotes,
+                                key = { note -> "recent_${note.noteId}" },
+                                span = { StaggeredGridItemSpan.FullLine }
+                            ) { note ->
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = HORIZONTAL_PADDING)
+                                        .cardGestures(
+                                            enabled = true,
+                                            onClick = {
+                                                if (isSelectionMode) viewModel.toggleNoteSelection(note.noteId)
+                                                else onNavigateToEditor(note.noteId)
+                                            },
+                                            onLongClick = { viewModel.toggleNoteSelection(note.noteId) }
+                                        )
                                 ) {
-                                    items(recentNotes, key = { "recent_${it.noteId}" }) { note ->
-                                        Box(Modifier.width(cardWidth)) {
-                                            NoteCard(
-                                                note = note,
-                                                isSelected = selectedNoteIds.contains(note.noteId),
-                                                onClick = {
-                                                    if (isSelectionMode) viewModel.toggleNoteSelection(
-                                                        note.noteId
-                                                    ) else onNavigateToEditor(note.noteId)
-                                                },
-                                                onLongClick = { viewModel.toggleNoteSelection(note.noteId) })
-                                        }
-                                    }
+                                    MobileTreeNoteRow(
+                                        note = note,
+                                        level = 0,
+                                        isSelected = selectedNoteIds.contains(note.noteId),
+                                        dragState = IdleTreeDragState
+                                    )
                                 }
                             }
                         }
@@ -742,34 +775,39 @@ fun HomeScreen(
                 }
             }
 
-            val floatingItem = gridDragState.draggedKey?.let { key ->
-                displayedItems.firstOrNull { it.key == key }
+            val floatingRow = treeDragState.draggedKey?.let { key ->
+                treeRows.firstOrNull { it.key == key }
             }
-            if (floatingItem != null && gridDragState.floatingSize.width > 0) {
+            if (floatingRow != null && treeDragState.floatingSize.width > 0) {
                 val density = LocalDensity.current
                 Box(
                     modifier = Modifier
                         .size(
-                            width = with(density) { gridDragState.floatingSize.width.toDp() },
-                            height = with(density) { gridDragState.floatingSize.height.toDp() }
+                            width = with(density) { treeDragState.floatingSize.width.toDp() },
+                            height = with(density) { treeDragState.floatingSize.height.toDp() }
                         )
-                        .mobileGridFloatingItem(gridDragState, gridOriginInRoot)
+                        .mobileTreeFloatingRow(treeDragState, listOriginInRoot)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface)
                 ) {
-                    when (floatingItem) {
-                        is HomeItem.Folder -> FolderCard(
-                            folder = floatingItem.folder,
+                    when (floatingRow) {
+                        is HomeItem.Folder -> MobileTreeFolderRow(
+                            folder = floatingRow.folder,
+                            level = 0,
+                            isExpanded = expandedFolderIds.contains(floatingRow.folder.folderId),
                             isSelected = false,
-                            noteCount = noteCountsByFolder[floatingItem.folder.folderId] ?: 0,
-                            handlesGestures = false,
-                            onClick = {},
-                            onLongClick = {})
+                            noteCount = noteCountsByFolder[floatingRow.folder.folderId] ?: 0,
+                            dragState = IdleTreeDragState,
+                            showAddNoteAction = false,
+                            onAddNote = {}
+                        )
 
-                        is HomeItem.Note -> NoteCard(
-                            note = floatingItem.note,
+                        is HomeItem.Note -> MobileTreeNoteRow(
+                            note = floatingRow.note,
+                            level = 0,
                             isSelected = false,
-                            handlesGestures = false,
-                            onClick = {},
-                            onLongClick = {})
+                            dragState = IdleTreeDragState
+                        )
                     }
                 }
             }
@@ -799,7 +837,12 @@ fun HomeScreen(
             NotesSelectionPill(
                 isVisible = isSelectionMode,
                 selectedCount = selectedNoteIds.size + selectedFolderIds.size,
+                showRename = selectionMenu.showRename,
+                showFavorite = selectionMenu.showFavorite,
+                favoriteLabel = selectionMenu.favoriteLabel,
                 onClearSelection = { viewModel.clearSelection() },
+                onRename = { showRenameSheet = true },
+                onToggleFavorite = { viewModel.setNotesFavorite(selectedNoteIds, selectionMenu.makeFavorite) },
                 onDelete = { viewModel.deleteSelectedItems() },
                 modifier = Modifier.align(Alignment.BottomCenter),
                 hazeState = hazeState
@@ -813,9 +856,25 @@ fun HomeScreen(
                 )
                 AddNoteBottomSheet(
                     expanded = showAddNoteDialog,
+                    destinationFolderName = addNoteTargetFolderId?.let { folderId ->
+                        foldersByParent.values.flatten().find { it.folderId == folderId }?.name
+                    },
                     onDismiss = { showAddNoteDialog = false },
                     onCreate = handleCreateNote,
                     onOpenTemplates = handleOpenTemplates
+                )
+                RenameBottomSheet(
+                    expanded = showRenameSheet,
+                    currentName = renameCurrentName,
+                    onDismiss = { showRenameSheet = false },
+                    onRename = { newName ->
+                        when {
+                            renameTargetNoteId != null -> viewModel.renameNote(renameTargetNoteId, newName)
+                            renameTargetFolderId != null -> viewModel.renameFolder(renameTargetFolderId, newName)
+                        }
+                        showRenameSheet = false
+                        viewModel.clearSelection()
+                    }
                 )
                 SortBottomSheet(
                     expanded = showSortMenu,
@@ -1233,7 +1292,19 @@ fun NoteCard(
 }
 
 @Composable
-fun NotesSelectionPill(isVisible: Boolean, selectedCount: Int, onClearSelection: () -> Unit, onDelete: () -> Unit, hazeState: HazeState, modifier: Modifier = Modifier) {
+fun NotesSelectionPill(
+    isVisible: Boolean,
+    selectedCount: Int,
+    onClearSelection: () -> Unit,
+    onDelete: () -> Unit,
+    hazeState: HazeState,
+    modifier: Modifier = Modifier,
+    showRename: Boolean = false,
+    showFavorite: Boolean = false,
+    favoriteLabel: String = "Add to Favorites",
+    onRename: () -> Unit = {},
+    onToggleFavorite: () -> Unit = {}
+) {
     val tint = MaterialTheme.colorScheme.primary
 
     AnimatedVisibility(
@@ -1275,11 +1346,67 @@ fun NotesSelectionPill(isVisible: Boolean, selectedCount: Int, onClearSelection:
                     color = tint
                 )
                 Box(Modifier.width(1.dp).height(18.dp).background(tint.copy(alpha = 0.2f)))
+                if (showRename) {
+                    Icon(
+                        painterResource(Res.drawable.pen),
+                        "Rename",
+                        modifier = Modifier.size(18.dp).noRippleClickable { onRename() },
+                        tint = tint
+                    )
+                }
+                if (showFavorite) {
+                    Icon(
+                        painterResource(Res.drawable.star),
+                        favoriteLabel,
+                        modifier = Modifier.size(18.dp).noRippleClickable { onToggleFavorite() },
+                        tint = tint
+                    )
+                }
                 Icon(
                     painterResource(Res.drawable.trash),
                     "Move to Trash",
                     modifier = Modifier.size(18.dp).noRippleClickable { onDelete() },
                     tint = tint
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RenameBottomSheet(
+    expanded: Boolean,
+    currentName: String,
+    onDismiss: () -> Unit,
+    onRename: (String) -> Unit
+) {
+    var newName by remember(currentName) { mutableStateOf(currentName) }
+    EmberrBottomSheet(
+        expanded = expanded,
+        onDismiss = onDismiss,
+        title = "Rename",
+        subtitle = "Pick a new name."
+    ) { closeAnd ->
+        Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 16.dp)) {
+            EmberrTextField(
+                value = newName,
+                onValueChange = { newName = it },
+                placeholder = "Name...",
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                EmberrButtonSecondary(
+                    text = "Cancel",
+                    onClick = { closeAnd(onDismiss) },
+                    modifier = Modifier.weight(1f)
+                )
+                EmberrButtonPrimary(
+                    text = "Save",
+                    onClick = { if (newName.isNotBlank()) closeAnd { onRename(newName.trim()) } },
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -1317,13 +1444,20 @@ fun AddFolderBottomSheet(expanded: Boolean, onDismiss: () -> Unit, onCreate: (St
 }
 
 @Composable
-fun AddNoteBottomSheet(expanded: Boolean, onDismiss: () -> Unit, onCreate: (String) -> Unit, onOpenTemplates: () -> Unit = {}) {
+fun AddNoteBottomSheet(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit,
+    onOpenTemplates: () -> Unit = {},
+    destinationFolderName: String? = null
+) {
     var noteTitle by remember { mutableStateOf("") }
     EmberrBottomSheet(
         expanded = expanded,
         onDismiss = onDismiss,
         title = "New Note",
-        subtitle = "Give your note a fresh title.",
+        subtitle = if (destinationFolderName != null) "Saving into $destinationFolderName."
+        else "Give your note a fresh title.",
         headerAction = EmberrBottomSheetAction(
             icon = painterResource(Res.drawable.template),
             contentDescription = "Templates",
@@ -1349,6 +1483,55 @@ fun AddNoteBottomSheet(expanded: Boolean, onDismiss: () -> Unit, onCreate: (Stri
                 EmberrButtonPrimary(
                     text = "Create",
                     onClick = { closeAnd { onCreate(noteTitle.trim()) } },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewNoteInFolderMenu(
+    expanded: Boolean,
+    folderName: String,
+    input: String,
+    onInputChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit
+) {
+    EmberrDesktopMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = Modifier.width(280.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = "New Note in $folderName",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
+            EmberrTextField(
+                value = input,
+                onValueChange = onInputChange,
+                placeholder = "Note title...",
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                EmberrButtonSecondary(
+                    text = "Cancel",
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f)
+                )
+                EmberrButtonPrimary(
+                    text = "Create",
+                    onClick = { if (input.isNotBlank()) onCreate(input.trim()) },
                     modifier = Modifier.weight(1f)
                 )
             }
