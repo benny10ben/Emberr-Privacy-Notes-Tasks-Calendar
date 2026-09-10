@@ -124,6 +124,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 enum class MenuLevel { MAIN, EXPORT, ICON, COVER }
 
+private val WordCountPillShape = RoundedCornerShape(20.dp)
+
 private object NoRippleIndicationNodeFactory : IndicationNodeFactory {
     override fun create(interactionSource: InteractionSource): DelegatableNode = object : Modifier.Node() {}
     override fun equals(other: Any?) = other === this
@@ -593,23 +595,22 @@ fun NoteScreen(
                             end = 16.dp
                         )
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(WordCountPillShape)
                             .emberrBlur(hazeState, EmberrBlur.Regular)
                             .border(
                                 width = 0.5.dp,
                                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = WordCountPillShape
                             )
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
                     ) {
                         Text(
                             text = "$wordCount words",
                             style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1
                         )
                     }
                 }
