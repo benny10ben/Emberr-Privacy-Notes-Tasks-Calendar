@@ -68,4 +68,7 @@ object SyncConstants {
     const val MAX_REQUEST_AGE_MS = 30_000L
     // Resumable media transfers
     const val HEADER_RESUME_OFFSET = "X-Resume-Offset"
+    // Bookmarks
+    const val KEY_BOOKMARK_CATEGORY_ORDER_JSON = "bookmark_category_order_json"
+    const val DEFAULT_BOOKMARK_CATEGORY_ORDER_JSON = ""
 }

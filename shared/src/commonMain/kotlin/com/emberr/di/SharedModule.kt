@@ -44,6 +44,8 @@ val sharedModule = module {
 
     single { com.emberr.domain.ai.models.ModelDownloadManager() }
 
+    single { com.emberr.domain.repository.BookmarkCategoryOrderStore(settingsManager = get()) }
+
     single {
         com.emberr.domain.ai.ReindexAllNotesUseCase(
             noteRepository = get()
@@ -169,7 +171,8 @@ val sharedModule = module {
     }
     viewModel {
         com.emberr.presentation.mobile.home.overview.bookmarks.BookmarksViewModel(
-            repository = get()
+            repository = get(),
+            bookmarkCategoryOrderStore = get()
         )
     }
     viewModel {
@@ -232,7 +235,8 @@ val sharedModule = module {
             chatSessionDao = get(),
             selfHostDeletedApiConfigDao = get(),
             aiSettingsRepository = get(),
-            database = get()
+            database = get(),
+            bookmarkCategoryOrderStore = get()
         )
     }
     single {

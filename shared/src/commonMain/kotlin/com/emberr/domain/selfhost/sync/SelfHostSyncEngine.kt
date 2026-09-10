@@ -20,6 +20,8 @@ import com.emberr.domain.ai.external.ExternalAiProvider
 import com.emberr.domain.ai.external.ExternalAiProviderConfig
 import com.emberr.domain.model.DocumentBlock
 import com.emberr.domain.model.ImageBlock
+import com.emberr.domain.model.BookmarkCategoryOrder
+import com.emberr.domain.repository.BookmarkCategoryOrderStore
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NoteContent
 import com.emberr.domain.model.VoiceBlock
@@ -69,7 +71,8 @@ class SelfHostSyncEngine(
     private val chatSessionDao: ChatSessionDao,
     private val selfHostDeletedApiConfigDao: SelfHostDeletedApiConfigDao,
     private val aiSettingsRepository: AiSettingsRepository,
-    private val database: EmberrDatabase
+    private val database: EmberrDatabase,
+    private val bookmarkCategoryOrderStore: BookmarkCategoryOrderStore
 ) {
 
     private enum class ReconcileOutcome { SYNCED, CONFLICT_SKIPPED, LOCK_BUSY, UNCHANGED }
@@ -454,6 +457,9 @@ class SelfHostSyncEngine(
             if (withSyncCoordinatorOrSkip { reconcileApiConfigs() } == null) {
                 SelfHostSyncLog.d("TextSync: api configs skipped this cycle, SyncCoordinator.mutex busy - will retry next trigger")
             }
+            if (withSyncCoordinatorOrSkip { reconcileBookmarkCategoryOrder() } == null) {
+                SelfHostSyncLog.d("TextSync: bookmark category order skipped this cycle, SyncCoordinator.mutex busy - will retry next trigger")
+            }
             val chatSessionEntries = withSyncCoordinatorOrSkip { reconcileChatSessions(manifest) } ?: run {
                 SelfHostSyncLog.d("TextSync: chat sessions skipped this cycle, SyncCoordinator.mutex busy - will retry next trigger")
                 manifest.entries.filter { it.entryType == SelfHostEntryType.CHAT_SESSION }
@@ -664,6 +670,35 @@ class SelfHostSyncEngine(
             SelfHostSyncLog.d("ApiConfigSync: remote api_configs.json changed concurrently, will retry next cycle")
         } catch (cause: Exception) {
             SelfHostSyncLog.e("ApiConfigSync: failed to sync api configs: ${cause.message}", cause)
+        }
+    }
+
+    // The bookmark category pill order is a single small list shared by every device, so it syncs as
+    // one whole-file JSON blob resolved purely by "last-write-wins" on updatedAt. There is nothing to
+    // merge element-by-element here: a half-merged ordering of two different drags would be an order
+    // neither device asked for, so the newer drag simply wins outright.
+    private suspend fun reconcileBookmarkCategoryOrder() {
+        try {
+            val remoteJsonWithEtag =
+                webDavSyncClient.downloadAndDecryptJsonWithEtag(WebDavSyncPaths.BOOKMARK_CATEGORY_ORDER_FILE)
+            val remoteOrder = remoteJsonWithEtag?.first
+                ?.let { collectionJson.decodeFromString(BookmarkCategoryOrder.serializer(), it) }
+
+            if (remoteOrder != null) bookmarkCategoryOrderStore.applyRemoteOrder(remoteOrder)
+
+            val mergedOrder = bookmarkCategoryOrderStore.getOrder()
+            if (mergedOrder.updatedAt > 0L && mergedOrder != remoteOrder) {
+                webDavSyncClient.uploadEncryptedJson(
+                    WebDavSyncPaths.BOOKMARK_CATEGORY_ORDER_FILE,
+                    collectionJson.encodeToString(BookmarkCategoryOrder.serializer(), mergedOrder),
+                    remoteJsonWithEtag?.second
+                )
+            }
+            SelfHostSyncLog.d("BookmarkCategoryOrderSync: complete, ${mergedOrder.categories.size} categor(y/ies) ordered")
+        } catch (cause: WebDavConflictException) {
+            SelfHostSyncLog.d("BookmarkCategoryOrderSync: remote bookmark_category_order.json changed concurrently, will retry next cycle")
+        } catch (cause: Exception) {
+            SelfHostSyncLog.e("BookmarkCategoryOrderSync: failed to sync bookmark category order: ${cause.message}", cause)
         }
     }
 

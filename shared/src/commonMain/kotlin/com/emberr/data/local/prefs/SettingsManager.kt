@@ -110,6 +110,10 @@ interface SettingsManager {
     fun isAiFeaturesDisabled(): Boolean
     fun saveAiFeaturesDisabled(disabled: Boolean)
 
+    val bookmarkCategoryOrderJsonFlow: Flow<String>
+    fun getBookmarkCategoryOrderJson(): String
+    fun saveBookmarkCategoryOrderJson(json: String)
+
     val hasCompletedOnboardingFlow: Flow<Boolean>
     fun isOnboardingCompleted(): Boolean
     fun saveOnboardingCompleted(completed: Boolean)

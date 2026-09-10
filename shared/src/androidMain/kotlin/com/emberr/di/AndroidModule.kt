@@ -278,7 +278,7 @@ val androidModule = module {
     single<com.emberr.core.security.SyncHmacSigner> { com.emberr.core.security.HmacSha256Signer() }
     single<SyncDiscoveryManager> { AndroidDiscoveryManager(androidContext()) }
     single<com.emberr.domain.sync.SyncClient> { com.emberr.domain.sync.SyncClient(get(), get(), get()) }
-    single<SyncRepository> { SyncRepositoryImpl(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single<SyncRepository> { SyncRepositoryImpl(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { SyncViewModel(get(), get(), get(), get(), get()) }
 
     // Manual export/import (unrelated to automatic backups below)

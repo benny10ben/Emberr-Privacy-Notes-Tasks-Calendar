@@ -7,8 +7,10 @@ import com.emberr.domain.model.BookmarkBlock
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NoteContent
 import com.emberr.domain.model.markDeleted
+import com.emberr.domain.repository.BookmarkCategoryOrderStore
 import com.emberr.domain.repository.NoteRepository
 import com.emberr.domain.util.HtmlMetadataFetcher
+import com.emberr.domain.sync.AutoSyncTrigger
 import com.emberr.domain.util.SyncCoordinator
 import com.emberr.presentation.shared.editor.FocusRequest
 import kotlinx.coroutines.Dispatchers
@@ -17,7 +19,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -34,8 +39,18 @@ data class BookmarkGroup(
 )
 
 class BookmarksViewModel constructor(
-    private val repository: NoteRepository
+    private val repository: NoteRepository,
+    private val bookmarkCategoryOrderStore: BookmarkCategoryOrderStore
 ) : ViewModel() {
+
+    val categoryOrder: StateFlow<List<String>> = bookmarkCategoryOrderStore.orderFlow
+        .map { it.categories }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, bookmarkCategoryOrderStore.getOrder().categories)
+
+    fun saveCategoryOrder(categories: List<String>) {
+        bookmarkCategoryOrderStore.saveOrder(categories)
+        AutoSyncTrigger.requestSync()
+    }
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()

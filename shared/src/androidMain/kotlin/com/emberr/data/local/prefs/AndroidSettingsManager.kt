@@ -364,6 +364,21 @@ class AndroidSettingsManager(
         _aiFeaturesDisabled.value = disabled
     }
 
+    private val _bookmarkCategoryOrderJson = MutableStateFlow(
+        sharedPreferences.getString(
+            SyncConstants.KEY_BOOKMARK_CATEGORY_ORDER_JSON,
+            SyncConstants.DEFAULT_BOOKMARK_CATEGORY_ORDER_JSON
+        ) ?: SyncConstants.DEFAULT_BOOKMARK_CATEGORY_ORDER_JSON
+    )
+    override val bookmarkCategoryOrderJsonFlow: Flow<String> = _bookmarkCategoryOrderJson
+
+    override fun getBookmarkCategoryOrderJson(): String = _bookmarkCategoryOrderJson.value
+
+    override fun saveBookmarkCategoryOrderJson(json: String) {
+        sharedPreferences.edit { putString(SyncConstants.KEY_BOOKMARK_CATEGORY_ORDER_JSON, json) }
+        _bookmarkCategoryOrderJson.value = json
+    }
+
     private val _hasCompletedOnboarding = MutableStateFlow(
         sharedPreferences.getBoolean(SyncConstants.KEY_ONBOARDING_COMPLETED, SyncConstants.DEFAULT_ONBOARDING_COMPLETED)
     )

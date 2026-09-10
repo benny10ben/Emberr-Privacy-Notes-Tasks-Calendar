@@ -21,6 +21,9 @@ import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NoteContent
 import com.emberr.domain.model.VoiceBlock
 import com.emberr.domain.repository.NoteRepository
+import com.emberr.domain.model.BOOKMARK_CATEGORY_ORDER_ENTITY_ID
+import com.emberr.domain.model.BookmarkCategoryOrder
+import com.emberr.domain.repository.BookmarkCategoryOrderStore
 import com.emberr.domain.selfhost.sync.ApiConfigSyncEntry
 import com.emberr.domain.selfhost.translation.EmbeddedBlockPayload
 import com.emberr.domain.util.ChatSyncEventBus
@@ -48,7 +51,8 @@ class SyncRepositoryImpl(
     private val chatSessionDao: ChatSessionDao,
     private val selfHostDeletedApiConfigDao: SelfHostDeletedApiConfigDao,
     private val aiSettingsRepository: AiSettingsRepository,
-    private val database: EmberrDatabase
+    private val database: EmberrDatabase,
+    private val bookmarkCategoryOrderStore: BookmarkCategoryOrderStore
 ) : SyncRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -537,6 +541,12 @@ class SyncRepositoryImpl(
                                 }
                             }
 
+                            SyncType.BOOKMARK_CATEGORY_ORDER -> {
+                                val remoteOrder =
+                                    json.decodeFromString<BookmarkCategoryOrder>(decryptedMetaJson)
+                                bookmarkCategoryOrderStore.applyRemoteOrder(remoteOrder)
+                            }
+
                         }
                         true
                     } catch (e: Exception) {
@@ -756,6 +766,20 @@ class SyncRepositoryImpl(
                         entityId = provider.name, entityType = SyncType.EXTERNAL_API_CONFIG,
                         metadataJson = encryptedEntry, contentJson = "",
                         updatedAt = updatedAt, isDeleted = isDeleted
+                    )
+                )
+            }
+
+            val localCategoryOrder = bookmarkCategoryOrderStore.getOrder()
+            if (localCategoryOrder.updatedAt > lastSyncTime) {
+                val encryptedOrder =
+                    encryptionManager.encryptPayload(json.encodeToString(localCategoryOrder), syncKey)
+                changes.add(
+                    SyncEnvelope(
+                        entityId = BOOKMARK_CATEGORY_ORDER_ENTITY_ID,
+                        entityType = SyncType.BOOKMARK_CATEGORY_ORDER,
+                        metadataJson = encryptedOrder, contentJson = "",
+                        updatedAt = localCategoryOrder.updatedAt, isDeleted = false
                     )
                 )
             }
