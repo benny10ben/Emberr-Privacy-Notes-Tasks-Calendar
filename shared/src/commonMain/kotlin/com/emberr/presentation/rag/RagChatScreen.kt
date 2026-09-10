@@ -68,6 +68,9 @@ import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.chevron_left
 import org.jetbrains.compose.resources.painterResource
 
+internal val DesktopPanelTopInset = 12.dp
+internal val DesktopPanelContentInset = 13.dp
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun RagChatScreen(
@@ -285,9 +288,9 @@ private fun RagChatContent(
                 .fillMaxWidth()
                 .then(if (isDesktopPlatform) Modifier else Modifier.stableStatusBarsPadding())
                 .padding(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = if (isDesktopPlatform) 16.dp else 10.dp,
+                    start = if (isDesktopPlatform) DesktopPanelContentInset else 16.dp,
+                    end = if (isDesktopPlatform) DesktopPanelContentInset else 16.dp,
+                    top = if (isDesktopPlatform) DesktopPanelTopInset else 10.dp,
                     bottom = 8.dp
                 )
         ) {

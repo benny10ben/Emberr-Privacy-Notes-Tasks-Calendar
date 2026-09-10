@@ -247,7 +247,7 @@ private fun SetupProgressBar(progress: Float) {
             .padding(
                 start = TopBarProgressStartInset,
                 end = TopBarProgressEndInset,
-                top = if (isDesktopPlatform) 16.dp else 10.dp,
+                top = if (isDesktopPlatform) DesktopPanelTopInset else 10.dp,
                 bottom = 8.dp
             )
             .height(TopBarIconButtonSize),
@@ -277,7 +277,7 @@ private fun SetupBottomBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 16.dp, bottom = if (isDesktopPlatform) 36.dp else 28.dp),
+            .padding(top = 16.dp, bottom = if (isDesktopPlatform) 24.dp else 28.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
