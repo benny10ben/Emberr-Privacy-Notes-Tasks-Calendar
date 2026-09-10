@@ -47,10 +47,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.emberr.data.local.room.FolderEntity
 import com.emberr.data.local.room.NoteMetadataEntity
+import com.emberr.presentation.shared.components.AnimatedFolderIcon
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.file_text
-import emberr.shared.generated.resources.folder
-import emberr.shared.generated.resources.folder_open
 import emberr.shared.generated.resources.folder_plus
 import emberr.shared.generated.resources.plus
 import emberr.shared.generated.resources.star
@@ -98,9 +97,8 @@ fun MobileTreeFolderRow(
         isInsertAfter = dragState.isInsertAfter(rowKey),
         modifier = modifier
     ) {
-        Icon(
-            painter = painterResource(if (isExpanded) Res.drawable.folder_open else Res.drawable.folder),
-            contentDescription = null,
+        AnimatedFolderIcon(
+            isExpanded = isExpanded,
             tint = if (isIntoTarget) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
             modifier = Modifier.size(TREE_ICON_SIZE - 1.dp)

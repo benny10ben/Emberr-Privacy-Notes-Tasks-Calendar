@@ -66,14 +66,13 @@ import com.emberr.presentation.mobile.home.ROOT_TREE_GUIDE_LINES
 import com.emberr.presentation.mobile.home.SINGLE_ITEM_TREE_MENU
 import com.emberr.presentation.mobile.home.TreeGuideLines
 import com.emberr.presentation.mobile.home.TreeSelectionMenu
+import com.emberr.presentation.shared.components.AnimatedFolderIcon
 import com.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.emberr.presentation.shared.components.EmberrButtonSecondary
 import com.emberr.presentation.shared.components.EmberrDesktopMenu
 import com.emberr.presentation.shared.components.EmberrTextField
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.file_text
-import emberr.shared.generated.resources.folder
-import emberr.shared.generated.resources.folder_open
 import emberr.shared.generated.resources.plus
 import emberr.shared.generated.resources.star
 import org.jetbrains.compose.resources.painterResource
@@ -339,9 +338,8 @@ fun SidebarFolderRow(
         ) {
             Spacer(Modifier.width(ROW_ICON_LEADING_GAP))
             Box(Modifier.width(ROW_ICON_SLOT), contentAlignment = Alignment.Center) {
-                Icon(
-                    if (isExpanded) painterResource(Res.drawable.folder_open) else painterResource(Res.drawable.folder),
-                    contentDescription = null,
+                AnimatedFolderIcon(
+                    isExpanded = isExpanded,
                     tint = if (isIntoTarget) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurface.copy(alpha = if (isHovered || isSelected) 0.9f else 0.6f),
                     modifier = Modifier.size(ROW_ICON_SIZE - 1.dp)
