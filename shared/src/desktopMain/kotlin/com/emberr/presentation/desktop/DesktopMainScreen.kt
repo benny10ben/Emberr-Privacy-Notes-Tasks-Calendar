@@ -63,12 +63,9 @@ import com.emberr.presentation.mobile.daily.DailyEditorPane
 import com.emberr.presentation.mobile.daily.DailyEditorViewModel
 import com.emberr.presentation.mobile.daily.DailyTimelineDialog
 import com.emberr.presentation.mobile.daily.TaskDaySection
-import com.emberr.presentation.mobile.home.DRAG_PREFIX_FOLDER
-import com.emberr.presentation.mobile.home.DRAG_PREFIX_NOTE
 import com.emberr.presentation.mobile.home.DesktopSortMenu
 import com.emberr.presentation.mobile.home.DropInsertPosition
 import com.emberr.presentation.mobile.home.HomeViewModel
-import com.emberr.presentation.mobile.home.DesktopListDragChip
 import com.emberr.presentation.mobile.home.HomeItem
 import com.emberr.presentation.mobile.home.HomeItemKey
 import com.emberr.presentation.mobile.home.TemplatesDesktopMenu
@@ -83,8 +80,6 @@ import com.emberr.presentation.mobile.home.overview.bookmarks.BookmarksScreen
 import com.emberr.presentation.mobile.home.overview.documents.DocumentsScreen
 import com.emberr.presentation.mobile.home.overview.images.ImagesScreen
 import com.emberr.presentation.mobile.home.overview.tasks.TasksScreen
-import com.emberr.presentation.mobile.home.rememberDesktopListDragState
-import com.emberr.presentation.mobile.home.desktopListDragTracker
 import com.emberr.presentation.search.SearchDialog
 import com.emberr.presentation.trash.TrashScreen
 import dev.chrisbanes.haze.HazeState

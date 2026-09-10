@@ -60,8 +60,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.emberr.data.local.room.FolderEntity
 import com.emberr.data.local.room.NoteMetadataEntity
-import com.emberr.presentation.mobile.home.DRAG_PREFIX_FOLDER
-import com.emberr.presentation.mobile.home.DesktopListDragState
 import com.emberr.presentation.mobile.home.DropInsertPosition
 import com.emberr.presentation.mobile.home.HomeItemKey
 import com.emberr.presentation.mobile.home.ROOT_TREE_GUIDE_LINES

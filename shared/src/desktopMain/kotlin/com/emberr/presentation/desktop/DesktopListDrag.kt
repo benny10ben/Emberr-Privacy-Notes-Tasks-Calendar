@@ -1,4 +1,4 @@
-package com.emberr.presentation.mobile.home
+package com.emberr.presentation.desktop
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -31,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.emberr.presentation.mobile.home.DropInsertPosition
+import com.emberr.presentation.mobile.home.HomeItemKey
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.pointer.PointerEventPass
