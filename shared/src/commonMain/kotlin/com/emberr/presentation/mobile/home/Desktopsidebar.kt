@@ -8,7 +8,10 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -23,12 +26,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -48,20 +59,33 @@ import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.file_text
 import emberr.shared.generated.resources.folder
 import emberr.shared.generated.resources.folder_open
+import emberr.shared.generated.resources.pen_square
 import emberr.shared.generated.resources.star
 import org.jetbrains.compose.resources.painterResource
 
 private val INDENT_STEP          = 16.dp
 private val SIDEBAR_BASE_START   = 8.dp
 private val CHEVRON_SLOT         = 26.dp
-private val ROW_ICON_SLOT        = 24.dp
-private val ROW_ICON_SIZE        = 22.dp
+private val ROW_ICON_SLOT        = 26.dp
+private val ROW_ICON_SIZE        = 24.dp
 private val ROW_MIN_HEIGHT       = 42.dp
 private val ROW_VERTICAL_PADDING = 2.dp
+private val ROW_INNER_PADDING    = 4.dp
+private val ROW_ICON_LEADING_GAP = 8.dp
+private val ROW_ICON_START       = SIDEBAR_BASE_START + ROW_INNER_PADDING + ROW_ICON_LEADING_GAP
+private val GUIDE_COLUMN_START   = ROW_ICON_START + 4.dp
+private val GUIDE_WIDTH          = 1.5.dp
+private val GUIDE_END_GAP        = 3.dp
+private val GUIDE_CORNER         = 6.dp
 
 private val RowColorSpec = tween<Color>(durationMillis = 180, easing = FastOutSlowInEasing)
 private val RowFloatSpec = tween<Float>(durationMillis = 180, easing = FastOutSlowInEasing)
 private val ChevronSpec  = spring<Float>(stiffness = Spring.StiffnessMediumLow)
+
+data class SidebarClickModifiers(
+    val addToSelection: Boolean,
+    val extendSelection: Boolean
+)
 
 @Composable
 fun Modifier.sidebarNoRippleClickable(onClick: () -> Unit): Modifier =
@@ -92,12 +116,13 @@ private fun DesktopNamePopup(
     initialValue: String,
     confirmLabel: String,
     onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    placeholder: String = "Name..."
 ) {
     var input by remember(initialValue) { mutableStateOf(initialValue) }
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 10.dp))
-        EmberrTextField(value = input, onValueChange = { input = it }, placeholder = "Name...", modifier = Modifier.fillMaxWidth())
+        EmberrTextField(value = input, onValueChange = { input = it }, placeholder = placeholder, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             EmberrButtonSecondary(text = "Cancel", onClick = onDismiss, modifier = Modifier.weight(1f))
@@ -145,20 +170,25 @@ fun flattenFolderTree(
 fun SidebarFolderRow(
     folder: FolderEntity,
     level: Int,
+    guideLines: TreeGuideLines = ROOT_TREE_GUIDE_LINES,
     isExpanded: Boolean,
     isSelected: Boolean,
     dragState: DesktopListDragState,
-    onClick: () -> Unit,
-    onAddNote: () -> Unit,
+    menu: TreeSelectionMenu = SINGLE_ITEM_TREE_MENU,
+    onClick: (SidebarClickModifiers) -> Unit,
+    onToggleFavorite: () -> Unit = {},
+    onAddNote: (String) -> Unit,
     onAddSubfolder: (String) -> Unit,
     onRename: (String) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val rowId = HomeItemKey.forFolder(folder.folderId)
+    val currentOnClick by rememberUpdatedState(onClick)
 
     var showContextMenu by remember { mutableStateOf(false) }
     var contextMenuOffset by remember { mutableStateOf(DpOffset.Zero) }
+    var showAddNotePopup by remember { mutableStateOf(false) }
     var showAddSubfolderPopup by remember { mutableStateOf(false) }
     var showRenamePopup by remember { mutableStateOf(false) }
     val density = LocalDensity.current
@@ -196,7 +226,13 @@ fun SidebarFolderRow(
 
     val shape = RoundedCornerShape(10.dp)
 
-    Box(modifier = modifier.fillMaxWidth()) {
+    val guideColor = MaterialTheme.colorScheme.outline
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .drawBehind { drawSidebarGuideLines(level, guideLines, guideColor) }
+    ) {
         // Insert line above row
         if (beforeAlpha > 0f) {
             Box(
@@ -231,34 +267,47 @@ fun SidebarFolderRow(
                     ) else Modifier
                 )
                 .hoverable(interactionSource)
-                .pointerInput(onClick) { detectTapGestures(onTap = { onClick() }) }
                 .pointerInput(rowStartPadding) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Main)
-                            if (event.type == PointerEventType.Press && event.buttons.isSecondaryPressed) {
-                                val pressOffset = event.changes.first().position
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+
+                        if (currentEvent.buttons.isSecondaryPressed) {
+                            val menuPosition = down.position
+                            down.consume()
+                            val secondaryUp = waitForUpOrCancellation()
+                            secondaryUp?.consume()
+                            if (secondaryUp != null) {
                                 contextMenuOffset = with(density) {
-                                    DpOffset(rowStartPadding + pressOffset.x.toDp(), ROW_VERTICAL_PADDING + pressOffset.y.toDp())
+                                    DpOffset(rowStartPadding + menuPosition.x.toDp(), ROW_VERTICAL_PADDING + menuPosition.y.toDp())
                                 }
                                 showContextMenu = true
-                                event.changes.forEach { it.consume() }
                             }
+                            return@awaitEachGesture
                         }
+
+                        val pressedModifiers = currentEvent.keyboardModifiers
+                        val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+                        up.consume()
+                        currentOnClick(
+                            SidebarClickModifiers(
+                                addToSelection = pressedModifiers.isCtrlPressed || pressedModifiers.isMetaPressed,
+                                extendSelection = pressedModifiers.isShiftPressed
+                            )
+                        )
                     }
                 }
                 .heightIn(min = ROW_MIN_HEIGHT)
-                .padding(start = 4.dp, end = 4.dp),
+                .padding(horizontal = ROW_INNER_PADDING),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(ROW_ICON_LEADING_GAP))
             Box(Modifier.width(ROW_ICON_SLOT), contentAlignment = Alignment.Center) {
                 Icon(
                     if (isExpanded) painterResource(Res.drawable.folder_open) else painterResource(Res.drawable.folder),
                     contentDescription = null,
                     tint = if (isIntoTarget) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                    modifier = Modifier.size(ROW_ICON_SIZE)
+                    modifier = Modifier.size(ROW_ICON_SIZE - 1.dp)
                 )
             }
             Spacer(Modifier.width(10.dp))
@@ -275,7 +324,7 @@ fun SidebarFolderRow(
             when {
                 isSelected -> SidebarTrailingCheck()
                 isHovered && !dragState.dragging -> {
-                    SidebarHoverAction(Icons.Default.Add, "New note here", onAddNote)
+                    SidebarHoverAction(painterResource(Res.drawable.pen_square), "New note here") { showAddNotePopup = true }
                     Spacer(Modifier.width(4.dp))
                     SidebarHoverAction(Icons.Default.CreateNewFolder, "New subfolder") { showAddSubfolderPopup = true }
                     Spacer(Modifier.width(2.dp))
@@ -283,6 +332,16 @@ fun SidebarFolderRow(
             }
 
             Box {
+                EmberrDesktopMenu(expanded = showAddNotePopup, onDismissRequest = { showAddNotePopup = false }, modifier = Modifier.width(260.dp)) {
+                    DesktopNamePopup(
+                        title = "New Note in ${folder.name}",
+                        initialValue = "",
+                        confirmLabel = "Create",
+                        onConfirm = { title -> onAddNote(title); showAddNotePopup = false },
+                        onDismiss = { showAddNotePopup = false },
+                        placeholder = "Note title..."
+                    )
+                }
                 EmberrDesktopMenu(expanded = showAddSubfolderPopup, onDismissRequest = { showAddSubfolderPopup = false }, modifier = Modifier.width(260.dp)) {
                     DesktopNamePopup(
                         title = "New Subfolder",
@@ -312,12 +371,11 @@ fun SidebarFolderRow(
                 modifier = Modifier.width(200.dp),
                 offset = DpOffset.Zero
             ) {
-                // For SidebarFolderRow:
-                DesktopContextMenuItem(Icons.Default.CreateNewFolder, "Add Subfolder") { showContextMenu = false; showAddSubfolderPopup = true }
-                DesktopContextMenuItem(Icons.Default.Edit, "Rename") { showContextMenu = false; showRenamePopup = true }
-                DesktopContextMenuItem(Icons.Default.Delete, "Delete", isDestructive = true) { showContextMenu = false; onDelete() }
-
-                // Note: For SidebarNoteRow, just omit the "Add Subfolder" menu item inside this block as you had it originally.
+                if (menu.showRename) {
+                    DesktopContextMenuItem(Icons.Default.CreateNewFolder, "Add Subfolder") { showContextMenu = false; showAddSubfolderPopup = true }
+                    DesktopContextMenuItem(Icons.Default.Edit, "Rename") { showContextMenu = false; showRenamePopup = true }
+                }
+                DesktopContextMenuItem(Icons.Default.Delete, menu.deleteLabel, isDestructive = true) { showContextMenu = false; onDelete() }
             }
         }
 
@@ -343,15 +401,19 @@ fun SidebarNoteRow(
     modifier: Modifier = Modifier,
     note: NoteMetadataEntity,
     level: Int,
+    guideLines: TreeGuideLines = ROOT_TREE_GUIDE_LINES,
     isActive: Boolean,
     isSelected: Boolean,
     dragState: DesktopListDragState,
-    onClick: () -> Unit,
+    menu: TreeSelectionMenu = SINGLE_ITEM_TREE_MENU,
+    onClick: (SidebarClickModifiers) -> Unit,
+    onToggleFavorite: () -> Unit = {},
     onRename: (String) -> Unit = {},
     onDelete: () -> Unit = {},
     rowKey: String = HomeItemKey.forNote(note.noteId)
 ) {
     val rowId = HomeItemKey.forNote(note.noteId)
+    val currentOnClick by rememberUpdatedState(onClick)
 
     var showContextMenu by remember { mutableStateOf(false) }
     var contextMenuOffset by remember { mutableStateOf(DpOffset.Zero) }
@@ -381,7 +443,13 @@ fun SidebarNoteRow(
     val beforeAlpha by animateFloatAsState(if (isInsertBefore) 1f else 0f, tween(150, easing = FastOutSlowInEasing), label = "nbefore_${note.noteId}")
     val afterAlpha  by animateFloatAsState(if (isInsertAfter)  1f else 0f, tween(150, easing = FastOutSlowInEasing), label = "nafter_${note.noteId}")
 
-    Box(modifier = modifier.fillMaxWidth()) {
+    val guideColor = MaterialTheme.colorScheme.outline
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .drawBehind { drawSidebarGuideLines(level, guideLines, guideColor) }
+    ) {
         if (beforeAlpha > 0f) {
             Box(
                 modifier = Modifier
@@ -408,27 +476,40 @@ fun SidebarNoteRow(
                 .clip(RoundedCornerShape(10.dp))
                 .background(bgColor)
                 .hoverable(interactionSource)
-                .pointerInput(onClick) { detectTapGestures(onTap = { onClick() }) }
                 .pointerInput(rowStartPadding) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Main)
-                            if (event.type == PointerEventType.Press && event.buttons.isSecondaryPressed) {
-                                val pressOffset = event.changes.first().position
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+
+                        if (currentEvent.buttons.isSecondaryPressed) {
+                            val menuPosition = down.position
+                            down.consume()
+                            val secondaryUp = waitForUpOrCancellation()
+                            secondaryUp?.consume()
+                            if (secondaryUp != null) {
                                 contextMenuOffset = with(density) {
-                                    DpOffset(rowStartPadding + pressOffset.x.toDp(), ROW_VERTICAL_PADDING + pressOffset.y.toDp())
+                                    DpOffset(rowStartPadding + menuPosition.x.toDp(), ROW_VERTICAL_PADDING + menuPosition.y.toDp())
                                 }
                                 showContextMenu = true
-                                event.changes.forEach { it.consume() }
                             }
+                            return@awaitEachGesture
                         }
+
+                        val pressedModifiers = currentEvent.keyboardModifiers
+                        val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+                        up.consume()
+                        currentOnClick(
+                            SidebarClickModifiers(
+                                addToSelection = pressedModifiers.isCtrlPressed || pressedModifiers.isMetaPressed,
+                                extendSelection = pressedModifiers.isShiftPressed
+                            )
+                        )
                     }
                 }
                 .heightIn(min = ROW_MIN_HEIGHT)
-                .padding(start = 4.dp, end = 4.dp),
+                .padding(horizontal = ROW_INNER_PADDING),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(ROW_ICON_LEADING_GAP))
             Box(Modifier.width(ROW_ICON_SLOT), contentAlignment = Alignment.Center) {
                 if (!note.icon.isNullOrEmpty()) {
                     Text(text = note.icon, fontSize = 18.sp, textAlign = TextAlign.Center)
@@ -436,7 +517,7 @@ fun SidebarNoteRow(
                     Icon(
                         painterResource(Res.drawable.file_text),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.50f),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                         modifier = Modifier.size(ROW_ICON_SIZE)
                     )
                 }
@@ -483,8 +564,13 @@ fun SidebarNoteRow(
             modifier = Modifier.width(200.dp),
             offset = contextMenuOffset
         ) {
-            DesktopContextMenuItem(Icons.Default.Edit, "Rename") { showContextMenu = false; showRenamePopup = true }
-            DesktopContextMenuItem(Icons.Default.Delete, "Delete", isDestructive = true) { showContextMenu = false; onDelete() }
+            if (menu.showRename) {
+                DesktopContextMenuItem(Icons.Default.Edit, "Rename") { showContextMenu = false; showRenamePopup = true }
+            }
+            if (menu.showFavorite) {
+                DesktopContextMenuItem(Icons.Default.Star, menu.favoriteLabel) { showContextMenu = false; onToggleFavorite() }
+            }
+            DesktopContextMenuItem(Icons.Default.Delete, menu.deleteLabel, isDestructive = true) { showContextMenu = false; onDelete() }
         }
 
         if (afterAlpha > 0f) {
@@ -501,6 +587,50 @@ fun SidebarNoteRow(
             )
         }
     }
+}
+
+private fun DrawScope.drawSidebarGuideLines(level: Int, guideLines: TreeGuideLines, color: Color) {
+    if (level == 0) return
+
+    val indentStep = INDENT_STEP.toPx()
+    val guideColumnStart = GUIDE_COLUMN_START.toPx()
+    val lineWidth = GUIDE_WIDTH.toPx()
+
+    guideLines.ancestorVerticalLines.forEachIndexed { depth, isVisible ->
+        if (!isVisible) return@forEachIndexed
+        val x = depth * indentStep + guideColumnStart
+        drawLine(
+            color = color,
+            start = Offset(x, 0f),
+            end = Offset(x, size.height),
+            strokeWidth = lineWidth,
+            cap = StrokeCap.Round
+        )
+    }
+
+    val elbowX = (level - 1) * indentStep + guideColumnStart
+    val middleY = size.height / 2f
+    val rowIconStartX = level * indentStep + ROW_ICON_START.toPx() - GUIDE_END_GAP.toPx()
+    val cornerRadius = minOf(GUIDE_CORNER.toPx(), middleY, rowIconStartX - elbowX)
+
+    if (!guideLines.isLastChildOfParent) {
+        drawLine(
+            color = color,
+            start = Offset(elbowX, 0f),
+            end = Offset(elbowX, size.height),
+            strokeWidth = lineWidth,
+            cap = StrokeCap.Round
+        )
+    }
+
+    val elbowStartY = if (guideLines.isLastChildOfParent) 0f else middleY - cornerRadius
+    val elbow = Path().apply {
+        moveTo(elbowX, elbowStartY)
+        lineTo(elbowX, middleY - cornerRadius)
+        quadraticTo(elbowX, middleY, elbowX + cornerRadius, middleY)
+        lineTo(rowIconStartX, middleY)
+    }
+    drawPath(path = elbow, color = color, style = Stroke(width = lineWidth, cap = StrokeCap.Round))
 }
 
 @Composable
@@ -546,6 +676,25 @@ fun SidebarSectionHeader(
                 content = trailing
             )
         }
+    }
+}
+
+@Composable
+private fun SidebarHoverAction(painter: Painter, description: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(30.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(Color.Transparent)
+            .sidebarNoRippleClickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painter,
+            contentDescription = description,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 

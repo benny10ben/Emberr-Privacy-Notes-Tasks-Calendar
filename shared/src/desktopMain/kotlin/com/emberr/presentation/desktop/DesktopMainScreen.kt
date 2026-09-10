@@ -15,6 +15,7 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,7 +72,13 @@ import com.emberr.presentation.mobile.home.SidebarSectionHeader
 import com.emberr.presentation.mobile.home.HomeItem
 import com.emberr.presentation.mobile.home.HomeItemKey
 import com.emberr.presentation.mobile.home.TemplatesDesktopMenu
+import com.emberr.presentation.mobile.home.ROOT_TREE_GUIDE_LINES
+import com.emberr.presentation.mobile.home.SidebarClickModifiers
+import com.emberr.presentation.mobile.home.TreeSelectionMenu
+import com.emberr.presentation.mobile.home.buildTreeGuideLines
 import com.emberr.presentation.mobile.home.flattenFolderTree
+import com.emberr.presentation.mobile.home.rowsBetween
+import com.emberr.presentation.mobile.home.treeSelectionMenu
 import com.emberr.presentation.mobile.home.note.NoteScreen
 import com.emberr.presentation.mobile.home.overview.bookmarks.BookmarksScreen
 import com.emberr.presentation.mobile.home.overview.documents.DocumentsScreen
@@ -386,6 +393,8 @@ fun DesktopMainScreen(
         homeViewModel.saveAsTemplate(title = "", content = NoteContent(blocks = emptyList())) { newId -> openNote(newId) }
     }
 
+    var selectionAnchorKey by remember { mutableStateOf<String?>(null) }
+
     // Drag
     val dragState = rememberDesktopListDragState()
     val sidebarListState = rememberLazyListState()
@@ -409,10 +418,64 @@ fun DesktopMainScreen(
             sortOrder = currentSortOrder
         ) else emptyList()
 
+        val treeGuideLines = remember(treeRows) { treeRows.buildTreeGuideLines() }
+
+        val favoriteNoteIds = remember(favoriteNotes) { favoriteNotes.map { it.noteId }.toSet() }
+
+        fun handleTreeRowClick(rowKey: String, modifiers: SidebarClickModifiers, openRow: () -> Unit) {
+            val rowsBetweenAnchorAndClick =
+                if (modifiers.extendSelection) treeRows.rowsBetween(selectionAnchorKey ?: rowKey, rowKey)
+                else emptyList()
+
+            when {
+                modifiers.extendSelection && rowsBetweenAnchorAndClick.isNotEmpty() -> {
+                    homeViewModel.addToSelection(
+                        noteIds = rowsBetweenAnchorAndClick.filterIsInstance<HomeItem.Note>().map { it.note.noteId },
+                        folderIds = rowsBetweenAnchorAndClick.filterIsInstance<HomeItem.Folder>().map { it.folder.folderId }
+                    )
+                }
+
+                modifiers.addToSelection -> {
+                    selectionAnchorKey = rowKey
+                    if (HomeItemKey.isFolder(rowKey)) homeViewModel.toggleFolderSelection(HomeItemKey.folderIdOf(rowKey))
+                    else homeViewModel.toggleNoteSelection(HomeItemKey.noteIdOf(rowKey))
+                }
+
+                else -> {
+                    selectionAnchorKey = rowKey
+                    if (isSelectionMode) homeViewModel.clearSelection()
+                    openRow()
+                }
+            }
+        }
+
+        val menuForRow = { rowKey: String ->
+            val isRowSelected = when {
+                HomeItemKey.isFolder(rowKey) -> selectedFolderIds.contains(HomeItemKey.folderIdOf(rowKey))
+                else -> selectedNoteIds.contains(HomeItemKey.noteIdOf(rowKey))
+            }
+            val targetNoteIds = when {
+                isRowSelected -> selectedNoteIds
+                HomeItemKey.isNote(rowKey) -> setOf(HomeItemKey.noteIdOf(rowKey))
+                else -> emptySet<String>()
+            }
+            val targetFolderIds = when {
+                isRowSelected -> selectedFolderIds
+                HomeItemKey.isFolder(rowKey) -> setOf(HomeItemKey.folderIdOf(rowKey))
+                else -> emptySet<String>()
+            }
+            TreeRowMenuTarget(
+                noteIds = targetNoteIds,
+                folderIds = targetFolderIds,
+                usesSelection = isRowSelected,
+                menu = treeSelectionMenu(targetNoteIds, targetFolderIds) { noteId -> noteId in favoriteNoteIds }
+            )
+        }
+
         val rowKeys: List<String?> = buildList {
             add(null)
 
-            if (!isSelectionMode && favoriteNotes.isNotEmpty()) {
+            if (favoriteNotes.isNotEmpty()) {
                 add(null) // Favorites header
                 if (isFavoritesExpanded) favoriteNotes.forEach { add("sb_fav_${it.noteId}") }
             }
@@ -421,7 +484,7 @@ fun DesktopMainScreen(
 
             if (isNotesExpanded) treeRows.forEach { add(it.key) }
 
-            if (!isSelectionMode && recentNotes.isNotEmpty()) {
+            if (recentNotes.isNotEmpty()) {
                 add(null) // Recents header
                 if (isRecentsExpanded) recentNotes.forEach { add("sb_recent_${it.noteId}") }
             }
@@ -581,7 +644,7 @@ fun DesktopMainScreen(
                             }
                         }
 
-                        if (!isSelectionMode && favoriteNotes.isNotEmpty()) {
+                        if (favoriteNotes.isNotEmpty()) {
                             item { SidebarSectionHeader("Favorites", isFavoritesExpanded, { isFavoritesExpanded = !isFavoritesExpanded }) }
                             if (isFavoritesExpanded) {
                                 items(favoriteNotes, key = { "sb_fav_${it.noteId}" }) { note ->
@@ -603,197 +666,195 @@ fun DesktopMainScreen(
                             SidebarSectionHeader(
                                 title = "Notes", isExpanded = isNotesExpanded,
                                 onToggle = { isNotesExpanded = !isNotesExpanded },
-                                trailing = if (isSelectionMode) null else {
-                                    {
-                                        Box {
-                                            Icon(
-                                                painterResource(Res.drawable.arrow_up_down),
-                                                "Sort",
-                                                modifier = Modifier.size(20.dp)
-                                                    .noRippleClickable { showSortMenu = true },
-                                                tint = MaterialTheme.colorScheme.onSurface.copy(
-                                                    alpha = 0.7f
-                                                )
+                                trailing = {
+                                    Box {
+                                        Icon(
+                                            painterResource(Res.drawable.arrow_up_down),
+                                            "Sort",
+                                            modifier = Modifier.size(20.dp)
+                                                .noRippleClickable { showSortMenu = true },
+                                            tint = MaterialTheme.colorScheme.onSurface.copy(
+                                                alpha = 0.7f
                                             )
-                                            EmberrDesktopMenu(
-                                                expanded = showSortMenu,
-                                                onDismissRequest = { showSortMenu = false }) {
-                                                DesktopSortMenu(
-                                                    currentSortType = currentSortType,
-                                                    currentSortOrder = currentSortOrder,
-                                                    onDismiss = { showSortMenu = false },
-                                                    onSortChanged = { type, order ->
-                                                        homeViewModel.updateSort(
-                                                            type,
-                                                            order
-                                                        ); showSortMenu = false
-                                                    })
-                                            }
+                                        )
+                                        EmberrDesktopMenu(
+                                            expanded = showSortMenu,
+                                            onDismissRequest = { showSortMenu = false }) {
+                                            DesktopSortMenu(
+                                                currentSortType = currentSortType,
+                                                currentSortOrder = currentSortOrder,
+                                                onDismiss = { showSortMenu = false },
+                                                onSortChanged = { type, order ->
+                                                    homeViewModel.updateSort(
+                                                        type,
+                                                        order
+                                                    ); showSortMenu = false
+                                                })
                                         }
-                                        Box {
-                                            Icon(
-                                                painterResource(Res.drawable.pen_square),
-                                                "New note",
-                                                modifier = Modifier.size(20.dp).noRippleClickable {
-                                                    addNoteInput = ""; showAddNotePopup = true
-                                                },
-                                                tint = MaterialTheme.colorScheme.onSurface.copy(
-                                                    alpha = 0.7f
-                                                )
+                                    }
+                                    Box {
+                                        Icon(
+                                            painterResource(Res.drawable.pen_square),
+                                            "New note",
+                                            modifier = Modifier.size(20.dp).noRippleClickable {
+                                                addNoteInput = ""; showAddNotePopup = true
+                                            },
+                                            tint = MaterialTheme.colorScheme.onSurface.copy(
+                                                alpha = 0.7f
                                             )
-                                            EmberrDesktopMenu(
-                                                expanded = showAddNotePopup,
-                                                onDismissRequest = { showAddNotePopup = false },
-                                                modifier = Modifier.width(280.dp)
+                                        )
+                                        EmberrDesktopMenu(
+                                            expanded = showAddNotePopup,
+                                            onDismissRequest = { showAddNotePopup = false },
+                                            modifier = Modifier.width(280.dp)
+                                        ) {
+                                            Column(
+                                                Modifier.padding(
+                                                    horizontal = 16.dp,
+                                                    vertical = 12.dp
+                                                )
                                             ) {
-                                                Column(
-                                                    Modifier.padding(
-                                                        horizontal = 16.dp,
-                                                        vertical = 12.dp
-                                                    )
-                                                ) {
-                                                    Row(
-                                                        Modifier.fillMaxWidth()
-                                                            .padding(bottom = 18.dp),
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.SpaceBetween
-                                                    ) {
-                                                        Text(
-                                                            "New Note",
-                                                            style = MaterialTheme.typography.bodyLarge.copy(
-                                                                fontWeight = FontWeight.Bold
-                                                            ),
-                                                            color = MaterialTheme.colorScheme.onSurface
-                                                        )
-                                                        Icon(
-                                                            painter = painterResource(Res.drawable.template),
-                                                            contentDescription = "Templates",
-                                                            tint = MaterialTheme.colorScheme.onSurface,
-                                                            modifier = Modifier.size(22.dp)
-                                                                .noRippleClickable { handleOpenTemplates() }
-                                                        )
-                                                    }
-                                                    EmberrTextField(
-                                                        value = addNoteInput,
-                                                        onValueChange = { addNoteInput = it },
-                                                        placeholder = "Note title...",
-                                                        modifier = Modifier.fillMaxWidth()
-                                                    )
-                                                    Row(
-                                                        Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(
-                                                            8.dp
-                                                        )
-                                                    ) {
-                                                        EmberrButtonSecondary(
-                                                            text = "Cancel",
-                                                            onClick = { showAddNotePopup = false },
-                                                            modifier = Modifier.weight(1f)
-                                                        )
-                                                        EmberrButtonPrimary(
-                                                            text = "Create",
-                                                            onClick = {
-                                                                if (addNoteInput.isNotBlank()) {
-                                                                    handleCreateNote(addNoteInput.trim()); showAddNotePopup =
-                                                                        false
-                                                                }
-                                                            },
-                                                            modifier = Modifier.weight(1f)
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                            TemplatesDesktopMenu(
-                                                expanded = showTemplatesMenu,
-                                                templates = templates,
-                                                searchQuery = templateSearchQuery,
-                                                onSearchQueryChange = {
-                                                    homeViewModel.updateTemplateSearchQuery(
-                                                        it
-                                                    )
-                                                },
-                                                onDismissRequest = { showTemplatesMenu = false },
-                                                onTemplateClick = { id ->
-                                                    showTemplatesMenu = false; handleTemplateClick(
-                                                    id
-                                                )
-                                                },
-                                                onEditTemplate = { id ->
-                                                    showTemplatesMenu =
-                                                        false; handleEditTemplate(id)
-                                                },
-                                                onDeleteTemplate = { id ->
-                                                    homeViewModel.deleteTemplate(
-                                                        id
-                                                    )
-                                                },
-                                                onCreateNewTemplate = {
-                                                    showTemplatesMenu =
-                                                        false; handleCreateNewTemplate()
-                                                }
-                                            )
-                                        }
-                                        Box {
-                                            Icon(
-                                                painterResource(Res.drawable.folder_plus),
-                                                "New folder",
-                                                modifier = Modifier.size(20.dp).noRippleClickable {
-                                                    addFolderInput = ""; showAddFolderPopup = true
-                                                },
-                                                tint = MaterialTheme.colorScheme.onSurface.copy(
-                                                    alpha = 0.7f
-                                                )
-                                            )
-                                            EmberrDesktopMenu(
-                                                expanded = showAddFolderPopup,
-                                                onDismissRequest = { showAddFolderPopup = false },
-                                                modifier = Modifier.width(280.dp)
-                                            ) {
-                                                Column(
-                                                    Modifier.padding(
-                                                        horizontal = 16.dp,
-                                                        vertical = 12.dp
-                                                    )
+                                                Row(
+                                                    Modifier.fillMaxWidth()
+                                                        .padding(bottom = 18.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween
                                                 ) {
                                                     Text(
-                                                        "New Folder",
+                                                        "New Note",
                                                         style = MaterialTheme.typography.bodyLarge.copy(
                                                             fontWeight = FontWeight.Bold
                                                         ),
-                                                        color = MaterialTheme.colorScheme.onSurface,
-                                                        modifier = Modifier.padding(bottom = 18.dp)
+                                                        color = MaterialTheme.colorScheme.onSurface
                                                     )
-                                                    EmberrTextField(
-                                                        value = addFolderInput,
-                                                        onValueChange = { addFolderInput = it },
-                                                        placeholder = "e.g. Personal, Work...",
-                                                        modifier = Modifier.fillMaxWidth()
+                                                    Icon(
+                                                        painter = painterResource(Res.drawable.template),
+                                                        contentDescription = "Templates",
+                                                        tint = MaterialTheme.colorScheme.onSurface,
+                                                        modifier = Modifier.size(22.dp)
+                                                            .noRippleClickable { handleOpenTemplates() }
                                                     )
-                                                    Row(
-                                                        Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(
-                                                            8.dp
-                                                        )
-                                                    ) {
-                                                        EmberrButtonSecondary(
-                                                            text = "Cancel",
-                                                            onClick = {
-                                                                showAddFolderPopup = false
-                                                            },
-                                                            modifier = Modifier.weight(1f)
-                                                        )
-                                                        EmberrButtonPrimary(
-                                                            text = "Create",
-                                                            onClick = {
-                                                                if (addFolderInput.isNotBlank()) {
-                                                                    handleCreateFolder(
-                                                                        addFolderInput.trim()
-                                                                    ); showAddFolderPopup = false
-                                                                }
-                                                            },
-                                                            modifier = Modifier.weight(1f)
-                                                        )
-                                                    }
+                                                }
+                                                EmberrTextField(
+                                                    value = addNoteInput,
+                                                    onValueChange = { addNoteInput = it },
+                                                    placeholder = "Note title...",
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                                Row(
+                                                    Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(
+                                                        8.dp
+                                                    )
+                                                ) {
+                                                    EmberrButtonSecondary(
+                                                        text = "Cancel",
+                                                        onClick = { showAddNotePopup = false },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    EmberrButtonPrimary(
+                                                        text = "Create",
+                                                        onClick = {
+                                                            if (addNoteInput.isNotBlank()) {
+                                                                handleCreateNote(addNoteInput.trim()); showAddNotePopup =
+                                                                    false
+                                                            }
+                                                        },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        TemplatesDesktopMenu(
+                                            expanded = showTemplatesMenu,
+                                            templates = templates,
+                                            searchQuery = templateSearchQuery,
+                                            onSearchQueryChange = {
+                                                homeViewModel.updateTemplateSearchQuery(
+                                                    it
+                                                )
+                                            },
+                                            onDismissRequest = { showTemplatesMenu = false },
+                                            onTemplateClick = { id ->
+                                                showTemplatesMenu = false; handleTemplateClick(
+                                                id
+                                            )
+                                            },
+                                            onEditTemplate = { id ->
+                                                showTemplatesMenu =
+                                                    false; handleEditTemplate(id)
+                                            },
+                                            onDeleteTemplate = { id ->
+                                                homeViewModel.deleteTemplate(
+                                                    id
+                                                )
+                                            },
+                                            onCreateNewTemplate = {
+                                                showTemplatesMenu =
+                                                    false; handleCreateNewTemplate()
+                                            }
+                                        )
+                                    }
+                                    Box {
+                                        Icon(
+                                            painterResource(Res.drawable.folder_plus),
+                                            "New folder",
+                                            modifier = Modifier.size(20.dp).noRippleClickable {
+                                                addFolderInput = ""; showAddFolderPopup = true
+                                            },
+                                            tint = MaterialTheme.colorScheme.onSurface.copy(
+                                                alpha = 0.7f
+                                            )
+                                        )
+                                        EmberrDesktopMenu(
+                                            expanded = showAddFolderPopup,
+                                            onDismissRequest = { showAddFolderPopup = false },
+                                            modifier = Modifier.width(280.dp)
+                                        ) {
+                                            Column(
+                                                Modifier.padding(
+                                                    horizontal = 16.dp,
+                                                    vertical = 12.dp
+                                                )
+                                            ) {
+                                                Text(
+                                                    "New Folder",
+                                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                                        fontWeight = FontWeight.Bold
+                                                    ),
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.padding(bottom = 18.dp)
+                                                )
+                                                EmberrTextField(
+                                                    value = addFolderInput,
+                                                    onValueChange = { addFolderInput = it },
+                                                    placeholder = "e.g. Personal, Work...",
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                                Row(
+                                                    Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(
+                                                        8.dp
+                                                    )
+                                                ) {
+                                                    EmberrButtonSecondary(
+                                                        text = "Cancel",
+                                                        onClick = {
+                                                            showAddFolderPopup = false
+                                                        },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    EmberrButtonPrimary(
+                                                        text = "Create",
+                                                        onClick = {
+                                                            if (addFolderInput.isNotBlank()) {
+                                                                handleCreateFolder(
+                                                                    addFolderInput.trim()
+                                                                ); showAddFolderPopup = false
+                                                            }
+                                                        },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
                                                 }
                                             }
                                         }
@@ -803,7 +864,8 @@ fun DesktopMainScreen(
                         }
 
                         if (isNotesExpanded) {
-                            items(treeRows, key = { it.key }) { row ->
+                            itemsIndexed(treeRows, key = { _, row -> row.key }) { index, row ->
+                                val rowMenuTarget = menuForRow(row.key)
                                 when (row) {
                                     is HomeItem.Folder -> SidebarFolderRow(
                                         modifier = Modifier.animateItem(
@@ -813,14 +875,23 @@ fun DesktopMainScreen(
                                         ),
                                         folder = row.folder,
                                         level = row.level,
+                                        guideLines = treeGuideLines.getOrElse(index) { ROOT_TREE_GUIDE_LINES },
                                         isExpanded = expandedFolderIds.contains(row.folder.folderId),
                                         isSelected = selectedFolderIds.contains(row.folder.folderId),
                                         dragState = dragState,
-                                        onClick = { homeViewModel.toggleFolderExpansion(row.folder.folderId) },
-                                        onAddNote = { homeViewModel.createNoteInParent(row.folder.folderId, autoExpand = true) { newId -> openNote(newId) } },
+                                        menu = rowMenuTarget.menu,
+                                        onClick = { modifiers ->
+                                            handleTreeRowClick(row.key, modifiers) {
+                                                homeViewModel.toggleFolderExpansion(row.folder.folderId)
+                                            }
+                                        },
+                                        onAddNote = { title -> homeViewModel.createNoteInParent(row.folder.folderId, title = title, autoExpand = true) { newId -> openNote(newId) } },
                                         onAddSubfolder = { name -> homeViewModel.createFolderInParent(row.folder.folderId, name = name, autoExpand = true) },
                                         onRename = { newName -> homeViewModel.renameFolder(row.folder.folderId, newName) },
-                                        onDelete = { homeViewModel.trashFolder(row.folder.folderId) }
+                                        onDelete = {
+                                            if (rowMenuTarget.usesSelection) homeViewModel.deleteSelectedItems()
+                                            else homeViewModel.trashFolder(row.folder.folderId)
+                                        }
                                     )
                                     is HomeItem.Note -> SidebarNoteRow(
                                         modifier = Modifier.animateItem(
@@ -830,18 +901,28 @@ fun DesktopMainScreen(
                                         ),
                                         note = row.note,
                                         level = row.level,
+                                        guideLines = treeGuideLines.getOrElse(index) { ROOT_TREE_GUIDE_LINES },
                                         isActive = (detail as? DetailPane.Note)?.noteId == row.note.noteId,
                                         isSelected = selectedNoteIds.contains(row.note.noteId),
                                         dragState = dragState,
-                                        onClick = { openNote(row.note.noteId) },
+                                        menu = rowMenuTarget.menu,
+                                        onClick = { modifiers ->
+                                            handleTreeRowClick(row.key, modifiers) { openNote(row.note.noteId) }
+                                        },
+                                        onToggleFavorite = {
+                                            homeViewModel.setNotesFavorite(rowMenuTarget.noteIds, rowMenuTarget.menu.makeFavorite)
+                                        },
                                         onRename = { newTitle -> homeViewModel.renameNote(row.note.noteId, newTitle) },
-                                        onDelete = { homeViewModel.trashNote(row.note.noteId) }
+                                        onDelete = {
+                                            if (rowMenuTarget.usesSelection) homeViewModel.deleteSelectedItems()
+                                            else homeViewModel.trashNote(row.note.noteId)
+                                        }
                                     )
                                 }
                             }
                         }
 
-                        if (!isSelectionMode && recentNotes.isNotEmpty()) {
+                        if (recentNotes.isNotEmpty()) {
                             item { SidebarSectionHeader("Recents", isRecentsExpanded, { isRecentsExpanded = !isRecentsExpanded }) }
                             if (isRecentsExpanded) {
                                 items(recentNotes, key = { "sb_recent_${it.noteId}" }) { note ->
@@ -866,7 +947,8 @@ fun DesktopMainScreen(
                             when {
                                 payload.startsWith(DRAG_PREFIX_NOTE) -> {
                                     val id = payload.removePrefix(DRAG_PREFIX_NOTE)
-                                    notesByFolder.values.flatten().find { it.noteId == id }?.title?.ifEmpty { "Untitled" } ?: "Note"
+                                    (notesByFolder.values.flatten() + favoriteNotes + recentNotes)
+                                        .find { it.noteId == id }?.title?.ifEmpty { "Untitled" } ?: "Note"
                                 }
                                 payload.startsWith(DRAG_PREFIX_FOLDER) -> {
                                     val id = payload.removePrefix(DRAG_PREFIX_FOLDER)
@@ -1343,3 +1425,10 @@ fun DesktopMainScreen(
         }
     }
 }
+
+private data class TreeRowMenuTarget(
+    val noteIds: Set<String>,
+    val folderIds: Set<String>,
+    val usesSelection: Boolean,
+    val menu: TreeSelectionMenu
+)
