@@ -51,11 +51,12 @@ import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.file_text
 import emberr.shared.generated.resources.folder
 import emberr.shared.generated.resources.folder_open
+import emberr.shared.generated.resources.folder_plus
 import emberr.shared.generated.resources.plus
 import emberr.shared.generated.resources.star
 import org.jetbrains.compose.resources.painterResource
 
-private val TREE_INDENT_STEP        = 18.dp
+private val TREE_INDENT_STEP        = 26.dp
 private val TREE_ROW_MIN_HEIGHT     = 42.dp
 private val TREE_ROW_SPACING        = 2.dp
 private val TREE_ICON_SIZE          = 24.dp
@@ -80,6 +81,8 @@ fun MobileTreeFolderRow(
     dragState: MobileTreeDragState,
     showAddNoteAction: Boolean,
     onAddNote: () -> Unit,
+    showAddSubfolderAction: Boolean = false,
+    onAddSubfolder: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val rowKey = HomeItemKey.forFolder(folder.folderId)
@@ -123,12 +126,21 @@ fun MobileTreeFolderRow(
         }
         if (isSelected) {
             MobileTreeTrailingCheck()
-        } else if (showAddNoteAction) {
-            MobileTreeRowAction(
-                painter = painterResource(Res.drawable.plus),
-                description = "New note in ${folder.name}",
-                onClick = onAddNote
-            )
+        } else {
+            if (showAddSubfolderAction) {
+                MobileTreeRowAction(
+                    painter = painterResource(Res.drawable.folder_plus),
+                    description = "New subfolder in ${folder.name}",
+                    onClick = onAddSubfolder
+                )
+            }
+            if (showAddNoteAction) {
+                MobileTreeRowAction(
+                    painter = painterResource(Res.drawable.plus),
+                    description = "New note in ${folder.name}",
+                    onClick = onAddNote
+                )
+            }
         }
     }
 }

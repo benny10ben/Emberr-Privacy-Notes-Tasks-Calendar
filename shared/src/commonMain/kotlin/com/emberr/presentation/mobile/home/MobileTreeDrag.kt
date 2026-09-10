@@ -18,7 +18,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -73,7 +72,6 @@ fun Modifier.mobileTreeDragSource(
     itemKey: String,
     dragState: MobileTreeDragState,
     gridState: LazyStaggeredGridState,
-    listOriginInRoot: Offset,
     blockedTargetKeys: Set<String>,
     dragEnabled: Boolean,
     onClick: () -> Unit,
@@ -84,7 +82,6 @@ fun Modifier.mobileTreeDragSource(
     val currentOnLongPress by rememberUpdatedState(onLongPress)
     val currentOnDrop by rememberUpdatedState(onDrop)
     val currentDragEnabled by rememberUpdatedState(dragEnabled)
-    val currentListOrigin by rememberUpdatedState(listOriginInRoot)
     val currentBlockedKeys by rememberUpdatedState(blockedTargetKeys)
     val haptics = LocalHapticFeedback.current
 
@@ -120,8 +117,7 @@ fun Modifier.mobileTreeDragSource(
 
                 currentEvent.changes.forEach { it.consume() }
 
-                val grabOriginInRoot = rowPositionInRoot
-                var travelled = Offset.Zero
+                val grabOffsetInsideRow = down.position
                 var pointerId = down.id
 
                 while (true) {
@@ -132,18 +128,26 @@ fun Modifier.mobileTreeDragSource(
                     pointerId = change.id
                     if (!change.pressed) break
 
-                    travelled += change.positionChange()
+                    val fingerInRoot = rowPositionInRoot + change.position
                     change.consume()
 
-                    if (!dragState.isDragging && travelled.getDistance() > viewConfiguration.touchSlop) {
+                    if (!dragState.isDragging &&
+                        (change.position - grabOffsetInsideRow).getDistance() > viewConfiguration.touchSlop
+                    ) {
                         dragState.draggedKey = itemKey
                         dragState.floatingSize = rowSize
                     }
 
                     if (dragState.isDragged(itemKey)) {
-                        dragState.floatingTopLeftInRoot = grabOriginInRoot + travelled
-                        dragState.pointerInList =
-                            grabOriginInRoot + down.position + travelled - currentListOrigin
+                        dragState.floatingTopLeftInRoot = fingerInRoot - grabOffsetInsideRow
+
+                        val rowTopInGrid = rowTopInGrid(itemKey, gridState)
+                        if (rowTopInGrid != null) {
+                            dragState.pointerInList = Offset(
+                                x = change.position.x,
+                                y = rowTopInGrid + change.position.y
+                            )
+                        }
                         resolveTreeDropTarget(
                             pointerInList     = dragState.pointerInList,
                             gridState         = gridState,
@@ -188,6 +192,11 @@ fun MobileTreeDragState.edgeScrollDelta(
     }
     return fraction.coerceIn(-1f, 1f) * maxStepPx
 }
+
+private fun rowTopInGrid(itemKey: String, gridState: LazyStaggeredGridState): Float? =
+    gridState.layoutInfo.visibleItemsInfo
+        .firstOrNull { it.key == itemKey }
+        ?.offset?.y?.toFloat()
 
 private data class TreeRowBounds(val key: String, val top: Float, val bottom: Float) {
     val center get() = (top + bottom) / 2f

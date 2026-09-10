@@ -62,6 +62,8 @@ import com.emberr.presentation.shared.components.SelectedOptionBackground
 import com.emberr.presentation.shared.components.EmberrBottomSheetAction
 import com.emberr.presentation.shared.components.EmberrDesktopMenu
 import com.emberr.presentation.shared.components.KmpBackHandler
+import com.emberr.presentation.shared.components.EmberrPillShadowAmbientColor
+import com.emberr.presentation.shared.components.EmberrPillShadowSpotColor
 import com.emberr.presentation.shared.components.TopBarIconButtonGroup
 import com.emberr.presentation.shared.components.TopBarIconButtonItem
 import com.emberr.presentation.shared.components.smoothWheelScroll
@@ -195,7 +197,9 @@ fun HomeScreen(
     val treeGuideLines = remember(treeRows) { treeRows.buildTreeGuideLines() }
 
     val gridState = rememberLazyStaggeredGridState()
+    val favListState = rememberLazyListState()
     val treeDragState = rememberMobileTreeDragState()
+    val favoriteDragState = rememberMobileFavoriteDragState()
     var listOriginInRoot by remember { mutableStateOf(Offset.Zero) }
 
     val blockedDropKeys = remember(treeRows, treeDragState.draggedKey) {
@@ -214,6 +218,18 @@ fun HomeScreen(
             if (delta != 0f) {
                 gridState.scrollBy(delta)
                 treeDragState.refreshDropTarget(gridState, currentBlockedDropKeys)
+            }
+        }
+    }
+
+    LaunchedEffect(favoriteDragState.isDragging) {
+        if (!favoriteDragState.isDragging) return@LaunchedEffect
+        while (isActive) {
+            withFrameNanos { }
+            val delta = favoriteDragState.edgeScrollDelta(favListState, edgeScrollZonePx, edgeScrollStepPx)
+            if (delta != 0f) {
+                favListState.scrollBy(delta)
+                favoriteDragState.refreshDropTarget(favListState)
             }
         }
     }
@@ -247,6 +263,7 @@ fun HomeScreen(
 
     var showAddNoteDialog by remember { mutableStateOf(false) }
     var showAddFolderDialog by remember { mutableStateOf(false) }
+    var addFolderParentId by remember { mutableStateOf<String?>(null) }
 
     var showAddNotePopup by remember { mutableStateOf(false) }
     var showAddFolderPopup by remember { mutableStateOf(false) }
@@ -274,7 +291,6 @@ fun HomeScreen(
     val isNotesExpanded by viewModel.isNotesSectionExpanded.collectAsState()
     val isRecentsExpanded by viewModel.isRecentsSectionExpanded.collectAsState()
 
-    val favListState = rememberLazyListState()
 
     val isSelectionMode = selectedNoteIds.isNotEmpty() || selectedFolderIds.isNotEmpty()
 
@@ -311,7 +327,10 @@ fun HomeScreen(
     LaunchedEffect(isSelectionMode) { onSelectionModeChange(isSelectionMode) }
 
     val handleCreateFolder = { name: String ->
-        viewModel.createNewFolder(name)
+        val parentFolderId = addFolderParentId
+        if (parentFolderId == null) viewModel.createNewFolder(name)
+        else viewModel.createFolderInParent(parentFolderId, name = name, autoExpand = true)
+        addFolderParentId = null
         showAddFolderDialog = false
     }
 
@@ -428,17 +447,55 @@ fun HomeScreen(
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     contentPadding = PaddingValues(horizontal = HORIZONTAL_PADDING)
                                 ) {
-                                    items(favoriteNotes, key = { "fav_${it.noteId}" }) { note ->
-                                        Box(Modifier.width(cardWidth)) {
-                                            NoteCard(
-                                                note = note,
-                                                isSelected = selectedNoteIds.contains(note.noteId),
-                                                onClick = {
-                                                    if (isSelectionMode) viewModel.toggleNoteSelection(
-                                                        note.noteId
-                                                    ) else onNavigateToEditor(note.noteId)
-                                                },
-                                                onLongClick = { viewModel.toggleNoteSelection(note.noteId) })
+                                    items(
+                                        favoriteNotes,
+                                        key = { "$FAVORITE_CARD_KEY_PREFIX${it.noteId}" }
+                                    ) { note ->
+                                        Box(
+                                            modifier = Modifier
+                                                .width(cardWidth)
+                                                .mobileFavoriteDragSource(
+                                                    noteId = note.noteId,
+                                                    dragState = favoriteDragState,
+                                                    rowState = favListState,
+                                                    dragEnabled = !isSelectionMode,
+                                                    onClick = {
+                                                        if (isSelectionMode) viewModel.toggleNoteSelection(note.noteId)
+                                                        else onNavigateToEditor(note.noteId)
+                                                    },
+                                                    onLongPress = { viewModel.toggleNoteSelection(note.noteId) },
+                                                    onDrop = { targetNoteId, insertBefore ->
+                                                        if (targetNoteId != null) {
+                                                            viewModel.reorderFavoriteNotes(
+                                                                draggedNoteId = note.noteId,
+                                                                targetNoteId = targetNoteId,
+                                                                insertBefore = insertBefore,
+                                                                orderedNoteIds = favoriteNotes.map { it.noteId }
+                                                            )
+                                                        }
+                                                    }
+                                                )
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .mobileFavoriteDraggedCard(favoriteDragState, note.noteId)
+                                            ) {
+                                                NoteCard(
+                                                    note = note,
+                                                    isSelected = selectedNoteIds.contains(note.noteId),
+                                                    onClick = {},
+                                                    onLongClick = {},
+                                                    handlesGestures = false
+                                                )
+                                            }
+                                            MobileFavoriteInsertLine(
+                                                visible = favoriteDragState.isInsertBefore(note.noteId),
+                                                atStart = true
+                                            )
+                                            MobileFavoriteInsertLine(
+                                                visible = favoriteDragState.isInsertAfter(note.noteId),
+                                                atStart = false
+                                            )
                                         }
                                     }
                                 }
@@ -448,7 +505,7 @@ fun HomeScreen(
 
                     if (treeRows.isNotEmpty() || !isSelectionMode) {
                         item(span = StaggeredGridItemSpan.FullLine) {
-                            Row(modifier = Modifier.fillMaxWidth().padding(start = HORIZONTAL_PADDING, end = HORIZONTAL_PADDING, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(modifier = Modifier.fillMaxWidth().padding(start = HORIZONTAL_PADDING, end = HORIZONTAL_PADDING, top = 26.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                 Row(modifier = Modifier.clip(RoundedCornerShape(4.dp)).noRippleClickable { viewModel.toggleHomeSection(SyncConstants.HOME_SECTION_NOTES) }.padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         "Notes",
@@ -458,7 +515,7 @@ fun HomeScreen(
                                     )
                                     SectionToggleIcon(isNotesExpanded, "Toggle Notes")
                                 }
-                                if (!isSelectionMode) {
+                                if (!isSelectionMode && isDesktopPlatform) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Box {
                                             Icon(
@@ -491,6 +548,7 @@ fun HomeScreen(
                                                 "New Folder",
                                                 modifier = Modifier.size(20.dp)
                                                     .noRippleClickable {
+                                                        addFolderParentId = null
                                                         if (isDesktopPlatform) {
                                                             addFolderInput = ""; showAddFolderPopup = true
                                                         } else showAddFolderDialog = true
@@ -622,6 +680,40 @@ fun HomeScreen(
                                         }
                                     }
                                 }
+                                if (!isSelectionMode && !isDesktopPlatform) {
+                                    TopBarIconButtonGroup(
+                                        bgColor = MaterialTheme.colorScheme.background,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        hazeState = hazeState,
+                                        hazeStyle = EmberrBlur.Regular,
+                                        iconSize = 20.dp,
+                                        shadowSpotColor = EmberrPillShadowSpotColor,
+                                        shadowAmbientColor = EmberrPillShadowAmbientColor,
+                                        items = listOf(
+                                            TopBarIconButtonItem(
+                                                icon = painterResource(Res.drawable.arrow_up_down),
+                                                contentDescription = "Sort",
+                                                onClick = { showSortMenu = true }
+                                            ),
+                                            TopBarIconButtonItem(
+                                                icon = painterResource(Res.drawable.folder_plus),
+                                                contentDescription = "New Folder",
+                                                onClick = {
+                                                    addFolderParentId = null
+                                                    showAddFolderDialog = true
+                                                }
+                                            ),
+                                            TopBarIconButtonItem(
+                                                icon = painterResource(Res.drawable.pen_square),
+                                                contentDescription = "New Note",
+                                                onClick = {
+                                                    addNoteTargetFolderId = null
+                                                    showAddNoteDialog = true
+                                                }
+                                            )
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
@@ -650,7 +742,6 @@ fun HomeScreen(
                                         itemKey = row.key,
                                         dragState = treeDragState,
                                         gridState = gridState,
-                                        listOriginInRoot = listOriginInRoot,
                                         blockedTargetKeys = blockedDropKeys,
                                         dragEnabled = !isSelectionMode,
                                         onClick = {
@@ -694,6 +785,12 @@ fun HomeScreen(
                                                 } else {
                                                     showAddNoteDialog = true
                                                 }
+                                            },
+                                            showAddSubfolderAction = !isDesktopPlatform &&
+                                                    !isSelectionMode && !treeDragState.isDragging,
+                                            onAddSubfolder = {
+                                                addFolderParentId = row.folder.folderId
+                                                showAddFolderDialog = true
                                             }
                                         )
 
@@ -726,7 +823,7 @@ fun HomeScreen(
 
                     if (recentNotes.isNotEmpty()) {
                         item(span = StaggeredGridItemSpan.FullLine) {
-                            Row(modifier = Modifier.fillMaxWidth().padding(start = HORIZONTAL_PADDING, end = HORIZONTAL_PADDING, top = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(modifier = Modifier.fillMaxWidth().padding(start = HORIZONTAL_PADDING, end = HORIZONTAL_PADDING, top = 26.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Row(
                                     modifier = Modifier.clip(RoundedCornerShape(4.dp))
                                         .noRippleClickable {
@@ -851,8 +948,11 @@ fun HomeScreen(
             if (!isDesktopPlatform) {
                 AddFolderBottomSheet(
                     expanded = showAddFolderDialog,
-                    onDismiss = { showAddFolderDialog = false },
-                    onCreate = handleCreateFolder
+                    onDismiss = { showAddFolderDialog = false; addFolderParentId = null },
+                    onCreate = handleCreateFolder,
+                    destinationFolderName = addFolderParentId?.let { folderId ->
+                        foldersByParent.values.flatten().find { it.folderId == folderId }?.name
+                    }
                 )
                 AddNoteBottomSheet(
                     expanded = showAddNoteDialog,
@@ -1414,9 +1514,20 @@ fun RenameBottomSheet(
 }
 
 @Composable
-fun AddFolderBottomSheet(expanded: Boolean, onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+fun AddFolderBottomSheet(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit,
+    destinationFolderName: String? = null
+) {
     var folderName by remember { mutableStateOf("") }
-    EmberrBottomSheet(expanded = expanded, onDismiss = onDismiss, title = "New Folder", subtitle = "Organize your notes.") { closeAnd ->
+    EmberrBottomSheet(
+        expanded = expanded,
+        onDismiss = onDismiss,
+        title = if (destinationFolderName != null) "New Subfolder" else "New Folder",
+        subtitle = if (destinationFolderName != null) "Nesting inside $destinationFolderName."
+        else "Organize your notes."
+    ) { closeAnd ->
         Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 16.dp)) {
             EmberrTextField(
                 value = folderName,
