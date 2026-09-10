@@ -37,7 +37,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.UUID
+import kotlin.time.Clock
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 sealed interface EmbeddingSetupState {
     data object Checking : EmbeddingSetupState
@@ -540,15 +542,16 @@ class RagViewModel(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private suspend fun persistCurrentSession() {
         try {
             val currentMessages = _messages.value
             if (currentMessages.isEmpty()) return
 
-            val sessionId = _currentSessionId.value ?: UUID.randomUUID().toString()
+            val sessionId = _currentSessionId.value ?: Uuid.random().toString()
             _currentSessionId.value = sessionId
 
-            val now = System.currentTimeMillis()
+            val now = Clock.System.now().toEpochMilliseconds()
             val createdAt = currentSessionCreatedAt ?: now
             currentSessionCreatedAt = createdAt
 
