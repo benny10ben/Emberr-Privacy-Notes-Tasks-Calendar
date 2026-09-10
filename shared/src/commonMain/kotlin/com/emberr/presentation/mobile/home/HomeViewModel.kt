@@ -359,7 +359,7 @@ class HomeViewModel(
     val notesByFolder: StateFlow<Map<String?, List<NoteMetadataEntity>>> =
         combine(repository.getAllNotes(), sortType, sortOrder) { allNotes, type, order ->
             applyNoteSort(
-                allNotes.filter { !it.title.equals("Inbox", ignoreCase = true) },
+                allNotes.filter { !it.isFavorite && !it.title.equals("Inbox", ignoreCase = true) },
                 type,
                 order
             ).groupBy { it.folderId }
@@ -499,6 +499,25 @@ class HomeViewModel(
 
     fun toggleFolderSelection(folderId: String) {
         _selectedFolderIds.update { if (it.contains(folderId)) it - folderId else it + folderId }
+    }
+
+    fun addToSelection(noteIds: Collection<String>, folderIds: Collection<String>) {
+        _selectedNoteIds.update { it + noteIds }
+        _selectedFolderIds.update { it + folderIds }
+    }
+
+    fun setNotesFavorite(noteIds: Collection<String>, isFavorite: Boolean) {
+        if (noteIds.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                noteIds.forEach { noteId ->
+                    if (isFavorite) repository.addNoteToFavorites(noteId)
+                    else repository.removeNoteFromFavoritesAndMoveToRoot(noteId)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun clearSelection() {

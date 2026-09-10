@@ -1279,6 +1279,18 @@ class NoteRepositoryImpl(
             AutoSyncTrigger.requestSync()
         }
 
+    override suspend fun addNoteToFavorites(noteId: String) =
+        withContext(Dispatchers.IO) {
+            noteDao.addNoteToFavorites(noteId, System.currentTimeMillis())
+            AutoSyncTrigger.requestSync()
+        }
+
+    override suspend fun removeNoteFromFavoritesAndMoveToRoot(noteId: String) =
+        withContext(Dispatchers.IO) {
+            noteDao.removeNoteFromFavoritesAndMoveToRoot(noteId, System.currentTimeMillis())
+            AutoSyncTrigger.requestSync()
+        }
+
     override suspend fun updateFolderSortOrder(folderId: String, order: Int) =
         withContext(Dispatchers.IO) {
             folderDao.updateFolderSortOrder(folderId, order)

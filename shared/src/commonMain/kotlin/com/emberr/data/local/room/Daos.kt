@@ -31,6 +31,7 @@ interface NoteDao {
         """
         SELECT folderId AS folderId, COUNT(*) AS noteCount FROM notes_metadata
         WHERE folderId IS NOT NULL AND trashedAt IS NULL AND isSubNote = 0 AND isTemplate = 0
+              AND isFavorite = 0
         GROUP BY folderId
         """
     )
@@ -120,6 +121,12 @@ interface NoteDao {
 
     @Query("UPDATE notes_metadata SET sortOrder = :order, updatedAt = :updatedAt WHERE noteId = :noteId")
     suspend fun updateNoteSortOrder(noteId: String, order: Int, updatedAt: Long)
+
+    @Query("UPDATE notes_metadata SET isFavorite = 1, updatedAt = :updatedAt WHERE noteId = :noteId")
+    suspend fun addNoteToFavorites(noteId: String, updatedAt: Long)
+
+    @Query("UPDATE notes_metadata SET isFavorite = 0, folderId = NULL, updatedAt = :updatedAt WHERE noteId = :noteId")
+    suspend fun removeNoteFromFavoritesAndMoveToRoot(noteId: String, updatedAt: Long)
 
     // Templates menu: every reusable template (predefined + user-saved), alphabetical so the
     // search/filter UI has a stable starting order.

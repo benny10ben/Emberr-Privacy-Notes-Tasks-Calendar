@@ -104,6 +104,94 @@ fun List<HomeItem>.movedTo(draggedKey: String, targetKey: String): List<HomeItem
     return toMutableList().apply { add(to, removeAt(from)) }
 }
 
+data class TreeSelectionMenu(
+    val showRename: Boolean,
+    val showFavorite: Boolean,
+    val favoriteLabel: String,
+    val makeFavorite: Boolean,
+    val deleteLabel: String
+)
+
+val SINGLE_ITEM_TREE_MENU = TreeSelectionMenu(
+    showRename = true,
+    showFavorite = false,
+    favoriteLabel = "Add to Favorites",
+    makeFavorite = true,
+    deleteLabel = "Delete"
+)
+
+fun treeSelectionMenu(
+    selectedNoteIds: Set<String>,
+    selectedFolderIds: Set<String>,
+    isNoteFavorite: (String) -> Boolean
+): TreeSelectionMenu {
+    val selectedCount = selectedNoteIds.size + selectedFolderIds.size
+    val holdsOnlyNotes = selectedNoteIds.isNotEmpty() && selectedFolderIds.isEmpty()
+    val everySelectedNoteIsFavorite = holdsOnlyNotes && selectedNoteIds.all(isNoteFavorite)
+
+    return TreeSelectionMenu(
+        showRename = selectedCount == 1,
+        showFavorite = holdsOnlyNotes,
+        favoriteLabel = if (everySelectedNoteIsFavorite) "Remove from Favorites" else "Add to Favorites",
+        makeFavorite = !everySelectedNoteIsFavorite,
+        deleteLabel = if (selectedCount > 1) "Delete $selectedCount items" else "Delete"
+    )
+}
+
+data class TreeGuideLines(
+    val ancestorVerticalLines: List<Boolean>,
+    val isLastChildOfParent: Boolean
+)
+
+val ROOT_TREE_GUIDE_LINES = TreeGuideLines(ancestorVerticalLines = emptyList(), isLastChildOfParent = true)
+
+fun List<HomeItem>.buildTreeGuideLines(): List<TreeGuideLines> {
+    if (isEmpty()) return emptyList()
+
+    val deepestLevel = maxOf { it.level }
+    val hasRowBelowAtLevel = BooleanArray(deepestLevel + 2)
+    val guidesFromBottom = ArrayList<TreeGuideLines>(size)
+
+    for (index in indices.reversed()) {
+        val level = this[index].level
+        val ancestorVerticalLines =
+            if (level < 2) emptyList()
+            else (0 until level - 1).map { depth -> hasRowBelowAtLevel[depth + 1] }
+
+        guidesFromBottom += TreeGuideLines(
+            ancestorVerticalLines = ancestorVerticalLines,
+            isLastChildOfParent = !hasRowBelowAtLevel[level]
+        )
+
+        hasRowBelowAtLevel[level] = true
+        for (deeperLevel in level + 1..deepestLevel) hasRowBelowAtLevel[deeperLevel] = false
+    }
+
+    guidesFromBottom.reverse()
+    return guidesFromBottom
+}
+
+fun List<HomeItem>.rowsBetween(firstKey: String, secondKey: String): List<HomeItem> {
+    val firstIndex = indexOfFirst { it.key == firstKey }
+    val secondIndex = indexOfFirst { it.key == secondKey }
+    if (firstIndex == -1 || secondIndex == -1) return emptyList()
+    return subList(minOf(firstIndex, secondIndex), maxOf(firstIndex, secondIndex) + 1).toList()
+}
+
+fun List<HomeItem>.subtreeKeys(rootKey: String?): Set<String> {
+    if (rootKey == null) return emptySet()
+    val rootIndex = indexOfFirst { it.key == rootKey }
+    if (rootIndex == -1) return setOf(rootKey)
+
+    val rootLevel = this[rootIndex].level
+    val keys = mutableSetOf(rootKey)
+    for (index in rootIndex + 1 until size) {
+        if (this[index].level <= rootLevel) break
+        keys += this[index].key
+    }
+    return keys
+}
+
 fun sortedHomeItems(
     folders: List<FolderEntity>,
     notes: List<NoteMetadataEntity>,
