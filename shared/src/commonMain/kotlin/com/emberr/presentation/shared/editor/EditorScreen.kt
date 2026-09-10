@@ -332,9 +332,14 @@ fun EditorScreen(
     var localFocusRequest by remember { mutableStateOf<FocusRequest?>(null) }
     val activeFocusRequest = focusRequest ?: localFocusRequest
 
-    var focusHandoffInFlight by remember { mutableStateOf(false) }
+    var focusRequestGeneration by remember { mutableIntStateOf(0) }
     LaunchedEffect(activeFocusRequest?.nonce) {
-        if (activeFocusRequest == null) return@LaunchedEffect
+        if (activeFocusRequest != null) focusRequestGeneration++
+    }
+
+    var focusHandoffInFlight by remember { mutableStateOf(false) }
+    LaunchedEffect(focusRequestGeneration) {
+        if (focusRequestGeneration == 0) return@LaunchedEffect
         focusHandoffInFlight = true
         delay(500.milliseconds)
         focusHandoffInFlight = false
