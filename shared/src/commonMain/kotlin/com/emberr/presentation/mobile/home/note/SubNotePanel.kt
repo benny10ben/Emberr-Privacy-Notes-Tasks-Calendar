@@ -147,8 +147,8 @@ fun SubNotePanel(
                         Modifier
                     }
                 )
-                .shadow(elevation = 20.dp, shape = if (isExpanded) RectangleShape else RoundedCornerShape(12.dp))
-                .clip(if (isExpanded) RectangleShape else RoundedCornerShape(12.dp))
+                .shadow(elevation = 20.dp, shape = if (isExpanded) RectangleShape else RoundedCornerShape(18.dp))
+                .clip(if (isExpanded) RectangleShape else RoundedCornerShape(18.dp))
         ) {
             var showInnerPanel by remember { mutableStateOf(false) }
             var innerPanelNoteId by remember { mutableStateOf<String?>(null) }
