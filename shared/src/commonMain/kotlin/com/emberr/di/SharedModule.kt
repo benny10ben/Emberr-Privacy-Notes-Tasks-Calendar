@@ -238,7 +238,8 @@ val sharedModule = module {
             selfHostDeletedApiConfigDao = get(),
             aiSettingsRepository = get(),
             database = get(),
-            bookmarkCategoryOrderStore = get()
+            bookmarkCategoryOrderStore = get(),
+            favoriteNoteOrderStore = get()
         )
     }
     single {

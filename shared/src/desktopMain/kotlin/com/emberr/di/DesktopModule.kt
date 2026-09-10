@@ -112,7 +112,7 @@ val desktopModule = module {
     single<SyncDiscoveryManager> { DesktopDiscoveryManager() }
     single { com.emberr.domain.sync.SyncServerAvailability() }
     single<com.emberr.domain.sync.SyncClient> { com.emberr.domain.sync.SyncClient(get(), get(), get()) }
-    single<SyncRepository> { SyncRepositoryImpl(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single<SyncRepository> { SyncRepositoryImpl(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     factory { SyncViewModel(get(), get(), get(), get(), get(), get<com.emberr.domain.sync.SyncServerAvailability>().status) }
 
     // Automatic Backup

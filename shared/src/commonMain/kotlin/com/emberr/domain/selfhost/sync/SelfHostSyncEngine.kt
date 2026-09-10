@@ -21,7 +21,9 @@ import com.emberr.domain.ai.external.ExternalAiProviderConfig
 import com.emberr.domain.model.DocumentBlock
 import com.emberr.domain.model.ImageBlock
 import com.emberr.domain.model.BookmarkCategoryOrder
+import com.emberr.domain.model.FavoriteNoteOrder
 import com.emberr.domain.repository.BookmarkCategoryOrderStore
+import com.emberr.domain.repository.FavoriteNoteOrderStore
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NoteContent
 import com.emberr.domain.model.VoiceBlock
@@ -72,7 +74,8 @@ class SelfHostSyncEngine(
     private val selfHostDeletedApiConfigDao: SelfHostDeletedApiConfigDao,
     private val aiSettingsRepository: AiSettingsRepository,
     private val database: EmberrDatabase,
-    private val bookmarkCategoryOrderStore: BookmarkCategoryOrderStore
+    private val bookmarkCategoryOrderStore: BookmarkCategoryOrderStore,
+    private val favoriteNoteOrderStore: FavoriteNoteOrderStore
 ) {
 
     private enum class ReconcileOutcome { SYNCED, CONFLICT_SKIPPED, LOCK_BUSY, UNCHANGED }
@@ -460,6 +463,9 @@ class SelfHostSyncEngine(
             if (withSyncCoordinatorOrSkip { reconcileBookmarkCategoryOrder() } == null) {
                 SelfHostSyncLog.d("TextSync: bookmark category order skipped this cycle, SyncCoordinator.mutex busy - will retry next trigger")
             }
+            if (withSyncCoordinatorOrSkip { reconcileFavoriteNoteOrder() } == null) {
+                SelfHostSyncLog.d("TextSync: favorite note order skipped this cycle, SyncCoordinator.mutex busy - will retry next trigger")
+            }
             val chatSessionEntries = withSyncCoordinatorOrSkip { reconcileChatSessions(manifest) } ?: run {
                 SelfHostSyncLog.d("TextSync: chat sessions skipped this cycle, SyncCoordinator.mutex busy - will retry next trigger")
                 manifest.entries.filter { it.entryType == SelfHostEntryType.CHAT_SESSION }
@@ -699,6 +705,35 @@ class SelfHostSyncEngine(
             SelfHostSyncLog.d("BookmarkCategoryOrderSync: remote bookmark_category_order.json changed concurrently, will retry next cycle")
         } catch (cause: Exception) {
             SelfHostSyncLog.e("BookmarkCategoryOrderSync: failed to sync bookmark category order: ${cause.message}", cause)
+        }
+    }
+
+    // The favorites sidebar order is the same shape of problem as the bookmark pill order above: one
+    // small list every device shares, so it travels as a whole-file JSON blob and the newer drag wins
+    // outright. Note ids that no longer exist locally are harmless - they are simply never matched
+    // when the sidebar sorts, and the next local drag rewrites the list without them.
+    private suspend fun reconcileFavoriteNoteOrder() {
+        try {
+            val remoteJsonWithEtag =
+                webDavSyncClient.downloadAndDecryptJsonWithEtag(WebDavSyncPaths.FAVORITE_NOTE_ORDER_FILE)
+            val remoteOrder = remoteJsonWithEtag?.first
+                ?.let { collectionJson.decodeFromString(FavoriteNoteOrder.serializer(), it) }
+
+            if (remoteOrder != null) favoriteNoteOrderStore.applyRemoteOrder(remoteOrder)
+
+            val mergedOrder = favoriteNoteOrderStore.getOrder()
+            if (mergedOrder.updatedAt > 0L && mergedOrder != remoteOrder) {
+                webDavSyncClient.uploadEncryptedJson(
+                    WebDavSyncPaths.FAVORITE_NOTE_ORDER_FILE,
+                    collectionJson.encodeToString(FavoriteNoteOrder.serializer(), mergedOrder),
+                    remoteJsonWithEtag?.second
+                )
+            }
+            SelfHostSyncLog.d("FavoriteNoteOrderSync: complete, ${mergedOrder.noteIds.size} favorite(s) ordered")
+        } catch (cause: WebDavConflictException) {
+            SelfHostSyncLog.d("FavoriteNoteOrderSync: remote favorite_note_order.json changed concurrently, will retry next cycle")
+        } catch (cause: Exception) {
+            SelfHostSyncLog.e("FavoriteNoteOrderSync: failed to sync favorite note order: ${cause.message}", cause)
         }
     }
 

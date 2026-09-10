@@ -23,7 +23,10 @@ import com.emberr.domain.model.VoiceBlock
 import com.emberr.domain.repository.NoteRepository
 import com.emberr.domain.model.BOOKMARK_CATEGORY_ORDER_ENTITY_ID
 import com.emberr.domain.model.BookmarkCategoryOrder
+import com.emberr.domain.model.FAVORITE_NOTE_ORDER_ENTITY_ID
+import com.emberr.domain.model.FavoriteNoteOrder
 import com.emberr.domain.repository.BookmarkCategoryOrderStore
+import com.emberr.domain.repository.FavoriteNoteOrderStore
 import com.emberr.domain.selfhost.sync.ApiConfigSyncEntry
 import com.emberr.domain.selfhost.translation.EmbeddedBlockPayload
 import com.emberr.domain.util.ChatSyncEventBus
@@ -52,7 +55,8 @@ class SyncRepositoryImpl(
     private val selfHostDeletedApiConfigDao: SelfHostDeletedApiConfigDao,
     private val aiSettingsRepository: AiSettingsRepository,
     private val database: EmberrDatabase,
-    private val bookmarkCategoryOrderStore: BookmarkCategoryOrderStore
+    private val bookmarkCategoryOrderStore: BookmarkCategoryOrderStore,
+    private val favoriteNoteOrderStore: FavoriteNoteOrderStore
 ) : SyncRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -547,6 +551,12 @@ class SyncRepositoryImpl(
                                 bookmarkCategoryOrderStore.applyRemoteOrder(remoteOrder)
                             }
 
+                            SyncType.FAVORITE_NOTE_ORDER -> {
+                                val remoteOrder =
+                                    json.decodeFromString<FavoriteNoteOrder>(decryptedMetaJson)
+                                favoriteNoteOrderStore.applyRemoteOrder(remoteOrder)
+                            }
+
                         }
                         true
                     } catch (e: Exception) {
@@ -780,6 +790,20 @@ class SyncRepositoryImpl(
                         entityType = SyncType.BOOKMARK_CATEGORY_ORDER,
                         metadataJson = encryptedOrder, contentJson = "",
                         updatedAt = localCategoryOrder.updatedAt, isDeleted = false
+                    )
+                )
+            }
+
+            val localFavoriteOrder = favoriteNoteOrderStore.getOrder()
+            if (localFavoriteOrder.updatedAt > lastSyncTime) {
+                val encryptedFavoriteOrder =
+                    encryptionManager.encryptPayload(json.encodeToString(localFavoriteOrder), syncKey)
+                changes.add(
+                    SyncEnvelope(
+                        entityId = FAVORITE_NOTE_ORDER_ENTITY_ID,
+                        entityType = SyncType.FAVORITE_NOTE_ORDER,
+                        metadataJson = encryptedFavoriteOrder, contentJson = "",
+                        updatedAt = localFavoriteOrder.updatedAt, isDeleted = false
                     )
                 )
             }

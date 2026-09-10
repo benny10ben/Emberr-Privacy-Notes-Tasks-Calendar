@@ -12,7 +12,8 @@ enum class SyncType {
     NOTE_TOMBSTONE,
     CHAT_SESSION,
     EXTERNAL_API_CONFIG,
-    BOOKMARK_CATEGORY_ORDER
+    BOOKMARK_CATEGORY_ORDER,
+    FAVORITE_NOTE_ORDER
 }
 
 // Carries a permanent (Trash "delete forever", or folder delete) note deletion over the LAN
