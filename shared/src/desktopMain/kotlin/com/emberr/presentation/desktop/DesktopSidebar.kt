@@ -151,6 +151,8 @@ private suspend fun AwaitPointerEventScope.waitForReleaseWithoutDragging(
         val event = awaitPointerEvent()
         val change = event.changes.firstOrNull() ?: return null
         if (change.isConsumed) return null
+        if (event.type == PointerEventType.Scroll) return null
+        if (ListScrollActivity.isWheelScrollingRightNow()) return null
         if ((change.position - pressPosition).getDistance() > allowedTravel) return null
         if (change.changedToUp()) return change
         val afterEveryoneElseHandledIt = awaitPointerEvent(PointerEventPass.Final)

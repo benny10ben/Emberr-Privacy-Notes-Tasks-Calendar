@@ -37,8 +37,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,9 +48,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 internal const val DRAG_PREFIX_NOTE   = "note:"
 internal const val DRAG_PREFIX_FOLDER = "folder:"
+
+private val WHEEL_SETTLE_TIME = 150.milliseconds
+private const val MAX_DRAG_START_JUMP_PX = 55f
+
+internal object ListScrollActivity {
+    private var lastWheelScrollAt: TimeMark? = null
+
+    fun recordWheelScroll() {
+        lastWheelScrollAt = TimeSource.Monotonic.markNow()
+    }
+
+    fun isWheelScrollingRightNow(): Boolean {
+        val lastScroll = lastWheelScrollAt ?: return false
+        return lastScroll.elapsedNow() < WHEEL_SETTLE_TIME
+    }
+}
 
 private const val AUTO_SCROLL_EDGE_ZONE_IN_ROWS = 1.5f
 private const val AUTO_SCROLL_ROWS_PER_SECOND   = 10f
@@ -174,8 +195,15 @@ fun Modifier.desktopListDragTracker(
         awaitPointerEventScope {
             while (true) {
                 val press = awaitPointerEvent(PointerEventPass.Initial)
+                if (press.type == PointerEventType.Scroll) {
+                    ListScrollActivity.recordWheelScroll()
+                    continue
+                }
                 if (press.type != PointerEventType.Press) continue
                 if (press.buttons.isSecondaryPressed) continue
+                if (!press.buttons.isPrimaryPressed) continue
+                if (ListScrollActivity.isWheelScrollingRightNow()) continue
+                if (listState.isScrollInProgress) continue
                 val pressChange = press.changes.firstOrNull() ?: continue
                 if (pressChange.isConsumed) continue
                 val pressPos = pressChange.position
@@ -187,6 +215,17 @@ fun Modifier.desktopListDragTracker(
                     val event = awaitPointerEvent(PointerEventPass.Initial)
                     val change = event.changes.firstOrNull() ?: break
 
+                    val pointerIsScrolling = event.type == PointerEventType.Scroll
+                    val primaryButtonLetGo = event.type != PointerEventType.Release &&
+                            !event.buttons.isPrimaryPressed
+
+                    if (pointerIsScrolling) ListScrollActivity.recordWheelScroll()
+
+                    if (pointerIsScrolling || primaryButtonLetGo) {
+                        if (dragStarted) dragState.endDrag()
+                        break
+                    }
+
                     when (event.type) {
                         PointerEventType.Move -> {
                             val dist = (change.position - pressPos).getDistance()
@@ -195,7 +234,11 @@ fun Modifier.desktopListDragTracker(
                                 pressedKey = null
                             }
 
-                            if (!dragStarted && dist > dragThresholdPx && pressedKey != null) {
+                            val jumpSinceLastEvent = change.positionChange().getDistance()
+
+                            if (!dragStarted && dist > dragThresholdPx && pressedKey != null &&
+                                jumpSinceLastEvent <= MAX_DRAG_START_JUMP_PX
+                            ) {
                                 val payload = currentPayloadForKey(pressedKey)
                                 if (payload != null) {
                                     dragState.startDrag(payload)
