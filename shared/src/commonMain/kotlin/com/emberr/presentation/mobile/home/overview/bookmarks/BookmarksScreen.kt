@@ -1,15 +1,23 @@
 package com.emberr.presentation.mobile.home.overview.bookmarks
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -26,8 +34,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -39,6 +50,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import org.koin.compose.viewmodel.koinViewModel
 import com.emberr.domain.model.BookmarkBlock
 import com.emberr.domain.util.isDesktopPlatform
@@ -64,6 +76,13 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private val InputContainerShape = RoundedCornerShape(12.dp)
 private val SelectionHighlightShape = RoundedCornerShape(12.dp)
+private val CategoryPillShape = RoundedCornerShape(20.dp)
+private val PillAutoScrollEdgeWidth = 56.dp
+private val PillAutoScrollStep = 9.dp
+private val PillSettleAnimationSpec = spring<Float>(
+    dampingRatio = Spring.DampingRatioNoBouncy,
+    stiffness = Spring.StiffnessMediumLow
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,6 +127,32 @@ fun BookmarksScreen(
 
     val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
     var activeBlockId by remember { mutableStateOf<String?>(null) }
+
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    val categoryOrder by viewModel.categoryOrder.collectAsState()
+
+    val availableCategories = remember(groupedBlocks, categoryOrder) {
+        availableBookmarkCategories(
+            urls = groupedBlocks.flatMap { group -> group.blocks }.map { it.url },
+            customOrder = categoryOrder
+        )
+    }
+
+    val visibleGroups = remember(groupedBlocks, selectedCategory) {
+        val activeCategory = selectedCategory ?: return@remember groupedBlocks
+        groupedBlocks.mapNotNull { group ->
+            val matchingBlocks = group.blocks.filter { bookmarkCategoryOf(it.url) == activeCategory }
+            if (matchingBlocks.isEmpty()) null else group.copy(blocks = matchingBlocks)
+        }
+    }
+
+    LaunchedEffect(availableCategories) {
+        if (selectedCategory != null && selectedCategory !in availableCategories) selectedCategory = null
+    }
+
+    LaunchedEffect(selectedCategory) {
+        listState.scrollToItem(0)
+    }
 
     var showAddUrlInput by remember { mutableStateOf(false) }
     var newUrlInput by remember { mutableStateOf("") }
@@ -197,7 +242,7 @@ fun BookmarksScreen(
                             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
-                } else if (groupedBlocks.isEmpty()) {
+                } else if (visibleGroups.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier.fillParentMaxSize(),
@@ -211,8 +256,12 @@ fun BookmarksScreen(
                         }
                     }
                 } else {
-                    items(groupedBlocks, key = { it.monthYear }) { group ->
-                        Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+                    items(visibleGroups, key = { it.monthYear }) { group ->
+                        Column(
+                            modifier = Modifier
+                                .animateItem()
+                                .background(MaterialTheme.colorScheme.background)
+                        ) {
                             Text(
                                 text = group.monthYear,
                                 style = MaterialTheme.typography.bodyLarge,
@@ -345,6 +394,24 @@ fun BookmarksScreen(
                         }
                     }
                 }
+            }
+
+            AnimatedVisibility(
+                visible = availableCategories.isNotEmpty() && !isSelectionMode && !showAddUrlInput,
+                enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(300, easing = FastOutSlowInEasing)) + fadeIn(tween(300)),
+                exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(300, easing = FastOutSlowInEasing)) + fadeOut(tween(300)),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .then(if (isDesktopPlatform) Modifier else Modifier.navigationBarsPadding())
+                    .padding(bottom = 16.dp)
+            ) {
+                BookmarkCategoryPills(
+                    categories = availableCategories,
+                    selectedCategory = selectedCategory,
+                    hazeState = hazeState,
+                    onSelectCategory = { category -> selectedCategory = category },
+                    onReorder = { reorderedCategories -> viewModel.saveCategoryOrder(reorderedCategories) }
+                )
             }
 
             BlockSelectionPill(
@@ -503,3 +570,217 @@ private fun BookmarksTopBar(
     }
 }
 
+@Composable
+private fun BookmarkCategoryPills(
+    categories: List<String>,
+    selectedCategory: String?,
+    hazeState: HazeState,
+    onSelectCategory: (String?) -> Unit,
+    onReorder: (List<String>) -> Unit
+) {
+    val orderedCategories = remember(categories) { mutableStateListOf(*categories.toTypedArray()) }
+    val pillSlotBounds = remember(categories) { mutableStateMapOf<String, Rect>() }
+    val scrollState = rememberScrollState()
+    val dragScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+
+    var draggedCategory by remember { mutableStateOf<String?>(null) }
+    var releasingCategory by remember { mutableStateOf<String?>(null) }
+    var dragStartIndex by remember { mutableIntStateOf(-1) }
+    var dragPointerX by remember { mutableFloatStateOf(0f) }
+    var rowViewportBounds by remember { mutableStateOf(Rect.Zero) }
+    val liftedTranslationX = remember { Animatable(0f) }
+
+    val autoScrollEdgeWidthPx = with(density) { PillAutoScrollEdgeWidth.toPx() }
+    val autoScrollStepPx = with(density) { PillAutoScrollStep.toPx() }
+
+    val settlePill: (String) -> Unit = { category ->
+        releasingCategory = category
+        dragStartIndex = -1
+        dragScope.launch {
+            liftedTranslationX.animateTo(0f, PillSettleAnimationSpec)
+            releasingCategory = null
+        }
+    }
+
+    LaunchedEffect(draggedCategory) {
+        val category = draggedCategory ?: return@LaunchedEffect
+        while (true) {
+            withFrameNanos { }
+
+            val autoScrollStep = when {
+                dragPointerX > rowViewportBounds.right - autoScrollEdgeWidthPx -> autoScrollStepPx
+                dragPointerX < rowViewportBounds.left + autoScrollEdgeWidthPx -> -autoScrollStepPx
+                else -> 0f
+            }
+            if (autoScrollStep != 0f) scrollState.scrollBy(autoScrollStep)
+
+            val hoveredSlot = pillSlotBounds.entries.firstOrNull { (name, bounds) ->
+                name != category && dragPointerX in bounds.left..bounds.right
+            }
+            if (hoveredSlot != null) {
+                val fromIndex = orderedCategories.indexOf(category)
+                val toIndex = orderedCategories.indexOf(hoveredSlot.key)
+                if (fromIndex != -1 && toIndex != -1) {
+                    val hoveredCenterX = hoveredSlot.value.center.x
+                    val hasPassedHoveredCenter =
+                        if (toIndex > fromIndex) dragPointerX > hoveredCenterX
+                        else dragPointerX < hoveredCenterX
+                    if (hasPassedHoveredCenter) {
+                        orderedCategories.add(toIndex, orderedCategories.removeAt(fromIndex))
+                    }
+                }
+            }
+
+            val slotCenterX = pillSlotBounds[category]?.center?.x
+            if (slotCenterX != null) liftedTranslationX.snapTo(dragPointerX - slotCenterX)
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { rowViewportBounds = it.boundsInWindow() }
+            .horizontalScroll(scrollState)
+            .padding(horizontal = if (isDesktopPlatform) 40.dp else 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BookmarkCategoryPill(
+            label = "All",
+            isSelected = selectedCategory == null,
+            isLifted = false,
+            hazeState = hazeState,
+            translationProvider = { 0f },
+            modifier = Modifier.clickable { onSelectCategory(null) }
+        )
+
+        orderedCategories.forEach { category ->
+            key(category) {
+                val isLifted = draggedCategory == category || releasingCategory == category
+                val settleTranslationX = remember { Animatable(0f) }
+                var slotXInRow by remember { mutableFloatStateOf(Float.NaN) }
+
+                Box(
+                    modifier = Modifier
+                        .zIndex(if (isLifted) 1f else 0f)
+                        .onGloballyPositioned { coordinates ->
+                            pillSlotBounds[category] = coordinates.boundsInWindow()
+
+                            val newSlotXInRow = coordinates.positionInRoot().x + scrollState.value
+                            if (!slotXInRow.isNaN() && newSlotXInRow != slotXInRow && !isLifted) {
+                                val shiftFromPreviousSlot = slotXInRow - newSlotXInRow
+                                dragScope.launch {
+                                    settleTranslationX.snapTo(shiftFromPreviousSlot)
+                                    settleTranslationX.animateTo(0f, PillSettleAnimationSpec)
+                                }
+                            }
+                            slotXInRow = newSlotXInRow
+                        }
+                ) {
+                    BookmarkCategoryPill(
+                        label = category,
+                        isSelected = selectedCategory == category,
+                        isLifted = isLifted,
+                        hazeState = hazeState,
+                        translationProvider = {
+                            if (isLifted) liftedTranslationX.value else settleTranslationX.value
+                        },
+                        modifier = Modifier
+                            .clickable {
+                                onSelectCategory(if (selectedCategory == category) null else category)
+                            }
+                            .pointerInput(category) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = {
+                                        releasingCategory = null
+                                        dragStartIndex = orderedCategories.indexOf(category)
+                                        dragPointerX = pillSlotBounds[category]?.center?.x ?: 0f
+                                        draggedCategory = category
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dragPointerX += dragAmount.x
+                                    },
+                                    onDragEnd = {
+                                        val finalIndex = orderedCategories.indexOf(category)
+                                        val startIndex = dragStartIndex
+                                        draggedCategory = null
+                                        settlePill(category)
+                                        if (startIndex != -1 && finalIndex != -1 && startIndex != finalIndex) {
+                                            onReorder(orderedCategories.toList())
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        draggedCategory = null
+                                        settlePill(category)
+                                    }
+                                )
+                            }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BookmarkCategoryPill(
+    label: String,
+    isSelected: Boolean,
+    isLifted: Boolean,
+    hazeState: HazeState,
+    translationProvider: () -> Float,
+    modifier: Modifier = Modifier
+) {
+    val pillColorAnimationSpec = tween<Color>(durationMillis = 220, easing = FastOutSlowInEasing)
+
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = pillColorAnimationSpec,
+        label = "BookmarkCategoryPillBackground"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        animationSpec = pillColorAnimationSpec,
+        label = "BookmarkCategoryPillContent"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+        animationSpec = pillColorAnimationSpec,
+        label = "BookmarkCategoryPillBorder"
+    )
+    val liftScale by animateFloatAsState(
+        targetValue = if (isLifted) 1.08f else 1f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+        label = "BookmarkCategoryPillScale"
+    )
+    val liftShadowAlpha by animateFloatAsState(
+        targetValue = if (isLifted) 0.85f else 1f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+        label = "BookmarkCategoryPillAlpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .graphicsLayer {
+                translationX = translationProvider()
+                scaleX = liftScale
+                scaleY = liftScale
+                alpha = liftShadowAlpha
+            }
+            .clip(CategoryPillShape)
+            .emberrBlur(hazeState, EmberrBlur.Regular)
+            .background(backgroundColor)
+            .border(width = 0.5.dp, color = borderColor, shape = CategoryPillShape)
+            .then(modifier)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            maxLines = 1
+        )
+    }
+}
