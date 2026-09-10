@@ -201,3 +201,34 @@ fun sortedHomeItems(
 ): List<HomeItem> =
     (folders.map { HomeItem.Folder(it, level) } + notes.map { HomeItem.Note(it, level) })
         .sortedWith(homeItemComparator(sortType, sortOrder))
+
+fun flattenFolderTree(
+    parentId: String?,
+    level: Int,
+    foldersByParent: Map<String?, List<FolderEntity>>,
+    notesByFolder: Map<String?, List<NoteMetadataEntity>>,
+    expandedFolderIds: Set<String>,
+    sortType: SortType = SortType.LAST_EDITED,
+    sortOrder: SortOrder = SortOrder.DESCENDING
+): List<HomeItem> {
+    val out = mutableListOf<HomeItem>()
+
+    val combined = sortedHomeItems(
+        folders = foldersByParent[parentId].orEmpty(),
+        notes = notesByFolder[parentId].orEmpty(),
+        sortType = sortType,
+        sortOrder = sortOrder,
+        level = level
+    )
+
+    combined.forEach { row ->
+        out += row
+        if (row is HomeItem.Folder && row.folder.folderId in expandedFolderIds) {
+            out += flattenFolderTree(
+                row.folder.folderId, level + 1,
+                foldersByParent, notesByFolder, expandedFolderIds, sortType, sortOrder
+            )
+        }
+    }
+    return out
+}

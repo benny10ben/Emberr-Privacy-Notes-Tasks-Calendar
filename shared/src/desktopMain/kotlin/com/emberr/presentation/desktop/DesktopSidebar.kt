@@ -1,4 +1,4 @@
-package com.emberr.presentation.mobile.home
+package com.emberr.presentation.desktop
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -60,6 +60,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.emberr.data.local.room.FolderEntity
 import com.emberr.data.local.room.NoteMetadataEntity
+import com.emberr.presentation.mobile.home.DRAG_PREFIX_FOLDER
+import com.emberr.presentation.mobile.home.DesktopListDragState
+import com.emberr.presentation.mobile.home.DropInsertPosition
+import com.emberr.presentation.mobile.home.HomeItemKey
+import com.emberr.presentation.mobile.home.ROOT_TREE_GUIDE_LINES
+import com.emberr.presentation.mobile.home.SINGLE_ITEM_TREE_MENU
+import com.emberr.presentation.mobile.home.TreeGuideLines
+import com.emberr.presentation.mobile.home.TreeSelectionMenu
 import com.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.emberr.presentation.shared.components.EmberrButtonSecondary
 import com.emberr.presentation.shared.components.EmberrDesktopMenu
@@ -200,39 +208,6 @@ private fun DesktopNamePopup(
             EmberrButtonPrimary(text = confirmLabel, onClick = { if (input.isNotBlank()) onConfirm(input.trim()) }, modifier = Modifier.weight(1f))
         }
     }
-}
-
-// Tree data
-
-fun flattenFolderTree(
-    parentId: String?,
-    level: Int,
-    foldersByParent: Map<String?, List<FolderEntity>>,
-    notesByFolder: Map<String?, List<NoteMetadataEntity>>,
-    expandedFolderIds: Set<String>,
-    sortType: SortType = SortType.LAST_EDITED,
-    sortOrder: SortOrder = SortOrder.DESCENDING
-): List<HomeItem> {
-    val out = mutableListOf<HomeItem>()
-
-    val combined = sortedHomeItems(
-        folders = foldersByParent[parentId].orEmpty(),
-        notes = notesByFolder[parentId].orEmpty(),
-        sortType = sortType,
-        sortOrder = sortOrder,
-        level = level
-    )
-
-    combined.forEach { row ->
-        out += row
-        if (row is HomeItem.Folder && row.folder.folderId in expandedFolderIds) {
-            out += flattenFolderTree(
-                row.folder.folderId, level + 1,
-                foldersByParent, notesByFolder, expandedFolderIds, sortType, sortOrder
-            )
-        }
-    }
-    return out
 }
 
 // Row composables
