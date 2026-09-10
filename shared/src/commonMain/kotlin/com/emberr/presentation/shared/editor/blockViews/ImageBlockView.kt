@@ -32,9 +32,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
@@ -211,6 +216,7 @@ fun ImageBlockView(
 
             val imageHazeState = remember { HazeState() }
             var widthToHeightRatio by remember(absolutePath) { mutableStateOf<Float?>(null) }
+            var thumbnailBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
 
             Box(
                 modifier = Modifier
@@ -228,6 +234,11 @@ fun ImageBlockView(
 
                 Box(
                     modifier = sizeModifier
+                        .onGloballyPositioned { coordinates ->
+                            thumbnailBoundsInRoot =
+                                Rect(coordinates.positionInRoot(), coordinates.size.toSize())
+                        }
+                        .graphicsLayer { alpha = if (showFullScreen) 0f else 1f }
                         .clip(DefaultBlockShape)
                         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
                         .combinedClickable(
@@ -287,6 +298,8 @@ fun ImageBlockView(
                         com.emberr.presentation.shared.editor.components.FullScreenImageScreen(
                             request = request,
                             hasLocalFile = block.localFilePath != null,
+                            thumbnailBoundsInRoot = thumbnailBoundsInRoot,
+                            imageWidthToHeightRatio = widthToHeightRatio,
                             onBack = { showFullScreen = false },
                             onDownload = {
                                 coroutineScope.launch {
