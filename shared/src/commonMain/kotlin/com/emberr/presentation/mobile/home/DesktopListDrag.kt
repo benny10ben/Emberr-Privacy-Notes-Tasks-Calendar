@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
@@ -21,25 +22,34 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 
 internal const val DRAG_PREFIX_NOTE   = "note:"
 internal const val DRAG_PREFIX_FOLDER = "folder:"
+
+private const val AUTO_SCROLL_EDGE_ZONE_IN_ROWS = 1.5f
+private const val AUTO_SCROLL_ROWS_PER_SECOND   = 10f
 
 class DesktopListDragState {
     var dragging     by mutableStateOf(false)
@@ -120,11 +130,50 @@ fun Modifier.desktopListDragTracker(
     val currentIsDropTarget  by rememberUpdatedState(isDropTarget)
     val currentOnDrop        by rememberUpdatedState(onDrop)
 
+    val isDragging = dragState.dragging
+
+    LaunchedEffect(isDragging, listState, rowHeightPx) {
+        if (!isDragging) return@LaunchedEffect
+
+        var lastFrameTimeNanos = withFrameNanos { it }
+        while (true) {
+            val frameTimeNanos = withFrameNanos { it }
+            val secondsSinceLastFrame = (frameTimeNanos - lastFrameTimeNanos) / 1_000_000_000f
+            lastFrameTimeNanos = frameTimeNanos
+
+            val scrollDistance = autoScrollDistanceForFrame(
+                cursorY               = dragState.cursorY,
+                listState             = listState,
+                rowHeightPx           = rowHeightPx,
+                secondsSinceLastFrame = secondsSinceLastFrame
+            )
+            if (scrollDistance == 0f) continue
+
+            val scrolledDistance = try {
+                listState.scrollBy(scrollDistance)
+            } catch (scrollTakenOverBySomethingElse: CancellationException) {
+                ensureActive()
+                0f
+            }
+            if (scrolledDistance == 0f) continue
+
+            resolveDropTarget(
+                cursorY      = dragState.cursorY,
+                listState    = listState,
+                rowKeys      = currentRowKeys,
+                payload      = dragState.payload ?: "",
+                isDropTarget = currentIsDropTarget,
+                dragState    = dragState
+            )
+        }
+    }
+
     return this.pointerInput(dragState, listState) {
         awaitPointerEventScope {
             while (true) {
-                val press = awaitPointerEvent()
+                val press = awaitPointerEvent(PointerEventPass.Initial)
                 if (press.type != PointerEventType.Press) continue
+                if (press.buttons.isSecondaryPressed) continue
                 val pressChange = press.changes.firstOrNull() ?: continue
                 if (pressChange.isConsumed) continue
                 val pressPos = pressChange.position
@@ -133,7 +182,7 @@ fun Modifier.desktopListDragTracker(
                 var dragStarted = false
 
                 while (true) {
-                    val event = awaitPointerEvent()
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
                     val change = event.changes.firstOrNull() ?: break
 
                     when (event.type) {
@@ -171,6 +220,7 @@ fun Modifier.desktopListDragTracker(
 
                         PointerEventType.Release -> {
                             if (dragStarted) {
+                                change.consume()
                                 val target  = dragState.dropTargetId
                                 val payload = dragState.payload
                                 if (target != null && payload != null) {
@@ -193,6 +243,28 @@ fun Modifier.desktopListDragTracker(
             }
         }
     }
+}
+
+private fun autoScrollDistanceForFrame(
+    cursorY: Float,
+    listState: LazyListState,
+    rowHeightPx: Float,
+    secondsSinceLastFrame: Float
+): Float {
+    val viewportHeight = listState.layoutInfo.viewportSize.height.toFloat()
+    if (viewportHeight <= 0f || rowHeightPx <= 0f) return 0f
+
+    val edgeZone = (rowHeightPx * AUTO_SCROLL_EDGE_ZONE_IN_ROWS).coerceAtMost(viewportHeight / 3f)
+    val depthIntoTopEdge    = edgeZone - cursorY
+    val depthIntoBottomEdge = cursorY - (viewportHeight - edgeZone)
+
+    val speedFraction = when {
+        depthIntoTopEdge    > 0f -> -(depthIntoTopEdge / edgeZone).coerceAtMost(1f)
+        depthIntoBottomEdge > 0f ->  (depthIntoBottomEdge / edgeZone).coerceAtMost(1f)
+        else                     -> return 0f
+    }
+
+    return speedFraction * rowHeightPx * AUTO_SCROLL_ROWS_PER_SECOND * secondsSinceLastFrame
 }
 
 private fun resolveDropTarget(
