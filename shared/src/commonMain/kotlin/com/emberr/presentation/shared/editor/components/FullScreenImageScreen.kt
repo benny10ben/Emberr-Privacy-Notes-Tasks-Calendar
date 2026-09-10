@@ -1,5 +1,9 @@
 package com.emberr.presentation.shared.editor.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +37,10 @@ import emberr.shared.generated.resources.chevron_left
 import emberr.shared.generated.resources.copy
 import emberr.shared.generated.resources.download
 import emberr.shared.generated.resources.trash
+import kotlinx.coroutines.launch
+
+private const val DoubleTapZoomScale = 2.5f
+private const val MaximumZoomScale = 5f
 
 @Composable
 fun FullScreenImageScreen(
@@ -45,8 +53,15 @@ fun FullScreenImageScreen(
 ) {
     KmpBackHandler(enabled = true) { onBack() }
 
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
+    val zoomScale = remember { Animatable(1f) }
+    val panOffset = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    val gestureScope = rememberCoroutineScope()
+    val zoomAnimationSpec = remember {
+        spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
+    }
+    val panAnimationSpec = remember {
+        spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
+    }
 
     val hazeState = remember { HazeState() }
     val tint = MaterialTheme.colorScheme.primary
@@ -64,33 +79,50 @@ fun FullScreenImageScreen(
                     .fillMaxSize()
                     .pointerInput(Unit) {
                         detectTapGestures(
-                            onDoubleTap = {
-                                if (scale > 1f) {
-                                    scale = 1f
-                                    offset = Offset.Zero
-                                } else scale = 2.5f
+                            onDoubleTap = { tapPosition ->
+                                val targetScale = if (zoomScale.value > 1f) 1f else DoubleTapZoomScale
+                                val targetOffset = if (targetScale == 1f) {
+                                    Offset.Zero
+                                } else {
+                                    val viewportCenter = Offset(size.width / 2f, size.height / 2f)
+                                    val shiftTowardsTap = (tapPosition - viewportCenter) * (1f - targetScale)
+                                    val maxX = (size.width * (targetScale - 1f)) / 2f
+                                    val maxY = (size.height * (targetScale - 1f)) / 2f
+                                    Offset(
+                                        x = shiftTowardsTap.x.coerceIn(-maxX, maxX),
+                                        y = shiftTowardsTap.y.coerceIn(-maxY, maxY)
+                                    )
+                                }
+                                gestureScope.launch { zoomScale.animateTo(targetScale, zoomAnimationSpec) }
+                                gestureScope.launch { panOffset.animateTo(targetOffset, panAnimationSpec) }
                             }
                         )
                     }
                     .pointerInput(Unit) {
                         detectTransformGestures { _, pan, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(1f, 5f)
-                            if (scale > 1f) {
-                                val maxX = (size.width * (scale - 1)) / 2
-                                val maxY = (size.height * (scale - 1)) / 2
-                                offset = Offset(
-                                    x = (offset.x + pan.x).coerceIn(-maxX, maxX),
-                                    y = (offset.y + pan.y).coerceIn(-maxY, maxY)
+                            val nextScale = (zoomScale.value * zoom).coerceIn(1f, MaximumZoomScale)
+                            val nextOffset = if (nextScale > 1f) {
+                                val maxX = (size.width * (nextScale - 1f)) / 2f
+                                val maxY = (size.height * (nextScale - 1f)) / 2f
+                                Offset(
+                                    x = (panOffset.value.x + pan.x).coerceIn(-maxX, maxX),
+                                    y = (panOffset.value.y + pan.y).coerceIn(-maxY, maxY)
                                 )
-                            } else offset = Offset.Zero
+                            } else {
+                                Offset.Zero
+                            }
+                            gestureScope.launch {
+                                zoomScale.snapTo(nextScale)
+                                panOffset.snapTo(nextOffset)
+                            }
                         }
                     }
-                    .graphicsLayer(
-                        scaleX = scale,
-                        scaleY = scale,
-                        translationX = offset.x,
-                        translationY = offset.y
-                    ),
+                    .graphicsLayer {
+                        scaleX = zoomScale.value
+                        scaleY = zoomScale.value
+                        translationX = panOffset.value.x
+                        translationY = panOffset.value.y
+                    },
                 contentScale = ContentScale.Fit
             )
         }
