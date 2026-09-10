@@ -71,4 +71,7 @@ object SyncConstants {
     // Bookmarks
     const val KEY_BOOKMARK_CATEGORY_ORDER_JSON = "bookmark_category_order_json"
     const val DEFAULT_BOOKMARK_CATEGORY_ORDER_JSON = ""
+    // Favorites
+    const val KEY_FAVORITE_NOTE_ORDER_JSON = "favorite_note_order_json"
+    const val DEFAULT_FAVORITE_NOTE_ORDER_JSON = ""
 }

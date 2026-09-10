@@ -63,7 +63,7 @@ interface NoteDao {
     @Query("SELECT * FROM notes_metadata WHERE noteId IN (:ids) AND isTemplate = 0")
     suspend fun getNotesByIds(ids: List<String>): List<NoteMetadataEntity>
 
-    @Query("SELECT * FROM notes_metadata WHERE isFavorite = 1 AND trashedAt IS NULL AND isTemplate = 0")
+    @Query("SELECT * FROM notes_metadata WHERE isFavorite = 1 AND trashedAt IS NULL AND isTemplate = 0 ORDER BY updatedAt DESC")
     fun getFavoriteNotes(): Flow<List<NoteMetadataEntity>>
 
     @Query("SELECT * FROM notes_metadata WHERE trashedAt IS NOT NULL AND isTemplate = 0 ORDER BY trashedAt DESC")

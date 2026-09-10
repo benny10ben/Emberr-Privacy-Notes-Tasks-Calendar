@@ -219,6 +219,8 @@ private fun OverviewRow(
     }
 }
 
+private const val FAVORITE_ROW_PREFIX = "sb_fav_"
+
 private val MIN_PANEL_WIDTH = 240.dp
 private val MAX_PANEL_WIDTH = 520.dp
 private val MIN_RAG_PANEL_WIDTH = 320.dp
@@ -422,9 +424,18 @@ fun DesktopMainScreen(
 
         val favoriteNoteIds = remember(favoriteNotes) { favoriteNotes.map { it.noteId }.toSet() }
 
-        fun handleTreeRowClick(rowKey: String, modifiers: SidebarClickModifiers, openRow: () -> Unit) {
+        val favoriteRows = remember(favoriteNotes) { favoriteNotes.map { HomeItem.Note(it) } }
+
+        fun handleRowClick(
+            rowsInSection: List<HomeItem>,
+            rowKey: String,
+            modifiers: SidebarClickModifiers,
+            openRow: () -> Unit
+        ) {
+            val anchorKeyInSection =
+                selectionAnchorKey?.takeIf { anchor -> rowsInSection.any { it.key == anchor } } ?: rowKey
             val rowsBetweenAnchorAndClick =
-                if (modifiers.extendSelection) treeRows.rowsBetween(selectionAnchorKey ?: rowKey, rowKey)
+                if (modifiers.extendSelection) rowsInSection.rowsBetween(anchorKeyInSection, rowKey)
                 else emptyList()
 
             when {
@@ -477,7 +488,7 @@ fun DesktopMainScreen(
 
             if (favoriteNotes.isNotEmpty()) {
                 add(null) // Favorites header
-                if (isFavoritesExpanded) favoriteNotes.forEach { add("sb_fav_${it.noteId}") }
+                if (isFavoritesExpanded) favoriteNotes.forEach { add("$FAVORITE_ROW_PREFIX${it.noteId}") }
             }
 
             add(null) // Notes header
@@ -568,7 +579,7 @@ fun DesktopMainScreen(
                                     key == null -> null
                                     HomeItemKey.isFolder(key) -> "$DRAG_PREFIX_FOLDER${HomeItemKey.folderIdOf(key)}"
                                     HomeItemKey.isNote(key) -> "$DRAG_PREFIX_NOTE${HomeItemKey.noteIdOf(key)}"
-                                    key.startsWith("sb_fav_") -> "$DRAG_PREFIX_NOTE${key.removePrefix("sb_fav_")}"
+                                    key.startsWith(FAVORITE_ROW_PREFIX) -> "$DRAG_PREFIX_NOTE${key.removePrefix(FAVORITE_ROW_PREFIX)}"
                                     key.startsWith("sb_recent_") -> "$DRAG_PREFIX_NOTE${key.removePrefix("sb_recent_")}"
                                     else -> null
                                 }
@@ -576,7 +587,9 @@ fun DesktopMainScreen(
                             isDropTarget = { key, payload ->
                                 if (key == null) false
                                 else when {
-                                    key.startsWith("sb_fav_") -> false
+                                    key.startsWith(FAVORITE_ROW_PREFIX) ->
+                                        payload.startsWith(DRAG_PREFIX_NOTE) &&
+                                                payload.removePrefix(DRAG_PREFIX_NOTE) in favoriteNoteIds
                                     key.startsWith("sb_recent_") -> false
                                     HomeItemKey.isFolder(key) &&
                                             payload == "$DRAG_PREFIX_FOLDER${HomeItemKey.folderIdOf(key)}" -> false
@@ -585,6 +598,16 @@ fun DesktopMainScreen(
                             },
                             onDrop = { payload, targetKey, insertBefore ->
                                 when {
+                                    targetKey.startsWith(FAVORITE_ROW_PREFIX) &&
+                                            payload.startsWith(DRAG_PREFIX_NOTE) -> {
+                                        homeViewModel.reorderFavoriteNotes(
+                                            draggedNoteId = payload.removePrefix(DRAG_PREFIX_NOTE),
+                                            targetNoteId = targetKey.removePrefix(FAVORITE_ROW_PREFIX),
+                                            insertBefore = insertBefore,
+                                            orderedNoteIds = favoriteNotes.map { it.noteId }
+                                        )
+                                    }
+
                                     !insertBefore && HomeItemKey.isFolder(targetKey) &&
                                             dragState.dropPosition == DropInsertPosition.INTO -> {
                                         val folderId = HomeItemKey.folderIdOf(targetKey)
@@ -647,16 +670,27 @@ fun DesktopMainScreen(
                         if (favoriteNotes.isNotEmpty()) {
                             item { SidebarSectionHeader("Favorites", isFavoritesExpanded, { isFavoritesExpanded = !isFavoritesExpanded }) }
                             if (isFavoritesExpanded) {
-                                items(favoriteNotes, key = { "sb_fav_${it.noteId}" }) { note ->
+                                items(favoriteNotes, key = { "$FAVORITE_ROW_PREFIX${it.noteId}" }) { note ->
+                                    val favoriteRowKey = HomeItemKey.forNote(note.noteId)
+                                    val rowMenuTarget = menuForRow(favoriteRowKey)
                                     SidebarNoteRow(
                                         note = note, level = 0,
                                         isActive = (detail as? DetailPane.Note)?.noteId == note.noteId,
                                         isSelected = selectedNoteIds.contains(note.noteId),
                                         dragState = dragState,
-                                        onClick = { openNote(note.noteId) },
+                                        menu = rowMenuTarget.menu,
+                                        onClick = { modifiers ->
+                                            handleRowClick(favoriteRows, favoriteRowKey, modifiers) { openNote(note.noteId) }
+                                        },
+                                        onToggleFavorite = {
+                                            homeViewModel.setNotesFavorite(rowMenuTarget.noteIds, rowMenuTarget.menu.makeFavorite)
+                                        },
                                         onRename = { newTitle -> homeViewModel.renameNote(note.noteId, newTitle) },
-                                        onDelete = { homeViewModel.trashNote(note.noteId) },
-                                        rowKey = "sb_fav_${note.noteId}"
+                                        onDelete = {
+                                            if (rowMenuTarget.usesSelection) homeViewModel.deleteSelectedItems()
+                                            else homeViewModel.trashNote(note.noteId)
+                                        },
+                                        rowKey = "$FAVORITE_ROW_PREFIX${note.noteId}"
                                     )
                                 }
                             }
@@ -881,7 +915,7 @@ fun DesktopMainScreen(
                                         dragState = dragState,
                                         menu = rowMenuTarget.menu,
                                         onClick = { modifiers ->
-                                            handleTreeRowClick(row.key, modifiers) {
+                                            handleRowClick(treeRows, row.key, modifiers) {
                                                 homeViewModel.toggleFolderExpansion(row.folder.folderId)
                                             }
                                         },
@@ -907,7 +941,7 @@ fun DesktopMainScreen(
                                         dragState = dragState,
                                         menu = rowMenuTarget.menu,
                                         onClick = { modifiers ->
-                                            handleTreeRowClick(row.key, modifiers) { openNote(row.note.noteId) }
+                                            handleRowClick(treeRows, row.key, modifiers) { openNote(row.note.noteId) }
                                         },
                                         onToggleFavorite = {
                                             homeViewModel.setNotesFavorite(rowMenuTarget.noteIds, rowMenuTarget.menu.makeFavorite)
@@ -929,7 +963,7 @@ fun DesktopMainScreen(
                                     SidebarNoteRow(
                                         note = note, level = 0,
                                         isActive = (detail as? DetailPane.Note)?.noteId == note.noteId,
-                                        isSelected = selectedNoteIds.contains(note.noteId),
+                                        isSelected = false,
                                         dragState = dragState,
                                         onClick = { openNote(note.noteId) },
                                         onRename = { newTitle -> homeViewModel.renameNote(note.noteId, newTitle) },

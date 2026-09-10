@@ -8,6 +8,7 @@ import com.emberr.data.local.room.FolderEntity
 import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.domain.media.LocalMediaGarbageCollector
 import com.emberr.domain.model.*
+import com.emberr.domain.repository.FavoriteNoteOrderStore
 import com.emberr.domain.repository.NoteRepository
 import com.emberr.domain.template.DefaultTemplateSeeder
 import com.emberr.domain.util.VoiceTaskEventBus
@@ -43,7 +44,8 @@ class HomeViewModel(
     private val taskExtractor: TaskExtractor,
     private val voiceRecognizer: VoiceRecognizer,
     private val templateSeeder: DefaultTemplateSeeder,
-    private val localMediaGarbageCollector: LocalMediaGarbageCollector
+    private val localMediaGarbageCollector: LocalMediaGarbageCollector,
+    private val favoriteNoteOrderStore: FavoriteNoteOrderStore
 ) : ViewModel() {
 
     val sortType: StateFlow<SortType> = settingsManager.sortTypeFlow
@@ -259,8 +261,34 @@ class HomeViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    val favoriteNotes = repository.getFavoriteNotes()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    val favoriteNotes = combine(
+        repository.getFavoriteNotes(),
+        favoriteNoteOrderStore.orderedNoteIdsFlow
+    ) { notes, manuallyOrderedNoteIds ->
+        val positionOfNote = manuallyOrderedNoteIds.withIndex()
+            .associate { (position, noteId) -> noteId to position }
+        notes.sortedBy { positionOfNote[it.noteId] ?: Int.MAX_VALUE }
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    fun reorderFavoriteNotes(
+        draggedNoteId: String,
+        targetNoteId: String,
+        insertBefore: Boolean,
+        orderedNoteIds: List<String>
+    ) {
+        if (draggedNoteId == targetNoteId) return
+
+        val reordered = orderedNoteIds.toMutableList()
+        if (!reordered.remove(draggedNoteId)) return
+
+        val targetIndex = reordered.indexOf(targetNoteId)
+        if (targetIndex == -1) return
+
+        val insertAt = if (insertBefore) targetIndex else targetIndex + 1
+        reordered.add(insertAt.coerceIn(0, reordered.size), draggedNoteId)
+
+        favoriteNoteOrderStore.saveOrder(reordered)
+    }
 
     val currentSubFolders = combine(
         _allFolders,
@@ -508,6 +536,7 @@ class HomeViewModel(
 
     fun setNotesFavorite(noteIds: Collection<String>, isFavorite: Boolean) {
         if (noteIds.isEmpty()) return
+        clearSelection()
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 noteIds.forEach { noteId ->
@@ -543,6 +572,7 @@ class HomeViewModel(
         val toDeleteNotes = _selectedNoteIds.value
         val toDeleteFolders = _selectedFolderIds.value
         val now = System.currentTimeMillis()
+        clearSelection()
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -562,8 +592,6 @@ class HomeViewModel(
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-
-            clearSelection()
         }
     }
 

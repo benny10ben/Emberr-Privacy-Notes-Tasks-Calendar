@@ -379,6 +379,21 @@ class AndroidSettingsManager(
         _bookmarkCategoryOrderJson.value = json
     }
 
+    private val _favoriteNoteOrderJson = MutableStateFlow(
+        sharedPreferences.getString(
+            SyncConstants.KEY_FAVORITE_NOTE_ORDER_JSON,
+            SyncConstants.DEFAULT_FAVORITE_NOTE_ORDER_JSON
+        ) ?: SyncConstants.DEFAULT_FAVORITE_NOTE_ORDER_JSON
+    )
+    override val favoriteNoteOrderJsonFlow: Flow<String> = _favoriteNoteOrderJson
+
+    override fun getFavoriteNoteOrderJson(): String = _favoriteNoteOrderJson.value
+
+    override fun saveFavoriteNoteOrderJson(json: String) {
+        sharedPreferences.edit { putString(SyncConstants.KEY_FAVORITE_NOTE_ORDER_JSON, json) }
+        _favoriteNoteOrderJson.value = json
+    }
+
     private val _hasCompletedOnboarding = MutableStateFlow(
         sharedPreferences.getBoolean(SyncConstants.KEY_ONBOARDING_COMPLETED, SyncConstants.DEFAULT_ONBOARDING_COMPLETED)
     )

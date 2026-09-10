@@ -114,6 +114,10 @@ interface SettingsManager {
     fun getBookmarkCategoryOrderJson(): String
     fun saveBookmarkCategoryOrderJson(json: String)
 
+    val favoriteNoteOrderJsonFlow: Flow<String>
+    fun getFavoriteNoteOrderJson(): String
+    fun saveFavoriteNoteOrderJson(json: String)
+
     val hasCompletedOnboardingFlow: Flow<Boolean>
     fun isOnboardingCompleted(): Boolean
     fun saveOnboardingCompleted(completed: Boolean)

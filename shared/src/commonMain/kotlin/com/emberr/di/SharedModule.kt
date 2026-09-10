@@ -45,6 +45,7 @@ val sharedModule = module {
     single { com.emberr.domain.ai.models.ModelDownloadManager() }
 
     single { com.emberr.domain.repository.BookmarkCategoryOrderStore(settingsManager = get()) }
+    single { com.emberr.domain.repository.FavoriteNoteOrderStore(settingsManager = get()) }
 
     single {
         com.emberr.domain.ai.ReindexAllNotesUseCase(
@@ -148,7 +149,8 @@ val sharedModule = module {
             taskExtractor = get(),
             voiceRecognizer = get(),
             templateSeeder = get(),
-            localMediaGarbageCollector = get()
+            localMediaGarbageCollector = get(),
+            favoriteNoteOrderStore = get()
         )
     }
     viewModel {
