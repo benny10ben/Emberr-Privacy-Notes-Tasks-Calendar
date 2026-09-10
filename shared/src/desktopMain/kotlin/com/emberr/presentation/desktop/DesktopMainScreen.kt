@@ -1,6 +1,8 @@
 package com.emberr.presentation.desktop
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,6 +11,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -66,7 +69,11 @@ import com.emberr.presentation.mobile.home.DesktopSortMenu
 import com.emberr.presentation.mobile.home.DropInsertPosition
 import com.emberr.presentation.mobile.home.HomeViewModel
 import com.emberr.presentation.mobile.home.DesktopListDragChip
+import com.emberr.presentation.mobile.home.SIDEBAR_ROW_HEIGHT
+import com.emberr.presentation.mobile.home.SidebarActiveAccent
 import com.emberr.presentation.mobile.home.SidebarFolderRow
+import com.emberr.presentation.mobile.home.sidebarRowBackground
+import com.emberr.presentation.mobile.home.sidebarRowTextStyle
 import com.emberr.presentation.mobile.home.SidebarNoteRow
 import com.emberr.presentation.mobile.home.SidebarSectionHeader
 import com.emberr.presentation.mobile.home.HomeItem
@@ -100,6 +107,8 @@ import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import com.emberr.presentation.shared.components.TopBarIconButton
+import com.emberr.presentation.shared.components.EmberrPillShadowAmbientColor
+import com.emberr.presentation.shared.components.EmberrPillShadowSpotColor
 import com.emberr.presentation.shared.components.TopBarIconButtonGroup
 import com.emberr.presentation.shared.components.TopBarIconButtonItem
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -134,7 +143,8 @@ import org.jetbrains.compose.resources.painterResource
 import java.awt.Cursor
 
 private val PANEL_PADDING = 16.dp
-private val DesktopPanelShape = RoundedCornerShape(12.dp)
+private val PANEL_TOP_MARGIN = 12.dp
+private val DesktopPanelShape = RoundedCornerShape(18.dp)
 
 // Right-panel state. Replaces Home's boolean flags.
 sealed interface DetailPane {
@@ -197,26 +207,57 @@ private fun OverviewRow(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val shape = RoundedCornerShape(10.dp)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-            .clip(shape)
-            .background(if (isSelected || isHovered) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f) else Color.Transparent)
-            .noRippleClickable(interactionSource, onClick)
-            .heightIn(min = 42.dp)
-            .padding(start = 4.dp, end = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Spacer(Modifier.width(8.dp))
-        Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f), modifier = Modifier.size(iconSize))
+    val rowBackground by animateColorAsState(
+        sidebarRowBackground(isActive = isSelected, isSelected = false, isHovered = isHovered),
+        tween(180, easing = FastOutSlowInEasing),
+        label = "overview_bg_$title"
+    )
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+        SidebarActiveAccent(isActive = isSelected)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(rowBackground)
+                .noRippleClickable(interactionSource, onClick)
+                .heightIn(min = 42.dp)
+                .padding(start = 4.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(Modifier.width(8.dp))
+            Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isSelected || isHovered) 0.9f else 0.55f),
+                    modifier = Modifier.size(iconSize)
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                title,
+                style = sidebarRowTextStyle,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isSelected) 1f else 0.82f),
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+            )
         }
-        Spacer(Modifier.width(10.dp))
-        Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-        Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f))
     }
+}
+
+@Composable
+private fun SidebarGroupSeparator() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp),
+        thickness = 1.dp,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
+    )
 }
 
 private const val FAVORITE_ROW_PREFIX = "sb_fav_"
@@ -401,7 +442,7 @@ fun DesktopMainScreen(
     val dragState = rememberDesktopListDragState()
     val sidebarListState = rememberLazyListState()
     val density = LocalDensity.current
-    val rowHeightPx = with(density) { 46.dp.toPx() }
+    val rowHeightPx = with(density) { SIDEBAR_ROW_HEIGHT.toPx() }
 
     val settingsMenuSlot = @Composable {
         UserSettings(
@@ -568,7 +609,7 @@ fun DesktopMainScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .hazeSource(hazeState)
-                        .background(if (isSidebarVisible) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surface)
+                        .background(MaterialTheme.colorScheme.surface)
                         .desktopListDragTracker(
                             dragState = dragState,
                             listState = sidebarListState,
@@ -664,6 +705,7 @@ fun DesktopMainScreen(
                                     "$documentsCount attached",
                                     isSelected = detail == DetailPane.Documents
                                 ) { detail = DetailPane.Documents; isPeeking = false }
+                                SidebarGroupSeparator()
                             }
                         }
 
@@ -702,13 +744,30 @@ fun DesktopMainScreen(
                                 onToggle = { isNotesExpanded = !isNotesExpanded },
                                 trailing = {
                                     Box {
-                                        Icon(
-                                            painterResource(Res.drawable.arrow_up_down),
-                                            "Sort",
-                                            modifier = Modifier.size(20.dp)
-                                                .noRippleClickable { showSortMenu = true },
-                                            tint = MaterialTheme.colorScheme.onSurface.copy(
-                                                alpha = 0.7f
+                                        TopBarIconButtonGroup(
+                                            bgColor = MaterialTheme.colorScheme.background,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            hazeState = hazeState,
+                                            hazeStyle = EmberrBlur.Regular,
+                                            iconSize = 20.dp,
+                                            shadowSpotColor = EmberrPillShadowSpotColor,
+                                            shadowAmbientColor = EmberrPillShadowAmbientColor,
+                                            items = listOf(
+                                                TopBarIconButtonItem(
+                                                    icon = painterResource(Res.drawable.arrow_up_down),
+                                                    contentDescription = "Sort",
+                                                    onClick = { showSortMenu = true }
+                                                ),
+                                                TopBarIconButtonItem(
+                                                    icon = painterResource(Res.drawable.folder_plus),
+                                                    contentDescription = "New folder",
+                                                    onClick = { addFolderInput = ""; showAddFolderPopup = true }
+                                                ),
+                                                TopBarIconButtonItem(
+                                                    icon = painterResource(Res.drawable.pen_square),
+                                                    contentDescription = "New note",
+                                                    onClick = { addNoteInput = ""; showAddNotePopup = true }
+                                                )
                                             )
                                         )
                                         EmberrDesktopMenu(
@@ -725,18 +784,6 @@ fun DesktopMainScreen(
                                                     ); showSortMenu = false
                                                 })
                                         }
-                                    }
-                                    Box {
-                                        Icon(
-                                            painterResource(Res.drawable.pen_square),
-                                            "New note",
-                                            modifier = Modifier.size(20.dp).noRippleClickable {
-                                                addNoteInput = ""; showAddNotePopup = true
-                                            },
-                                            tint = MaterialTheme.colorScheme.onSurface.copy(
-                                                alpha = 0.7f
-                                            )
-                                        )
                                         EmberrDesktopMenu(
                                             expanded = showAddNotePopup,
                                             onDismissRequest = { showAddNotePopup = false },
@@ -827,18 +874,6 @@ fun DesktopMainScreen(
                                                 showTemplatesMenu =
                                                     false; handleCreateNewTemplate()
                                             }
-                                        )
-                                    }
-                                    Box {
-                                        Icon(
-                                            painterResource(Res.drawable.folder_plus),
-                                            "New folder",
-                                            modifier = Modifier.size(20.dp).noRippleClickable {
-                                                addFolderInput = ""; showAddFolderPopup = true
-                                            },
-                                            tint = MaterialTheme.colorScheme.onSurface.copy(
-                                                alpha = 0.7f
-                                            )
                                         )
                                         EmberrDesktopMenu(
                                             expanded = showAddFolderPopup,
@@ -994,6 +1029,18 @@ fun DesktopMainScreen(
                     )
                 }
 
+                    val hasScrolledList by remember { derivedStateOf { sidebarListState.canScrollBackward } }
+                    val topEdgeAlpha by animateFloatAsState(
+                        if (hasScrolledList) 0.09f else 0f,
+                        tween(180, easing = FastOutSlowInEasing),
+                        label = "sidebar_top_edge"
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = topEdgeAlpha)
+                    )
+
                     EmberrVerticalScrollbar(
                         listState = sidebarListState,
                         modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().padding(vertical = 4.dp)
@@ -1035,7 +1082,7 @@ fun DesktopMainScreen(
 
     // RIGHT PANEL
     val rightPanel = @Composable {
-        Box(Modifier.fillMaxSize().hazeSource(state = hazeState)) {
+        Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN).hazeSource(state = hazeState)) {
             when (val d = detail) {
                 null -> Box(Modifier.fillMaxSize())
                 is DetailPane.Daily -> DailyEditorPane(
@@ -1093,8 +1140,15 @@ fun DesktopMainScreen(
                     enter = expandHorizontally(expandFrom = Alignment.Start, animationSpec = tween(280, easing = FastOutSlowInEasing)),
                     exit = shrinkHorizontally(shrinkTowards = Alignment.Start, animationSpec = tween(280, easing = FastOutSlowInEasing))
                 ) {
-                    Box(modifier = Modifier.width(panelWidth).fillMaxHeight().background(MaterialTheme.colorScheme.background)) {
-                        leftPanel(0.dp, 0.dp)
+                    Box(
+                        modifier = Modifier
+                            .padding(start = PANEL_PADDING, top = PANEL_TOP_MARGIN, bottom = PANEL_TOP_MARGIN)
+                            .width(panelWidth)
+                            .fillMaxHeight()
+                            .clip(DesktopPanelShape)
+                            .background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        leftPanel(5.dp, 5.dp)
                     }
                 }
 
@@ -1106,7 +1160,7 @@ fun DesktopMainScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
-                            .width(4.dp)
+                            .width(PANEL_PADDING)
                             .background(Color.Transparent)
                             .pointerHoverIcon(PointerIcon(Cursor(Cursor.E_RESIZE_CURSOR)))
                             .pointerInput(Unit) {
@@ -1119,15 +1173,8 @@ fun DesktopMainScreen(
                                     val deltaDp = with(density) { dragAmount.toDp() }
                                     panelWidth = (panelWidth + deltaDp).coerceIn(MIN_PANEL_WIDTH, MAX_PANEL_WIDTH)
                                 }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        VerticalDivider(
-                            modifier = Modifier.fillMaxHeight(),
-                            thickness = 1.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                        )
-                    }
+                            }
+                    )
                 }
 
                 Box(modifier = Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.background)) {
@@ -1162,7 +1209,7 @@ fun DesktopMainScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
-                            .width(4.dp)
+                            .width(PANEL_PADDING)
                             .background(Color.Transparent)
                             .pointerHoverIcon(PointerIcon(Cursor(Cursor.E_RESIZE_CURSOR)))
                             .pointerInput(Unit) {
@@ -1171,15 +1218,8 @@ fun DesktopMainScreen(
                                     val deltaDp = with(density) { dragAmount.toDp() }
                                     ragPanelWidth = (ragPanelWidth - deltaDp).coerceIn(MIN_RAG_PANEL_WIDTH, MAX_RAG_PANEL_WIDTH)
                                 }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        VerticalDivider(
-                            modifier = Modifier.fillMaxHeight(),
-                            thickness = 1.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                        )
-                    }
+                            }
+                    )
                 }
 
                 AnimatedVisibility(
@@ -1187,7 +1227,18 @@ fun DesktopMainScreen(
                     enter = expandHorizontally(expandFrom = Alignment.End, animationSpec = tween(280, easing = FastOutSlowInEasing)),
                     exit = shrinkHorizontally(shrinkTowards = Alignment.End, animationSpec = tween(280, easing = FastOutSlowInEasing))
                 ) {
-                    Box(modifier = Modifier.width(ragPanelWidth).fillMaxHeight()) {
+                    Box(
+                        modifier = Modifier
+                            .padding(end = PANEL_PADDING, top = PANEL_TOP_MARGIN, bottom = PANEL_TOP_MARGIN)
+                            .width(ragPanelWidth)
+                            .fillMaxHeight()
+                            .clip(DesktopPanelShape)
+                            .border(
+                                width = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                shape = DesktopPanelShape
+                            )
+                    ) {
                         if (ragViewModel != null) {
                             com.emberr.presentation.rag.RagChatPanel(
                                 onDismiss = onDismissRagChat,
@@ -1232,7 +1283,7 @@ fun DesktopMainScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .padding(start = PANEL_PADDING, top = 12.dp, bottom = 12.dp)
+                        .padding(start = PANEL_PADDING, top = PANEL_TOP_MARGIN, bottom = PANEL_TOP_MARGIN)
                         .width(panelWidth)
                         .fillMaxHeight()
                         .shadow(16.dp, DesktopPanelShape)

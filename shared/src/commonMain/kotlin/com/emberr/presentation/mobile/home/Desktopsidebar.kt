@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -38,8 +39,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
@@ -47,6 +50,7 @@ import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.isTertiaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,13 +68,12 @@ import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.file_text
 import emberr.shared.generated.resources.folder
 import emberr.shared.generated.resources.folder_open
-import emberr.shared.generated.resources.pen_square
+import emberr.shared.generated.resources.plus
 import emberr.shared.generated.resources.star
 import org.jetbrains.compose.resources.painterResource
 
-private val INDENT_STEP          = 16.dp
+private val INDENT_STEP          = 24.dp
 private val SIDEBAR_BASE_START   = 8.dp
-private val CHEVRON_SLOT         = 26.dp
 private val ROW_ICON_SLOT        = 26.dp
 private val ROW_ICON_SIZE        = 24.dp
 private val ROW_MIN_HEIGHT       = 42.dp
@@ -78,14 +81,49 @@ private val ROW_VERTICAL_PADDING = 2.dp
 private val ROW_INNER_PADDING    = 4.dp
 private val ROW_ICON_LEADING_GAP = 8.dp
 private val ROW_ICON_START       = SIDEBAR_BASE_START + ROW_INNER_PADDING + ROW_ICON_LEADING_GAP
+private val ROW_LABEL_GAP        = 10.dp
+private val ROW_SHAPE            = RoundedCornerShape(8.dp)
 private val GUIDE_COLUMN_START   = ROW_ICON_START + 4.dp
 private val GUIDE_WIDTH          = 1.5.dp
 private val GUIDE_END_GAP        = 3.dp
 private val GUIDE_CORNER         = 6.dp
+private val ACTIVE_ACCENT_WIDTH  = 3.dp
+private val ACTIVE_ACCENT_HEIGHT = 18.dp
+private val ACTIVE_ACCENT_START  = 2.dp
+
+val SIDEBAR_ROW_HEIGHT = ROW_MIN_HEIGHT + ROW_VERTICAL_PADDING * 2
+
+const val SIDEBAR_HOVER_ALPHA    = 0.055f
+const val SIDEBAR_SELECTED_ALPHA = 0.11f
 
 private val RowColorSpec = tween<Color>(durationMillis = 180, easing = FastOutSlowInEasing)
 private val RowFloatSpec = tween<Float>(durationMillis = 180, easing = FastOutSlowInEasing)
 private val ChevronSpec  = spring<Float>(stiffness = Spring.StiffnessMediumLow)
+
+val sidebarRowTextStyle: TextStyle
+    @Composable get() = MaterialTheme.typography.bodyLarge.copy(letterSpacing = 0.sp)
+
+@Composable
+fun sidebarRowBackground(isActive: Boolean, isSelected: Boolean, isHovered: Boolean): Color = when {
+    isActive || isSelected -> MaterialTheme.colorScheme.onSurface.copy(alpha = SIDEBAR_SELECTED_ALPHA)
+    isHovered              -> MaterialTheme.colorScheme.onSurface.copy(alpha = SIDEBAR_HOVER_ALPHA)
+    else                   -> Color.Transparent
+}
+
+@Composable
+fun SidebarActiveAccent(isActive: Boolean, modifier: Modifier = Modifier) {
+    val accentProgress by animateFloatAsState(if (isActive) 1f else 0f, RowFloatSpec, label = "sidebar_accent")
+    if (accentProgress <= 0f) return
+    Box(
+        modifier = modifier
+            .padding(start = ACTIVE_ACCENT_START)
+            .width(ACTIVE_ACCENT_WIDTH)
+            .height(ACTIVE_ACCENT_HEIGHT)
+            .scale(scaleX = 1f, scaleY = accentProgress)
+            .clip(RoundedCornerShape(2.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = accentProgress))
+    )
+}
 
 data class SidebarClickModifiers(
     val addToSelection: Boolean,
@@ -97,6 +135,21 @@ private suspend fun AwaitPointerEventScope.awaitAnyPointerPress(): PointerInputC
         val event = awaitPointerEvent()
         val press = event.changes.firstOrNull()
         if (event.type == PointerEventType.Press && press != null) return press
+    }
+}
+
+private suspend fun AwaitPointerEventScope.waitForReleaseWithoutDragging(
+    pressPosition: Offset
+): PointerInputChange? {
+    val allowedTravel = viewConfiguration.touchSlop
+    while (true) {
+        val event = awaitPointerEvent()
+        val change = event.changes.firstOrNull() ?: return null
+        if (change.isConsumed) return null
+        if ((change.position - pressPosition).getDistance() > allowedTravel) return null
+        if (change.changedToUp()) return change
+        val afterEveryoneElseHandledIt = awaitPointerEvent(PointerEventPass.Final)
+        if (afterEveryoneElseHandledIt.changes.any { it.isConsumed }) return null
     }
 }
 
@@ -228,21 +281,16 @@ fun SidebarFolderRow(
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
 
-    val bgTarget: Color = when {
-        isIntoTarget -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        isSelected   -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
-        isHovered    -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
-        else         -> Color.Transparent
-    }
+    val bgTarget: Color =
+        if (isIntoTarget) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        else sidebarRowBackground(isActive = false, isSelected = isSelected, isHovered = isHovered)
     val bgColor by animateColorAsState(bgTarget, RowColorSpec, label = "fbg_${folder.folderId}")
 
     val borderAlpha by animateFloatAsState(if (isIntoTarget) 1f else 0f, RowFloatSpec, label = "fborder_${folder.folderId}")
     val beforeAlpha by animateFloatAsState(if (isInsertBefore) 1f else 0f, tween(150, easing = FastOutSlowInEasing), label = "fbefore_${folder.folderId}")
     val afterAlpha  by animateFloatAsState(if (isInsertAfter)  1f else 0f, tween(150, easing = FastOutSlowInEasing), label = "fafter_${folder.folderId}")
 
-    val chevronRotation by animateFloatAsState(if (isExpanded) 90f else 0f, ChevronSpec, label = "chevron_${folder.folderId}")
-
-    val shape = RoundedCornerShape(10.dp)
+    val shape = ROW_SHAPE
 
     val guideColor = MaterialTheme.colorScheme.outline
 
@@ -302,7 +350,7 @@ fun SidebarFolderRow(
                         if (currentEvent.buttons.isTertiaryPressed) return@awaitEachGesture
 
                         val pressedModifiers = currentEvent.keyboardModifiers
-                        val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+                        val up = waitForReleaseWithoutDragging(press.position) ?: return@awaitEachGesture
                         up.consume()
                         currentOnClick(
                             SidebarClickModifiers(
@@ -322,17 +370,17 @@ fun SidebarFolderRow(
                     if (isExpanded) painterResource(Res.drawable.folder_open) else painterResource(Res.drawable.folder),
                     contentDescription = null,
                     tint = if (isIntoTarget) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = if (isHovered || isSelected) 0.9f else 0.6f),
                     modifier = Modifier.size(ROW_ICON_SIZE - 1.dp)
                 )
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(ROW_LABEL_GAP))
             Text(
                 text = folder.name,
-                style = MaterialTheme.typography.bodyLarge,
+                style = sidebarRowTextStyle,
                 fontWeight = FontWeight.Medium,
                 color = if (isIntoTarget) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface,
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
@@ -340,9 +388,7 @@ fun SidebarFolderRow(
             when {
                 isSelected -> SidebarTrailingCheck()
                 isHovered && !dragState.dragging -> {
-                    SidebarHoverAction(painterResource(Res.drawable.pen_square), "New note here") { showAddNotePopup = true }
-                    Spacer(Modifier.width(4.dp))
-                    SidebarHoverAction(Icons.Default.CreateNewFolder, "New subfolder") { showAddSubfolderPopup = true }
+                    SidebarHoverAction(painterResource(Res.drawable.plus), "New note here") { showAddNotePopup = true }
                     Spacer(Modifier.width(2.dp))
                 }
             }
@@ -447,12 +493,7 @@ fun SidebarNoteRow(
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
 
-    val bgTarget: Color = when {
-        isActive   -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-        isSelected -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
-        isHovered  -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
-        else       -> Color.Transparent
-    }
+    val bgTarget = sidebarRowBackground(isActive = isActive, isSelected = isSelected, isHovered = isHovered)
     val bgColor by animateColorAsState(bgTarget, RowColorSpec, label = "nbg_${note.noteId}")
 
     val beforeAlpha by animateFloatAsState(if (isInsertBefore) 1f else 0f, tween(150, easing = FastOutSlowInEasing), label = "nbefore_${note.noteId}")
@@ -465,6 +506,8 @@ fun SidebarNoteRow(
             .fillMaxWidth()
             .drawBehind { drawSidebarGuideLines(level, guideLines, guideColor) }
     ) {
+        SidebarActiveAccent(isActive = isActive, modifier = Modifier.align(Alignment.CenterStart).zIndex(2f))
+
         if (beforeAlpha > 0f) {
             Box(
                 modifier = Modifier
@@ -488,7 +531,7 @@ fun SidebarNoteRow(
                     top = ROW_VERTICAL_PADDING,
                     bottom = ROW_VERTICAL_PADDING
                 )
-                .clip(RoundedCornerShape(10.dp))
+                .clip(ROW_SHAPE)
                 .background(bgColor)
                 .hoverable(interactionSource)
                 .pointerInput(rowStartPadding) {
@@ -508,7 +551,7 @@ fun SidebarNoteRow(
                         if (currentEvent.buttons.isTertiaryPressed) return@awaitEachGesture
 
                         val pressedModifiers = currentEvent.keyboardModifiers
-                        val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+                        val up = waitForReleaseWithoutDragging(press.position) ?: return@awaitEachGesture
                         up.consume()
                         currentOnClick(
                             SidebarClickModifiers(
@@ -530,17 +573,19 @@ fun SidebarNoteRow(
                     Icon(
                         painterResource(Res.drawable.file_text),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(
+                            alpha = if (isActive || isHovered || isSelected) 0.9f else 0.55f
+                        ),
                         modifier = Modifier.size(ROW_ICON_SIZE)
                     )
                 }
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(ROW_LABEL_GAP))
             Text(
                 text = note.title.ifEmpty { "Untitled" },
-                style = MaterialTheme.typography.bodyLarge,
+                style = sidebarRowTextStyle,
                 fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isActive) 1f else 0.82f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
@@ -551,7 +596,7 @@ fun SidebarNoteRow(
                     Icon(
                         painterResource(Res.drawable.star),
                         contentDescription = "Favorite",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         modifier = Modifier.padding(end = 6.dp).size(14.dp)
                     )
                 }
@@ -656,11 +701,17 @@ fun SidebarSectionHeader(
     modifier: Modifier = Modifier,
     trailing: (@Composable RowScope.() -> Unit)? = null
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val chevronAlpha by animateFloatAsState(if (isHovered) 0.8f else 0.3f, RowFloatSpec, label = "header_chevron_$title")
+    val chevronRotation by animateFloatAsState(if (isExpanded) 0f else -90f, ChevronSpec, label = "header_turn_$title")
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp)
-            .padding(top = 20.dp, bottom = 6.dp),
+            .hoverable(interactionSource)
+            .padding(start = ROW_ICON_START, end = 10.dp)
+            .padding(top = 26.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -675,13 +726,13 @@ fun SidebarSectionHeader(
                 text = title,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f)
             )
             Icon(
-                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = "Toggle $title",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                modifier = Modifier.padding(start = 2.dp).size(22.dp)
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = chevronAlpha),
+                modifier = Modifier.padding(start = 2.dp).size(22.dp).rotate(chevronRotation)
             )
         }
         if (trailing != null) {
@@ -695,39 +746,33 @@ fun SidebarSectionHeader(
 }
 
 @Composable
+private fun Modifier.sidebarHoverActionSurface(interactionSource: MutableInteractionSource, isHovered: Boolean, onClick: () -> Unit): Modifier {
+    val background by animateColorAsState(
+        if (isHovered) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f) else Color.Transparent,
+        RowColorSpec,
+        label = "hover_action_bg"
+    )
+    return this
+        .size(30.dp)
+        .clip(RoundedCornerShape(7.dp))
+        .background(background)
+        .hoverable(interactionSource)
+        .sidebarNoRippleClickable { onClick() }
+}
+
+@Composable
 private fun SidebarHoverAction(painter: Painter, description: String, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
     Box(
-        modifier = Modifier
-            .size(30.dp)
-            .clip(RoundedCornerShape(7.dp))
-            .background(Color.Transparent)
-            .sidebarNoRippleClickable { onClick() },
+        modifier = Modifier.sidebarHoverActionSurface(interactionSource, isHovered, onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             painter = painter,
             contentDescription = description,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isHovered) 0.95f else 0.6f),
             modifier = Modifier.size(20.dp)
-        )
-    }
-}
-
-@Composable
-private fun SidebarHoverAction(icon: ImageVector, description: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(30.dp)
-            .clip(RoundedCornerShape(7.dp))
-            .background(Color.Transparent)
-            .sidebarNoRippleClickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = description,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-            modifier = Modifier.size(22.dp)
         )
     }
 }
