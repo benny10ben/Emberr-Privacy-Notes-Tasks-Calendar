@@ -8,8 +8,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.hoverable
@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,10 +37,14 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
+import androidx.compose.ui.input.pointer.isTertiaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +92,14 @@ data class SidebarClickModifiers(
     val extendSelection: Boolean
 )
 
+private suspend fun AwaitPointerEventScope.awaitAnyPointerPress(): PointerInputChange {
+    while (true) {
+        val event = awaitPointerEvent()
+        val press = event.changes.firstOrNull()
+        if (event.type == PointerEventType.Press && press != null) return press
+    }
+}
+
 @Composable
 fun Modifier.sidebarNoRippleClickable(onClick: () -> Unit): Modifier =
     this.pointerInput(onClick) {
@@ -96,11 +109,16 @@ fun Modifier.sidebarNoRippleClickable(onClick: () -> Unit): Modifier =
 @Composable
 private fun DesktopContextMenuItem(icon: ImageVector, text: String, isDestructive: Boolean = false, onClick: () -> Unit) {
     val contentColor = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(6.dp))
-            .sidebarNoRippleClickable(onClick)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(color = contentColor),
+                onClick = onClick
+            )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -269,21 +287,19 @@ fun SidebarFolderRow(
                 .hoverable(interactionSource)
                 .pointerInput(rowStartPadding) {
                     awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val press = awaitAnyPointerPress()
 
                         if (currentEvent.buttons.isSecondaryPressed) {
-                            val menuPosition = down.position
-                            down.consume()
-                            val secondaryUp = waitForUpOrCancellation()
-                            secondaryUp?.consume()
-                            if (secondaryUp != null) {
-                                contextMenuOffset = with(density) {
-                                    DpOffset(rowStartPadding + menuPosition.x.toDp(), ROW_VERTICAL_PADDING + menuPosition.y.toDp())
-                                }
-                                showContextMenu = true
+                            press.consume()
+                            contextMenuOffset = with(density) {
+                                DpOffset(rowStartPadding + press.position.x.toDp(), ROW_VERTICAL_PADDING + press.position.y.toDp())
                             }
+                            showContextMenu = true
+                            waitForUpOrCancellation()?.consume()
                             return@awaitEachGesture
                         }
+
+                        if (currentEvent.buttons.isTertiaryPressed) return@awaitEachGesture
 
                         val pressedModifiers = currentEvent.keyboardModifiers
                         val up = waitForUpOrCancellation() ?: return@awaitEachGesture
@@ -412,7 +428,6 @@ fun SidebarNoteRow(
     onDelete: () -> Unit = {},
     rowKey: String = HomeItemKey.forNote(note.noteId)
 ) {
-    val rowId = HomeItemKey.forNote(note.noteId)
     val currentOnClick by rememberUpdatedState(onClick)
 
     var showContextMenu by remember { mutableStateOf(false) }
@@ -422,11 +437,11 @@ fun SidebarNoteRow(
     val rowStartPadding = SIDEBAR_BASE_START + INDENT_STEP * level
 
     val isInsertBefore = dragState.dragging &&
-            dragState.dropTargetId == rowId &&
+            dragState.dropTargetId == rowKey &&
             dragState.dropPosition == DropInsertPosition.BEFORE
 
     val isInsertAfter = dragState.dragging &&
-            dragState.dropTargetId == rowId &&
+            dragState.dropTargetId == rowKey &&
             dragState.dropPosition == DropInsertPosition.AFTER
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -478,21 +493,19 @@ fun SidebarNoteRow(
                 .hoverable(interactionSource)
                 .pointerInput(rowStartPadding) {
                     awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val press = awaitAnyPointerPress()
 
                         if (currentEvent.buttons.isSecondaryPressed) {
-                            val menuPosition = down.position
-                            down.consume()
-                            val secondaryUp = waitForUpOrCancellation()
-                            secondaryUp?.consume()
-                            if (secondaryUp != null) {
-                                contextMenuOffset = with(density) {
-                                    DpOffset(rowStartPadding + menuPosition.x.toDp(), ROW_VERTICAL_PADDING + menuPosition.y.toDp())
-                                }
-                                showContextMenu = true
+                            press.consume()
+                            contextMenuOffset = with(density) {
+                                DpOffset(rowStartPadding + press.position.x.toDp(), ROW_VERTICAL_PADDING + press.position.y.toDp())
                             }
+                            showContextMenu = true
+                            waitForUpOrCancellation()?.consume()
                             return@awaitEachGesture
                         }
+
+                        if (currentEvent.buttons.isTertiaryPressed) return@awaitEachGesture
 
                         val pressedModifiers = currentEvent.keyboardModifiers
                         val up = waitForUpOrCancellation() ?: return@awaitEachGesture
@@ -558,19 +571,21 @@ fun SidebarNoteRow(
         }
 
         // Right-click context menu, anchored at the exact press position
-        EmberrDesktopMenu(
-            expanded = showContextMenu,
-            onDismissRequest = { showContextMenu = false },
-            modifier = Modifier.width(200.dp),
-            offset = contextMenuOffset
-        ) {
-            if (menu.showRename) {
-                DesktopContextMenuItem(Icons.Default.Edit, "Rename") { showContextMenu = false; showRenamePopup = true }
+        Box(modifier = Modifier.offset(x = contextMenuOffset.x, y = contextMenuOffset.y)) {
+            EmberrDesktopMenu(
+                expanded = showContextMenu,
+                onDismissRequest = { showContextMenu = false },
+                modifier = Modifier.width(200.dp),
+                offset = DpOffset.Zero
+            ) {
+                if (menu.showRename) {
+                    DesktopContextMenuItem(Icons.Default.Edit, "Rename") { showContextMenu = false; showRenamePopup = true }
+                }
+                if (menu.showFavorite) {
+                    DesktopContextMenuItem(Icons.Default.Star, menu.favoriteLabel) { showContextMenu = false; onToggleFavorite() }
+                }
+                DesktopContextMenuItem(Icons.Default.Delete, menu.deleteLabel, isDestructive = true) { showContextMenu = false; onDelete() }
             }
-            if (menu.showFavorite) {
-                DesktopContextMenuItem(Icons.Default.Star, menu.favoriteLabel) { showContextMenu = false; onToggleFavorite() }
-            }
-            DesktopContextMenuItem(Icons.Default.Delete, menu.deleteLabel, isDestructive = true) { showContextMenu = false; onDelete() }
         }
 
         if (afterAlpha > 0f) {
