@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -59,6 +60,9 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.koinInject
 import java.io.File
+
+private val MaximumImageBlockHeight = 320.dp
+private val LoadingImageBlockHeight = 180.dp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -206,54 +210,75 @@ fun ImageBlockView(
             }
 
             val imageHazeState = remember { HazeState() }
+            var widthToHeightRatio by remember(absolutePath) { mutableStateOf<Float?>(null) }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .heightIn(min = 100.dp, max = 260.dp)
-                    .clip(DefaultBlockShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                    .combinedClickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {
-                            if (inSelectionMode) onToggleSelection()
-                            else showFullScreen = true
-                        },
-                        onLongClick = onToggleSelection
-                    )
+                    .padding(vertical = 4.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
-                AsyncImage(
-                    model = request,
-                    contentDescription = "Note Image",
-                    modifier = Modifier.fillMaxSize().hazeSource(state = imageHazeState),
-                    contentScale = ContentScale.Crop
-                )
+                val sizeModifier = widthToHeightRatio?.let { ratio ->
+                    if (isDesktopPlatform) {
+                        Modifier.heightIn(max = MaximumImageBlockHeight).aspectRatio(ratio)
+                    } else {
+                        Modifier.fillMaxWidth().aspectRatio(ratio)
+                    }
+                } ?: Modifier.fillMaxWidth().height(LoadingImageBlockHeight)
 
-                Icon(
-                    painterResource(Res.drawable.copy),
-                    contentDescription = "Copy Image",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .clip(CircleShape)
-                        .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                            shape = CircleShape
+                Box(
+                    modifier = sizeModifier
+                        .clip(DefaultBlockShape)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                        .combinedClickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {
+                                if (inSelectionMode) onToggleSelection()
+                                else showFullScreen = true
+                            },
+                            onLongClick = onToggleSelection
                         )
-                        .emberrBlur(imageHazeState, EmberrBlur.OnImage)
-                        .padding(8.dp)
-                        .size(16.dp)
-                        .clickable {
-                            coroutineScope.launch {
-                                val success = ImageClipboard.copyImageToClipboard(absolutePath)
-                                showFeedback(if (success) "Image copied to clipboard" else "Failed to copy image")
+                ) {
+                    AsyncImage(
+                        model = request,
+                        contentDescription = "Note Image",
+                        modifier = Modifier.fillMaxSize().hazeSource(state = imageHazeState),
+                        contentScale = ContentScale.Crop,
+                        onSuccess = { successState ->
+                            if (widthToHeightRatio == null) {
+                                val loadedImage = successState.result.image
+                                if (loadedImage.width > 0 && loadedImage.height > 0) {
+                                    widthToHeightRatio = loadedImage.width.toFloat() / loadedImage.height.toFloat()
+                                }
                             }
                         }
-                )
+                    )
+
+                    Icon(
+                        painterResource(Res.drawable.copy),
+                        contentDescription = "Copy Image",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .clip(CircleShape)
+                            .border(
+                                width = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                shape = CircleShape
+                            )
+                            .emberrBlur(imageHazeState, EmberrBlur.OnImage)
+                            .padding(8.dp)
+                            .size(16.dp)
+                            .clickable {
+                                coroutineScope.launch {
+                                    val success = ImageClipboard.copyImageToClipboard(absolutePath)
+                                    showFeedback(if (success) "Image copied to clipboard" else "Failed to copy image")
+                                }
+                            }
+                    )
+                }
             }
 
             LaunchedEffect(showFullScreen, request) {
