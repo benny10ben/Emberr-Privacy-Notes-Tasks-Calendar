@@ -36,6 +36,7 @@ object BackupFormat {
         lines += "backup_day=${settingsManager.backupDayFlow.first()}"
         lines += "bookmark_category_order=${settingsManager.getBookmarkCategoryOrderJson()}"
         lines += "favorite_note_order=${settingsManager.getFavoriteNoteOrderJson()}"
+        lines += "expanded_folder_ids=${settingsManager.getExpandedFolderIdsJson()}"
         return lines.joinToString("\n")
     }
 
@@ -80,5 +81,6 @@ object BackupFormat {
         values["backup_day"]?.let { settingsManager.saveBackupDay(it) }
         values["bookmark_category_order"]?.let { settingsManager.saveBookmarkCategoryOrderJson(it) }
         values["favorite_note_order"]?.let { settingsManager.saveFavoriteNoteOrderJson(it) }
+        values["expanded_folder_ids"]?.let { settingsManager.saveExpandedFolderIdsJson(it) }
     }
 }

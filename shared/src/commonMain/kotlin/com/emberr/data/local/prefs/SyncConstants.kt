@@ -74,4 +74,7 @@ object SyncConstants {
     // Favorites
     const val KEY_FAVORITE_NOTE_ORDER_JSON = "favorite_note_order_json"
     const val DEFAULT_FAVORITE_NOTE_ORDER_JSON = ""
+    // Folder tree
+    const val KEY_EXPANDED_FOLDER_IDS_JSON = "expanded_folder_ids_json"
+    const val DEFAULT_EXPANDED_FOLDER_IDS_JSON = ""
 }

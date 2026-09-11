@@ -88,6 +88,16 @@ class AndroidSettingsManager(
         homeSectionExpandedState(sectionKey).value = expanded
     }
 
+    override fun getExpandedFolderIdsJson(): String =
+        sharedPreferences.getString(
+            SyncConstants.KEY_EXPANDED_FOLDER_IDS_JSON,
+            SyncConstants.DEFAULT_EXPANDED_FOLDER_IDS_JSON
+        ) ?: SyncConstants.DEFAULT_EXPANDED_FOLDER_IDS_JSON
+
+    override fun saveExpandedFolderIdsJson(json: String) {
+        sharedPreferences.edit { putString(SyncConstants.KEY_EXPANDED_FOLDER_IDS_JSON, json) }
+    }
+
     override fun getLastSyncTimestamp(): Long {
         return sharedPreferences.getLong(SyncConstants.KEY_SYNC_TIMESTAMP, 0L)
     }

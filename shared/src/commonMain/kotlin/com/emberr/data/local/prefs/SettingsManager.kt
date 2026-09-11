@@ -17,6 +17,9 @@ interface SettingsManager {
     fun isHomeSectionExpanded(sectionKey: String): Boolean
     fun saveHomeSectionExpanded(sectionKey: String, expanded: Boolean)
 
+    fun getExpandedFolderIdsJson(): String
+    fun saveExpandedFolderIdsJson(json: String)
+
     fun getLastSyncTimestamp(): Long
     fun saveLastSyncTimestamp(timestamp: Long)
 

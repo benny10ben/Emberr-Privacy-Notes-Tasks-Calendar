@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
@@ -33,6 +34,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 enum class SortType { LAST_EDITED, DATE_CREATED, NAME, MANUAL, TYPE }
 enum class SortOrder { ASCENDING, DESCENDING }
+
+private val expandedFolderJson = Json { ignoreUnknownKeys = true }
 
 internal val FolderEntity.lastEditedAt: Long
     get() = if (updatedAt > 0L) updatedAt else createdAt
@@ -106,7 +109,22 @@ class HomeViewModel(
     }
 
     fun toggleFolderExpansion(folderId: String) {
-        _expandedFolderIds.update { if (it.contains(folderId)) it - folderId else it + folderId }
+        updateExpandedFolderIds { if (it.contains(folderId)) it - folderId else it + folderId }
+    }
+
+    private fun readStoredExpandedFolderIds(): Set<String> {
+        val storedIds = settingsManager.getExpandedFolderIdsJson()
+        if (storedIds.isBlank()) return emptySet()
+        return try {
+            expandedFolderJson.decodeFromString<Set<String>>(storedIds)
+        } catch (storedIdsAreUnreadable: Exception) {
+            emptySet()
+        }
+    }
+
+    private fun updateExpandedFolderIds(change: (Set<String>) -> Set<String>) {
+        _expandedFolderIds.update(change)
+        settingsManager.saveExpandedFolderIdsJson(expandedFolderJson.encodeToString(_expandedFolderIds.value))
     }
 
     private data class RowParent(val parentFolderId: String?)
@@ -233,7 +251,7 @@ class HomeViewModel(
     private val _selectedFolderIds = MutableStateFlow<Set<String>>(emptySet())
     val selectedFolderIds: StateFlow<Set<String>> = _selectedFolderIds.asStateFlow()
 
-    private val _expandedFolderIds = MutableStateFlow<Set<String>>(emptySet())
+    private val _expandedFolderIds = MutableStateFlow(readStoredExpandedFolderIds())
     val expandedFolderIds: StateFlow<Set<String>> = _expandedFolderIds.asStateFlow()
 
     private val _remindersCount = MutableStateFlow(0)
@@ -461,7 +479,7 @@ class HomeViewModel(
 
     // Used by the sidebar tree's per-folder "+" action. autoExpand opens the parent so the new child is visible.
     fun createFolderInParent(parentFolderId: String?, name: String, autoExpand: Boolean = true) {
-        if (autoExpand) parentFolderId?.let { fid -> _expandedFolderIds.update { it + fid } }
+        if (autoExpand) parentFolderId?.let { fid -> updateExpandedFolderIds { it + fid } }
         viewModelScope.launch(Dispatchers.IO) {
             repository.insertFolder(
                 FolderEntity(
@@ -566,6 +584,7 @@ class HomeViewModel(
         }
 
         repository.deleteFolder(folderId)
+        updateExpandedFolderIds { it - folderId }
     }
 
     fun deleteSelectedItems() {
@@ -625,7 +644,7 @@ class HomeViewModel(
         autoExpand: Boolean = true,
         onNoteCreated: (String) -> Unit
     ) {
-        if (autoExpand) parentFolderId?.let { fid -> _expandedFolderIds.update { it + fid } }
+        if (autoExpand) parentFolderId?.let { fid -> updateExpandedFolderIds { it + fid } }
         viewModelScope.launch(Dispatchers.IO) {
             val newNoteId = UUID.randomUUID().toString()
             val fileName = "note_$newNoteId.json"

@@ -57,6 +57,16 @@ class DesktopSettingsManager(private val secretStore: DesktopSecretStore) : Sett
         homeSectionExpandedState(sectionKey).value = expanded
     }
 
+    override fun getExpandedFolderIdsJson(): String =
+        prefs.get(
+            SyncConstants.KEY_EXPANDED_FOLDER_IDS_JSON,
+            SyncConstants.DEFAULT_EXPANDED_FOLDER_IDS_JSON
+        )
+
+    override fun saveExpandedFolderIdsJson(json: String) {
+        prefs.put(SyncConstants.KEY_EXPANDED_FOLDER_IDS_JSON, json)
+    }
+
     override fun getLastSyncTimestamp(): Long {
         return prefs.getLong(SyncConstants.KEY_SYNC_TIMESTAMP, 0L)
     }
