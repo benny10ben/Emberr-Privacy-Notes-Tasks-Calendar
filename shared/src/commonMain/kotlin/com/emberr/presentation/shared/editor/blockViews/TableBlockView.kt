@@ -42,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -63,16 +64,20 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.emberr.domain.model.TableBlock
+import com.emberr.domain.model.InlineSpan
 import com.emberr.domain.model.TableCellContentType
 import com.emberr.domain.model.TableCellStyle
 import com.emberr.domain.model.TextAlignment
@@ -82,6 +87,7 @@ import com.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.emberr.presentation.shared.components.EmberrDesktopMenu
 import com.emberr.presentation.shared.components.rememberKeyboardHandoff
 import com.emberr.presentation.shared.editor.WebLinkVisualTransformation
+import com.emberr.presentation.shared.editor.GlobalEditorState
 import com.emberr.presentation.shared.editor.blockViews.databaseBlockView.SheetMenuRow
 import com.emberr.presentation.shared.editor.rememberWebLinkActions
 import com.emberr.presentation.shared.editor.LinkContextMenu
@@ -328,10 +334,26 @@ fun TableBlockView(
     }
 
     fun effectiveStyle(rowIndex: Int, colIndex: Int): TableCellStyle {
-        return block.cellStyles["$rowIndex:$colIndex"]
-            ?: block.rowStyles["$rowIndex"]
-            ?: block.columnStyles["$colIndex"]
-            ?: TableCellStyle()
+        val layersNearestFirst = listOfNotNull(
+            block.cellStyles["$rowIndex:$colIndex"],
+            block.rowStyles["$rowIndex"],
+            block.columnStyles["$colIndex"]
+        )
+        if (layersNearestFirst.isEmpty()) return TableCellStyle()
+
+        return TableCellStyle(
+            backgroundColorHex = layersNearestFirst.firstNotNullOfOrNull { it.backgroundColorHex },
+            textColorHex = layersNearestFirst.firstNotNullOfOrNull { it.textColorHex },
+            isBold = layersNearestFirst.any { it.isBold },
+            isItalic = layersNearestFirst.any { it.isItalic },
+            isUnderlined = layersNearestFirst.any { it.isUnderlined },
+            isStrikeThrough = layersNearestFirst.any { it.isStrikeThrough },
+            isCode = layersNearestFirst.any { it.isCode },
+            contentType = layersNearestFirst
+                .firstOrNull { it.contentType != TableCellContentType.NONE }
+                ?.contentType ?: TableCellContentType.NONE,
+            alignment = layersNearestFirst.firstNotNullOfOrNull { it.alignment }
+        )
     }
 
     val styleSheetTitle = when (styleScope) {
@@ -489,10 +511,13 @@ fun TableBlockView(
                                     val isActiveCell = activeRowIndex == rowIndex && activeColIndex == columnIndex
                                     val isHighlighted = isActiveCell && (showCellActions || styleScope != null)
                                     val cellStyle = effectiveStyle(rowIndex, columnIndex)
+                                    val cellKey = "$rowIndex:$columnIndex"
 
                                     Box {
                                         TableGridCell(
                                             value = cellValue,
+                                            cellKey = cellKey,
+                                            spans = block.cellSpans[cellKey].orEmpty(),
                                             style = cellStyle,
                                             width = columnWidthFor(columnIndex).dp,
                                             inSelectionMode = inSelectionMode,
@@ -646,6 +671,8 @@ private fun TableMenuPopupContent(title: String, content: @Composable () -> Unit
 @Composable
 private fun TableGridCell(
     value: String,
+    cellKey: String,
+    spans: List<InlineSpan>,
     style: TableCellStyle,
     width: Dp,
     inSelectionMode: Boolean,
@@ -657,10 +684,20 @@ private fun TableGridCell(
     var isFocused by remember { mutableStateOf(false) }
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     val webLinkActions = rememberWebLinkActions()
     val linkHoverState = rememberLinkHoverState()
     val webLinkColor = rememberWebLinkColor()
-    val webLinkTransformation = remember(webLinkColor) { WebLinkVisualTransformation(webLinkColor) }
+    val webLinkTransformation = remember(webLinkColor, spans) { WebLinkVisualTransformation(webLinkColor, spans) }
+
+    var editorValue by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+
+    LaunchedEffect(value) {
+        if (editorValue.text != value) {
+            val caret = editorValue.selection.start.coerceAtMost(value.length)
+            editorValue = editorValue.copy(text = value, selection = TextRange(caret))
+        }
+    }
 
     val backgroundColor = style.backgroundColorHex?.toColorOrNull() ?: Color.Transparent
     val textColor = style.textColorHex?.toColorOrNull() ?: MaterialTheme.colorScheme.onBackground
@@ -718,8 +755,12 @@ private fun TableGridCell(
         contentAlignment = Alignment.CenterStart
     ) {
         BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = editorValue,
+            onValueChange = { newValue ->
+                editorValue = newValue
+                GlobalEditorState.currentSelection = newValue.selection
+                if (newValue.text != value) onValueChange(newValue.text)
+            },
             enabled = !inSelectionMode,
             visualTransformation = webLinkTransformation,
             onTextLayout = { textLayoutResult = it },
@@ -742,7 +783,15 @@ private fun TableGridCell(
                     currentTextLayout = { textLayoutResult }
                 )
                 .focusRequester(focusRequester)
-                .onFocusChanged { isFocused = it.isFocused }
+                .onFocusChanged { focusState ->
+                    isFocused = focusState.isFocused
+                    if (focusState.isFocused) {
+                        GlobalEditorState.currentlyFocusedTableCellKey = cellKey
+                        GlobalEditorState.currentSelection = editorValue.selection
+                    } else if (GlobalEditorState.currentlyFocusedTableCellKey == cellKey) {
+                        GlobalEditorState.currentlyFocusedTableCellKey = null
+                    }
+                }
         )
 
         LinkHoverCard(linkHoverState)
@@ -762,8 +811,12 @@ private fun TableGridCell(
                     .pointerInput(Unit) {
                         detectTapGestures(onTap = { position ->
                             val tappedWebLink = textLayoutResult?.webLinkAtPosition(position)
-                            if (tappedWebLink != null) webLinkActions.openLink(tappedWebLink)
-                            else focusRequester.requestFocus()
+                            if (tappedWebLink != null) {
+                                webLinkActions.openLink(tappedWebLink)
+                            } else {
+                                focusRequester.requestFocus()
+                                keyboardController?.show()
+                            }
                         })
                     }
             )

@@ -802,6 +802,20 @@ abstract class BaseEditorViewModel(
     fun toggleFormat(format: String) {
         val id = currentlyFocusedBlockId ?: return
         val selection = GlobalEditorState.currentSelection
+        val focusedCellKey = GlobalEditorState.currentlyFocusedTableCellKey
+        if (focusedCellKey != null) {
+            when (_blocks.value.firstOrNull { it.id == id }) {
+                is TableBlock -> {
+                    toggleTableCellFormat(id, focusedCellKey, format, selection)
+                    return
+                }
+                is DatabaseBlock -> {
+                    toggleDatabaseCellFormat(id, focusedCellKey, format, selection)
+                    return
+                }
+                else -> Unit
+            }
+        }
         if (!selection.collapsed) {
             toggleInlineFormat(id, format, selection)
             return
@@ -883,6 +897,82 @@ abstract class BaseEditorViewModel(
         }
         newSelection?.let { _selectionRequest.value = SelectionRequest(blockId, it) }
         scheduleAutosave()
+    }
+
+    private fun toggleTableCellFormat(blockId: String, cellKey: String, format: String, selection: TextRange) {
+        val now = System.currentTimeMillis()
+        modifyBlocks { list ->
+            mapBlockById(list, blockId) { b ->
+                if (b !is TableBlock) return@mapBlockById b
+                val cellText = tableCellTextAt(b.rows, cellKey)
+                val start = selection.min.coerceIn(0, cellText.length)
+                val end = selection.max.coerceIn(0, cellText.length)
+
+                if (start < end) {
+                    val newSpans = toggleInlineSpanFormat(b.cellSpans[cellKey].orEmpty(), cellText.length, start, end, format)
+                    b.copy(cellSpans = b.cellSpans + (cellKey to newSpans), updatedAt = now)
+                } else {
+                    val newStyle = withFormatToggled(b.cellStyles[cellKey] ?: TableCellStyle(), format)
+                        ?: return@mapBlockById b
+                    b.copy(cellStyles = b.cellStyles + (cellKey to newStyle), updatedAt = now)
+                }
+            }
+        }
+        scheduleAutosave()
+    }
+
+    private fun toggleDatabaseCellFormat(blockId: String, cellKey: String, format: String, selection: TextRange) {
+        val now = System.currentTimeMillis()
+        modifyBlocks { list ->
+            mapBlockById(list, blockId) { b ->
+                if (b !is DatabaseBlock) return@mapBlockById b
+                val cellText = databaseCellTextAt(b, cellKey)
+                val start = selection.min.coerceIn(0, cellText.length)
+                val end = selection.max.coerceIn(0, cellText.length)
+
+                if (start < end) {
+                    val newSpans = toggleInlineSpanFormat(b.cellSpans[cellKey].orEmpty(), cellText.length, start, end, format)
+                    b.copy(cellSpans = b.cellSpans + (cellKey to newSpans), updatedAt = now)
+                } else {
+                    val newStyle = withFormatToggled(b.cellStyles[cellKey] ?: TableCellStyle(), format)
+                        ?: return@mapBlockById b
+                    b.copy(cellStyles = b.cellStyles + (cellKey to newStyle), updatedAt = now)
+                }
+            }
+        }
+        scheduleAutosave()
+    }
+
+    private fun withFormatToggled(style: TableCellStyle, format: String): TableCellStyle? = when (format) {
+        "bold" -> style.copy(isBold = !style.isBold)
+        "italic" -> style.copy(isItalic = !style.isItalic)
+        "strike" -> style.copy(isStrikeThrough = !style.isStrikeThrough)
+        "underline" -> style.copy(isUnderlined = !style.isUnderlined)
+        else -> null
+    }
+
+    private fun databaseCellTextAt(block: DatabaseBlock, cellKey: String): String {
+        val rowId = cellKey.substringBefore(':')
+        val colId = cellKey.substringAfter(':')
+        val cell = block.rows.firstOrNull { it.id == rowId }?.cells?.get(colId)
+        return (cell as? CellData.Text)?.value ?: ""
+    }
+
+    private fun tableCellTextAt(rows: List<List<String>>, cellKey: String): String {
+        val rowIndex = cellKey.substringBefore(':').toIntOrNull() ?: return ""
+        val columnIndex = cellKey.substringAfter(':').toIntOrNull() ?: return ""
+        return rows.getOrNull(rowIndex)?.getOrNull(columnIndex) ?: ""
+    }
+
+    private fun shiftTableCellSpans(block: TableBlock, newRows: List<List<String>>): Map<String, List<InlineSpan>> {
+        if (block.cellSpans.isEmpty()) return block.cellSpans
+        val gridShapeIsUnchanged = block.rows.size == newRows.size &&
+                block.rows.indices.all { block.rows[it].size == newRows[it].size }
+        if (!gridShapeIsUnchanged) return block.cellSpans
+
+        return block.cellSpans.mapValues { (cellKey, spans) ->
+            shiftSpansForEdit(spans, tableCellTextAt(block.rows, cellKey), tableCellTextAt(newRows, cellKey))
+        }
     }
 
     private data class CharFormatFlags(
@@ -1028,6 +1118,8 @@ abstract class BaseEditorViewModel(
         modifyBlocks { list ->
             spliceAtBlock(list, id) { mutable, idx ->
                 val b = mutable[idx]
+                val blockHoldsEditableText = b.textAlignmentOrNull() != null
+                if (!blockHoldsEditableText) return@spliceAtBlock
                 val rawText = getBlockText(b)
 
                 val slashIndex = rawText.lastIndexOf('/')
@@ -1664,7 +1756,9 @@ abstract class BaseEditorViewModel(
         val now = System.currentTimeMillis()
         modifyBlocks { list ->
             mapBlockById(list, blockId) {
-                if (it is TableBlock) it.copy(rows = rows, updatedAt = now) else it
+                if (it is TableBlock) {
+                    it.copy(rows = rows, cellSpans = shiftTableCellSpans(it, rows), updatedAt = now)
+                } else it
             }
         }
         scheduleAutosave()
@@ -1833,7 +1927,16 @@ abstract class BaseEditorViewModel(
                             row.copy(cells = newMap, updatedAt = now)
                         } else row
                     }
-                    block.copy(rows = updatedRows, updatedAt = now)
+                    val cellKey = "$rowId:$colId"
+                    val existingSpans = block.cellSpans[cellKey]
+                    val shiftedSpans = if (existingSpans.isNullOrEmpty()) block.cellSpans else {
+                        block.cellSpans + (cellKey to shiftSpansForEdit(
+                            existingSpans,
+                            databaseCellTextAt(block, cellKey),
+                            (newValue as? CellData.Text)?.value ?: databaseCellTextAt(block, cellKey)
+                        ))
+                    }
+                    block.copy(rows = updatedRows, cellSpans = shiftedSpans, updatedAt = now)
                 } else block
             }
         }

@@ -192,6 +192,8 @@ enum class MobileMenuState { MAIN, SLASH, MENU }
 object GlobalEditorState {
     var currentlyFocusedBlockId: String? = null
 
+    var currentlyFocusedTableCellKey: String? = null
+
     // Updated on every keystroke/tap/drag inside the focused block's text field so a toolbar button
     // press elsewhere (EditorToolbar, the slash menu) can tell whether the user has a real text
     // selection to apply inline formatting to, vs. just a cursor (whole-block formatting instead).

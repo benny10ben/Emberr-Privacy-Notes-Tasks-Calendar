@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
@@ -47,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.data.local.room.TagEntity
 import com.emberr.domain.model.CellData
+import com.emberr.domain.model.InlineSpan
+import com.emberr.domain.model.TableCellStyle
 import com.emberr.domain.model.ColumnType
 import com.emberr.domain.model.displayText
 import com.emberr.domain.util.isDesktopPlatform
@@ -66,6 +69,9 @@ import org.jetbrains.compose.resources.painterResource
 @Composable
 fun TableCell(
     cell: CellData?,
+    cellKey: String,
+    cellStyle: TableCellStyle,
+    cellSpans: List<InlineSpan>,
     columnType: ColumnType,
     cellWidth: Dp,
     globalTags: List<TagEntity>,
@@ -89,6 +95,9 @@ fun TableCell(
         ColumnType.TEXT, ColumnType.NUMBER, ColumnType.PHONE, ColumnType.EMAIL, ColumnType.URL, ColumnType.MONEY ->
             EditableTextCell(
                 cell = cell,
+                cellKey = cellKey,
+                cellStyle = cellStyle,
+                cellSpans = cellSpans,
                 columnType = columnType,
                 cellWidth = cellWidth,
                 inSelectionMode = inSelectionMode,
@@ -124,6 +133,9 @@ private fun ColumnType.isExternallyOpenable() =
 @Composable
 private fun EditableTextCell(
     cell: CellData?,
+    cellKey: String,
+    cellStyle: TableCellStyle,
+    cellSpans: List<InlineSpan>,
     columnType: ColumnType,
     cellWidth: Dp,
     inSelectionMode: Boolean,
@@ -137,6 +149,7 @@ private fun EditableTextCell(
     val validNoteIds = remember(allLinkableNotes) { allLinkableNotes.map { it.noteId }.toSet() }
     var isFocused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     val isNumeric = columnType == ColumnType.NUMBER || columnType == ColumnType.MONEY
     // Number/Money is a Double? under the hood but renders as plain text either way
@@ -152,7 +165,12 @@ private fun EditableTextCell(
         modifier = Modifier.fillMaxWidth().clickable(
             interactionSource = remember { MutableInteractionSource() },
             indication = null
-        ) { if (!inSelectionMode) focusRequester.requestFocus() }
+        ) {
+            if (!inSelectionMode) {
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            }
+        }
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             if (columnType == ColumnType.MONEY && (value.isNotBlank() || isFocused)) {
@@ -173,10 +191,13 @@ private fun EditableTextCell(
                         linkColor = MaterialTheme.colorScheme.primary,
                         fadedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         webLinkColor = rememberWebLinkColor(),
-                        validNoteIds = validNoteIds
+                        validNoteIds = validNoteIds,
+                        inlineSpans = cellSpans
                     )
                 } else VisualTransformation.None,
                 inSelectionMode = inSelectionMode,
+                cellKey = cellKey,
+                cellStyle = cellStyle,
                 focusRequester = focusRequester,
                 onValueChange = { raw ->
                     onValueChange(

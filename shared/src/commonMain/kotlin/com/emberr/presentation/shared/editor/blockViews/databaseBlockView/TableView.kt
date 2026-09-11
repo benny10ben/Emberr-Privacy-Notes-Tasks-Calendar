@@ -67,6 +67,8 @@ import com.emberr.domain.model.DatabaseBlock
 import com.emberr.domain.model.DatabaseColumn
 import com.emberr.domain.model.DatabaseRow
 import com.emberr.domain.model.DatabaseView
+import com.emberr.domain.model.InlineSpan
+import com.emberr.domain.model.TableCellStyle
 import com.emberr.domain.model.displayText
 import com.emberr.domain.util.isDesktopPlatform
 import com.emberr.presentation.shared.editor.components.DesktopCursor
@@ -361,6 +363,9 @@ fun TableView(
                                     ) {
                                         TableCell(
                                             cell = cellData,
+                                            cellKey = "${row.id}:${col.id}",
+                                            cellStyle = block.cellStyles["${row.id}:${col.id}"] ?: TableCellStyle(),
+                                            cellSpans = block.cellSpans["${row.id}:${col.id}"].orEmpty(),
                                             allLinkableNotes = allLinkableNotes,
                                             columnType = col.type,
                                             cellWidth = col.width.dp,

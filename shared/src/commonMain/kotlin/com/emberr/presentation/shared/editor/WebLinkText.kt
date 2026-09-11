@@ -22,10 +22,12 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
+import com.emberr.domain.model.InlineSpan
 import com.emberr.domain.util.isDesktopPlatform
 import com.emberr.domain.util.openLinkInRunningBrowser
 import com.emberr.domain.util.showNativeToast
@@ -315,7 +317,35 @@ fun rememberWebLinkActions(): WebLinkActions {
     }
 }
 
-data class WebLinkVisualTransformation(private val webLinkColor: Color) : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText =
-        TransformedText(text.withWebLinksHighlighted(webLinkColor), OffsetMapping.Identity)
+data class WebLinkVisualTransformation(
+    private val webLinkColor: Color,
+    private val inlineSpans: List<InlineSpan> = emptyList()
+) : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val highlighted = text.withWebLinksHighlighted(webLinkColor)
+        if (inlineSpans.isEmpty()) return TransformedText(highlighted, OffsetMapping.Identity)
+
+        val builder = AnnotatedString.Builder(highlighted)
+        inlineSpans.forEach { span ->
+            val start = span.start.coerceIn(0, highlighted.length)
+            val end = span.end.coerceIn(start, highlighted.length)
+            if (start == end) return@forEach
+            val decoration = when {
+                span.strikeThrough && span.underline -> TextDecoration.LineThrough + TextDecoration.Underline
+                span.strikeThrough -> TextDecoration.LineThrough
+                span.underline -> TextDecoration.Underline
+                else -> null
+            }
+            builder.addStyle(
+                SpanStyle(
+                    fontWeight = if (span.bold) FontWeight.Bold else null,
+                    fontStyle = if (span.italic) FontStyle.Italic else null,
+                    textDecoration = decoration
+                ),
+                start,
+                end
+            )
+        }
+        return TransformedText(builder.toAnnotatedString(), OffsetMapping.Identity)
+    }
 }

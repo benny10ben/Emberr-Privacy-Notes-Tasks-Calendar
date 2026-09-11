@@ -45,6 +45,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
@@ -53,6 +54,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -63,6 +65,8 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.emberr.data.local.room.NoteMetadataEntity
+import com.emberr.domain.model.TableCellStyle
+import com.emberr.presentation.shared.editor.GlobalEditorState
 import com.emberr.domain.model.ColumnType
 import com.emberr.presentation.shared.editor.rememberWebLinkActions
 import com.emberr.presentation.shared.editor.LinkContextMenu
@@ -92,6 +96,8 @@ fun TableCellTextEditor(
     initialText: String,
     columnType: ColumnType,
     inSelectionMode: Boolean,
+    cellKey: String,
+    cellStyle: TableCellStyle,
     focusRequester: FocusRequester,
     onValueChange: (String) -> Unit,
     onFocusChanged: (Boolean) -> Unit,
@@ -108,6 +114,7 @@ fun TableCellTextEditor(
     var mentionStartIndex by remember { mutableIntStateOf(-1) }
     var isFocused by remember { mutableStateOf(false) }
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val keyboardController = LocalSoftwareKeyboardController.current
     val validNoteIds = remember(allLinkableNotes) { allLinkableNotes.map { it.noteId }.toSet() }
     val webLinkActions = rememberWebLinkActions()
     val linkHoverState = rememberLinkHoverState()
@@ -183,6 +190,7 @@ fun TableCellTextEditor(
                 mentionQuery = activeMention?.second
 
                 tfv = newValue
+                GlobalEditorState.currentSelection = newValue.selection
             },
             onTextLayout = { result ->
                 textLayoutResult = result
@@ -196,8 +204,9 @@ fun TableCellTextEditor(
             textStyle = MaterialTheme.typography.bodyLarge.copy(
                 color = if (columnType.rendersAsLink() && tfv.text.isNotBlank()) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurface,
-                textDecoration = if (columnType.rendersAsLink() && tfv.text.isNotBlank()) TextDecoration.Underline
-                else TextDecoration.None
+                fontWeight = if (cellStyle.isBold) FontWeight.Bold else null,
+                fontStyle = if (cellStyle.isItalic) FontStyle.Italic else null,
+                textDecoration = cellTextDecoration(cellStyle, columnType.rendersAsLink() && tfv.text.isNotBlank())
             ),
             visualTransformation = visualTransformation,
             keyboardOptions = when (columnType) {
@@ -215,6 +224,12 @@ fun TableCellTextEditor(
                 .onFocusChanged {
                     isFocused = it.isFocused
                     onFocusChanged(it.isFocused)
+                    if (it.isFocused) {
+                        GlobalEditorState.currentlyFocusedTableCellKey = cellKey
+                        GlobalEditorState.currentSelection = tfv.selection
+                    } else if (GlobalEditorState.currentlyFocusedTableCellKey == cellKey) {
+                        GlobalEditorState.currentlyFocusedTableCellKey = null
+                    }
                 }
                 // a whole note link is one unit, so backspace deletes it entirely rather than
                 // leaving the user editing raw markdown one character at a time
@@ -261,13 +276,20 @@ fun TableCellTextEditor(
                                     tappedWebLink != null -> webLinkActions.openLink(tappedWebLink)
                                     tappedNoteId != null && validNoteIds.contains(tappedNoteId) ->
                                         onNoteLinkClick(tappedNoteId)
-                                    else -> focusRequester.requestFocus()
+                                    else -> {
+                                        focusRequester.requestFocus()
+                                        keyboardController?.show()
+                                    }
                                 }
                             },
                             onLongPress = { position ->
                                 val pressedWebLink = textLayoutResult?.webLinkAtPosition(position)
-                                if (pressedWebLink != null) webLinkActions.copyLink(pressedWebLink)
-                                else focusRequester.requestFocus()
+                                if (pressedWebLink != null) {
+                                    webLinkActions.copyLink(pressedWebLink)
+                                } else {
+                                    focusRequester.requestFocus()
+                                    keyboardController?.show()
+                                }
                             }
                         )
                     }
@@ -438,5 +460,15 @@ private fun MentionPopupRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+private fun cellTextDecoration(cellStyle: TableCellStyle, rendersAsLink: Boolean): TextDecoration {
+    val underline = cellStyle.isUnderlined || rendersAsLink
+    return when {
+        cellStyle.isStrikeThrough && underline -> TextDecoration.LineThrough + TextDecoration.Underline
+        cellStyle.isStrikeThrough -> TextDecoration.LineThrough
+        underline -> TextDecoration.Underline
+        else -> TextDecoration.None
     }
 }

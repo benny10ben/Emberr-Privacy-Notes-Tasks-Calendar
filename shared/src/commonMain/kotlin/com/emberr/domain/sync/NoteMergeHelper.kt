@@ -130,6 +130,10 @@ object NoteMergeHelper {
         return winnerBlock.copy(
             columns   = mergedColumns,
             rows      = mergedRows,
+            cellStyles = if (remoteBlockWins) localBlock.cellStyles + remoteBlock.cellStyles
+                         else remoteBlock.cellStyles + localBlock.cellStyles,
+            cellSpans  = if (remoteBlockWins) localBlock.cellSpans + remoteBlock.cellSpans
+                         else remoteBlock.cellSpans + localBlock.cellSpans,
             updatedAt = maxOf(localBlock.updatedAt, remoteBlock.updatedAt)
         )
     }
