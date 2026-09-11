@@ -70,9 +70,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Tab
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -1102,13 +1100,13 @@ fun CategorizedEmojiPicker(
                 }
             }
         } else {
-            ScrollableTabRow(
+            SecondaryScrollableTabRow(
                 selectedTabIndex = pagerState.currentPage,
                 containerColor = Color.Transparent,
                 edgePadding = 8.dp,
-                indicator = { tabPositions ->
+                indicator = {
                     TabRowDefaults.SecondaryIndicator(
-                        Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                        Modifier.tabIndicatorOffset(pagerState.currentPage),
                         color = MaterialTheme.colorScheme.primary
                     )
                 },
