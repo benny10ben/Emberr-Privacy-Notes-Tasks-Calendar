@@ -41,6 +41,7 @@ import com.emberr.domain.sync.MediaTransferPhase
 import com.emberr.domain.sync.MediaTransferStatusBus
 import com.emberr.domain.util.MediaStorageHelper
 import com.emberr.domain.util.withSyncCoordinatorOrSkip
+import com.emberr.domain.vault.VaultMirrorTrigger
 import com.emberr.database.EmberrDatabase
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -520,6 +521,12 @@ class SelfHostSyncEngine(
             val mergedList = merged.values.toList()
             mergedList.forEach { folderDao.insertFolder(it) }
 
+            // Folders decide the vault's directory layout, so a changed folder can move any note's
+            // file. Only re-export when the merge actually changed something locally.
+            if (mergedList.toSet() != localFolders.toSet()) {
+                VaultMirrorTrigger.requestFullRefresh()
+            }
+
             if (mergedList.toSet() != remoteFolders.toSet()) {
                 webDavSyncClient.uploadEncryptedJson(
                     WebDavSyncPaths.FOLDERS_FILE,
@@ -882,6 +889,7 @@ class SelfHostSyncEngine(
                 noteRepository.refreshNoteContentCache(noteId, refreshedContent)
             }
             noteRepository.refreshProjectionsForNote(mergedMetadata, refreshedContent.blocks)
+            VaultMirrorTrigger.requestNoteRefresh(noteId)
 
             // Emit an event so open editors immediately refresh title, cover, and pinned states.
             // This happens before pushing, since local database/cache merges are already committed.
