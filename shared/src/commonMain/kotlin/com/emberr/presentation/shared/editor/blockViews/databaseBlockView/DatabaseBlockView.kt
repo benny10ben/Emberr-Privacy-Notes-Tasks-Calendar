@@ -194,8 +194,11 @@ fun DatabaseBlockView(
                 showDatePicker = false
                 // let the dialog finish dismissing before the grid recomposes underneath it
                 coroutineScope.launch {
-                    delay(150.milliseconds)
-                    actions.onUpdateDbCell(block.id, datePickerRowId, datePickerColId, CellData.Date(millis))
+                    try {
+                        delay(150.milliseconds)
+                    } finally {
+                        actions.onUpdateDbCell(block.id, datePickerRowId, datePickerColId, CellData.Date(millis))
+                    }
                 }
             }
         )

@@ -71,12 +71,20 @@ class DatabaseSheetState internal constructor(
      * Dismisses the sheet first and only then mutates the block. The delay lets the sheet's exit
      * animation finish before recomposition rebuilds the table underneath it, which otherwise
      * makes the dismissal visibly stutter.
+     *
+     * The commit sits in a `finally` because [scope] belongs to the database block, and the block
+     * is an item in the editor's lazy list. Closing the sheet drops the keyboard and reflows that
+     * list, so the item can be disposed inside the wait - which used to cancel the coroutine and
+     * silently throw the edit away. Cancelling now skips the rest of the wait instead of the save.
      */
     fun applyAction(action: () -> Unit) {
         close()
         scope.launch {
-            delay(250.milliseconds)
-            action()
+            try {
+                delay(250.milliseconds)
+            } finally {
+                action()
+            }
         }
     }
 
