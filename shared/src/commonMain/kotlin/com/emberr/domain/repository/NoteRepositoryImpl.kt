@@ -55,6 +55,7 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import com.emberr.domain.sync.AutoSyncTrigger
+import com.emberr.domain.vault.VaultMirrorTrigger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,6 +68,7 @@ import java.util.UUID
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
@@ -346,6 +348,7 @@ class NoteRepositoryImpl(
             upsertChangedBlocks(noteId, content)
 
             AutoSyncTrigger.requestSync()
+            VaultMirrorTrigger.requestNoteRefresh(noteId)
 
             // Sync projection tables — these are flat Room tables that allow
             // TasksScreen, ImagesScreen, DocumentsScreen, and BookmarksScreen
@@ -518,6 +521,7 @@ class NoteRepositoryImpl(
             upsertChangedBlocks(metadata.noteId, content)
 
             AutoSyncTrigger.requestSync()
+            VaultMirrorTrigger.requestNoteRefresh(metadata.noteId)
             syncCalendarTasks(
                 noteId = metadata.noteId,
                 blocks = content.blocks,
@@ -571,6 +575,7 @@ class NoteRepositoryImpl(
             noteDao.deleteNoteMetadata(noteId)
             blockDao.deleteAllBlocksForNote(noteId)
             noteIndexer.deleteNoteFromIndex(noteId)
+            VaultMirrorTrigger.requestNoteRefresh(noteId)
         }
     }
 
@@ -613,6 +618,7 @@ class NoteRepositoryImpl(
         withContext(Dispatchers.IO) {
             folderDao.insertFolder(folder.copy(updatedAt = System.currentTimeMillis()))
             AutoSyncTrigger.requestSync()
+            VaultMirrorTrigger.requestFullRefresh()
         }
 
     // Strictly greater, not >= - see applyRemoteCategory's identical reasoning.
@@ -621,6 +627,7 @@ class NoteRepositoryImpl(
             val local = folderDao.getFolderById(folder.folderId)
             if (local == null || folder.updatedAt > local.updatedAt) {
                 folderDao.insertFolder(folder)
+                VaultMirrorTrigger.requestFullRefresh()
             }
         }
 
@@ -628,12 +635,14 @@ class NoteRepositoryImpl(
         withContext(Dispatchers.IO) {
             folderDao.markFolderDeleted(folderId, System.currentTimeMillis())
             AutoSyncTrigger.requestSync()
+            VaultMirrorTrigger.requestFullRefresh()
         }
 
     override suspend fun restoreNote(noteId: String) =
         withContext(Dispatchers.IO) {
             noteDao.restoreNote(noteId, System.currentTimeMillis())
             AutoSyncTrigger.requestSync()
+            VaultMirrorTrigger.requestNoteRefresh(noteId)
         }
 
     override suspend fun cleanupOldTrashedNotes() = withContext(Dispatchers.IO) {
@@ -648,6 +657,7 @@ class NoteRepositoryImpl(
 
         if (deletedAny) {
             AutoSyncTrigger.requestSync()
+            VaultMirrorTrigger.requestFullRefresh()
         }
     }
 
@@ -795,8 +805,8 @@ class NoteRepositoryImpl(
                     if (block.reminderTimestamp != null) {
                         val instant = Instant.fromEpochMilliseconds(block.reminderTimestamp)
                         val dt = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-                        val monthStr = dt.monthNumber.toString().padStart(2, '0')
-                        val dayStr = dt.dayOfMonth.toString().padStart(2, '0')
+                        val monthStr = dt.month.number.toString().padStart(2, '0')
+                        val dayStr = dt.day.toString().padStart(2, '0')
                         "${dt.year}-${monthStr}-${dayStr}"
                     } else ""
                 }
@@ -881,7 +891,7 @@ class NoteRepositoryImpl(
     private fun retargetTimestampToDate(originalTimestamp: Long, newDate: LocalDate): Long {
         val originalDateTime = Instant.fromEpochMilliseconds(originalTimestamp).toLocalDateTime(TimeZone.currentSystemDefault())
         val retargeted = LocalDateTime(
-            newDate.year, newDate.monthNumber, newDate.dayOfMonth,
+            newDate.year, newDate.month.number, newDate.day,
             originalDateTime.hour, originalDateTime.minute, originalDateTime.second
         )
         return retargeted.toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
@@ -1277,18 +1287,21 @@ class NoteRepositoryImpl(
         withContext(Dispatchers.IO) {
             noteDao.updateNoteSortOrder(noteId, order, System.currentTimeMillis())
             AutoSyncTrigger.requestSync()
+            VaultMirrorTrigger.requestNoteRefresh(noteId)
         }
 
     override suspend fun addNoteToFavorites(noteId: String) =
         withContext(Dispatchers.IO) {
             noteDao.addNoteToFavorites(noteId, System.currentTimeMillis())
             AutoSyncTrigger.requestSync()
+            VaultMirrorTrigger.requestNoteRefresh(noteId)
         }
 
     override suspend fun removeNoteFromFavoritesAndMoveToRoot(noteId: String) =
         withContext(Dispatchers.IO) {
             noteDao.removeNoteFromFavoritesAndMoveToRoot(noteId, System.currentTimeMillis())
             AutoSyncTrigger.requestSync()
+            VaultMirrorTrigger.requestNoteRefresh(noteId)
         }
 
     override suspend fun updateFolderSortOrder(folderId: String, order: Int) =

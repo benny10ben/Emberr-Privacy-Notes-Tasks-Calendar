@@ -41,6 +41,13 @@ import com.emberr.domain.util.DesktopVoiceRecognizer
 import com.emberr.domain.util.ImageDownloader
 import com.emberr.domain.util.MediaStorageHelper
 import com.emberr.domain.util.VoiceRecognizer
+import com.emberr.domain.vault.VaultExporter
+import com.emberr.domain.vault.VaultFileLedger
+import com.emberr.domain.vault.VaultFolderWatcher
+import com.emberr.domain.vault.VaultImporter
+import com.emberr.domain.vault.VaultMirrorService
+import com.emberr.domain.vault.VaultPathMemory
+import com.emberr.domain.vault.VaultStartupReconciler
 import com.emberr.presentation.rag.RagViewModel
 import com.emberr.presentation.reminders.DesktopReminderScheduler
 import com.emberr.presentation.reminders.ReminderScheduler
@@ -117,6 +124,46 @@ val desktopModule = module {
 
     // Automatic Backup
     single<BackupRescheduler> { DesktopBackupRescheduler() }
+
+    // Vault mirror
+    single { VaultFileLedger() }
+    single { VaultPathMemory(java.io.File(System.getProperty("user.home"), ".emberr")) }
+    single {
+        VaultExporter(
+            noteDao = get(),
+            folderDao = get(),
+            noteRepository = get(),
+            fileLedger = get(),
+            pathMemory = get()
+        )
+    }
+    single {
+        VaultImporter(
+            noteDao = get(),
+            folderDao = get(),
+            noteRepository = get(),
+            fileLedger = get(),
+            vaultExporter = get()
+        )
+    }
+    single { VaultFolderWatcher(vaultRootDirectory = get<VaultExporter>().vaultRootDirectory) }
+    single {
+        VaultStartupReconciler(
+            noteDao = get(),
+            noteRepository = get(),
+            vaultImporter = get(),
+            vaultExporter = get()
+        )
+    }
+    single {
+        VaultMirrorService(
+            vaultExporter = get(),
+            vaultImporter = get(),
+            folderWatcher = get(),
+            startupReconciler = get(),
+            pathMemory = get()
+        )
+    }
 
     // Manual export/import
     single { DesktopManualBackupExporter(appDatabase = get(), settingsManager = get()) }

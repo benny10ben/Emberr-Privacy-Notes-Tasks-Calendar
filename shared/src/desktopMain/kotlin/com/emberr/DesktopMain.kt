@@ -34,6 +34,7 @@ import com.emberr.domain.selfhost.crypto.SecureSyncKeyStorage
 import com.emberr.domain.selfhost.sync.SelfHostSyncLog
 import com.emberr.domain.selfhost.sync.SelfHostSyncScheduler
 import com.emberr.domain.sync.SyncRepository
+import com.emberr.domain.vault.VaultMirrorService
 import com.emberr.presentation.EmberrApp
 import com.emberr.presentation.settings.PlainTextSecretWarningDialog
 import com.emberr.presentation.desktop.DesktopSearchShortcutBus
@@ -135,6 +136,14 @@ fun main() = application {
                 SelfHostSyncLog.d("DesktopMain: no self-host vault configured, skipping background sync schedules")
             }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        val vaultMirrorService = withContext(Dispatchers.IO) {
+            GlobalContext.get().get<VaultMirrorService>()
+        }
+        vaultMirrorService.startWatching(this)
+        vaultMirrorService.refreshEverythingNow()
     }
 
     @OptIn(FlowPreview::class)
