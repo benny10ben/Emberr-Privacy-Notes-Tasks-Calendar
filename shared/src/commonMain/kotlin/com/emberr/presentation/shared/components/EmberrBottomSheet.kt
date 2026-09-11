@@ -2,6 +2,7 @@ package com.emberr.presentation.shared.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.*
@@ -13,7 +14,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -27,8 +34,10 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.math.abs
 
-private val BottomSheetShape = RoundedCornerShape(topEnd = 26.dp, topStart = 26.dp)
+private val BottomSheetCornerRadius = 26.dp
+private val BottomSheetShape = RoundedCornerShape(topEnd = BottomSheetCornerRadius, topStart = BottomSheetCornerRadius)
 private val FloatingDialogShape = RoundedCornerShape(12.dp)
+private val SheetEdgeWidth = 1.dp
 private val SheetHorizontalPadding = 20.dp
 private val SheetIconShadowElevation = 0.dp
 private val SheetIconSpacing = 8.dp
@@ -53,6 +62,37 @@ private object SheetBringIntoViewSpec : BringIntoViewSpec {
             else -> bottomDelta
         }
     }
+}
+
+@Composable
+private fun Modifier.sheetCardBackground(shape: Shape, drawBottomEdge: Boolean = true): Modifier {
+    val blurSource = LocalEmberrBlurSource.current
+    val isDarkTheme = LocalAppIsDark.current
+    val solidColor = if (isDarkTheme) MaterialTheme.colorScheme.surface
+    else MaterialTheme.colorScheme.background
+    val edgeColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+
+    if (blurSource == null) return this.background(solidColor)
+
+    val blurredCard = this.emberrBlur(blurSource, EmberrBlur.Thick)
+    return when {
+        !isDarkTheme -> blurredCard
+        drawBottomEdge -> blurredCard.border(width = SheetEdgeWidth, color = edgeColor, shape = shape)
+        else -> blurredCard.topAndSideEdges(edgeColor)
+    }
+}
+
+private fun Modifier.topAndSideEdges(color: Color): Modifier = drawWithContent {
+    drawContent()
+    val strokeWidth = SheetEdgeWidth.toPx()
+    val cornerRadius = BottomSheetCornerRadius.toPx()
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(strokeWidth / 2f, strokeWidth / 2f),
+        size = Size(size.width - strokeWidth, size.height + cornerRadius),
+        cornerRadius = CornerRadius(cornerRadius),
+        style = Stroke(width = strokeWidth)
+    )
 }
 
 class EmberrBottomSheetAction(
@@ -127,10 +167,7 @@ private fun EmberrFloatingDialog(
                 .widthIn(max = 480.dp)
                 .fillMaxWidth(0.9f)
                 .clip(FloatingDialogShape)
-                .background(
-                    if (LocalAppIsDark.current) MaterialTheme.colorScheme.surface
-                    else MaterialTheme.colorScheme.background
-                )
+                .sheetCardBackground(FloatingDialogShape)
         ) {
             Column(
                 modifier = Modifier
@@ -255,10 +292,7 @@ private fun EmberrModalBottomSheet(
                 .stableStatusBarsPadding()
                 .fillMaxWidth()
                 .clip(BottomSheetShape)
-                .background(
-                    if (LocalAppIsDark.current) MaterialTheme.colorScheme.surface
-                    else MaterialTheme.colorScheme.background
-                )
+                .sheetCardBackground(BottomSheetShape, drawBottomEdge = false)
         ) {
             Column(
                 modifier = Modifier
