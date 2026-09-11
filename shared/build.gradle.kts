@@ -39,7 +39,13 @@ val llamatikWithLinuxNativesOnly = tasks.register<Jar>("llamatikWithLinuxNatives
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
     compilerOptions {
-        freeCompilerArgs.add("-opt-in=kotlin.time.ExperimentalTime")
+        freeCompilerArgs.addAll(
+            "-opt-in=kotlin.time.ExperimentalTime",
+            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+            "-opt-in=kotlinx.coroutines.FlowPreview",
+            "-opt-in=coil3.annotation.ExperimentalCoilApi",
+            "-Xexpect-actual-classes"
+        )
     }
 }
 
