@@ -764,7 +764,7 @@ class SyncRepositoryImpl(
                 } else {
                     ApiConfigSyncEntry(
                         provider = provider.name,
-                        apiKey = localConfig!!.apiKey,
+                        apiKey = localConfig.apiKey,
                         model = localConfig.model,
                         baseUrl = localConfig.baseUrl,
                         updatedAt = localConfig.updatedAt

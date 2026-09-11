@@ -646,7 +646,7 @@ class SelfHostSyncEngine(
                         }
                         mergedEntries += remoteEntry
                     }
-                    !localIsDeleted && localConfig != null -> mergedEntries += ApiConfigSyncEntry(
+                    !localIsDeleted -> mergedEntries += ApiConfigSyncEntry(
                         provider = provider.name,
                         apiKey = localConfig.apiKey,
                         model = localConfig.model,

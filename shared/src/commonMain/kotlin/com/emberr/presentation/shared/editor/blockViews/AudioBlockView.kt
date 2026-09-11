@@ -212,7 +212,7 @@ fun AudioBlockView(
                                         onStopAudio()
                                     } else {
                                         isPlaying = true
-                                        block.localFilePath?.let { path ->
+                                        block.localFilePath.let { path ->
                                             onPlayAudio(path) {
                                                 isPlaying = false
                                                 playProgress = 0f

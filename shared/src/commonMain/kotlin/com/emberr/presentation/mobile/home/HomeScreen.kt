@@ -1365,7 +1365,7 @@ fun NoteCard(
             }
         }
         if (hasIcon) Text(
-            text = note.icon!!,
+            text = note.icon,
             fontSize = 22.sp,
             modifier = Modifier.align(Alignment.TopStart).padding(start = 10.dp)
                 .offset(y = coverHeight - iconOverhang)

@@ -115,8 +115,8 @@ fun DocumentBlockView(
                         if (inSelectionMode) {
                             onToggleSelection()
                         } else when (availability) {
-                            MediaAvailability.Available -> block.localFilePath?.let { path ->
-                                onOpenFile(path, block.mimeType ?: "*/*")
+                            MediaAvailability.Available -> block.localFilePath.let { path ->
+                                onOpenFile(path, block.mimeType)
                             }
                             MediaAvailability.Failed -> mediaRetryCoordinator.retryMediaDownload(fileName)
                             MediaAvailability.Downloading -> Unit

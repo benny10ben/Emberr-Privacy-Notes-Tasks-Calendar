@@ -475,7 +475,7 @@ abstract class BaseEditorViewModel(
         val key = coalescingKeyFor(before, after)
         val coalesced = key != null && !historyCoalescingSealed && top != null && top.coalescingKey == key
         if (coalesced) {
-            undoStack[undoStack.lastIndex] = top!!.copy(after = after)
+            undoStack[undoStack.lastIndex] = top.copy(after = after)
         } else {
             undoStack.addLast(HistoryEntry(before, after, key))
             while (undoStack.size > maxHistoryDepth) undoStack.removeFirst()

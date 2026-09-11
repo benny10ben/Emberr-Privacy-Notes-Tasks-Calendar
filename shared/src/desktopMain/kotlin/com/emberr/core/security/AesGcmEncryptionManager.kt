@@ -213,7 +213,7 @@ class AesGcmEncryptionManager : SyncEncryptionManager {
             output.write(cipher.doFinal(current))
 
             if (isLastChunk) break
-            current = next!!
+            current = next
             chunkIndex++
         }
         output.flush()

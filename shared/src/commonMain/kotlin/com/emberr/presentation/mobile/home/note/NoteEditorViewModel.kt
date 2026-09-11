@@ -230,7 +230,7 @@ class NoteEditorViewModel(
             // it's true, so a stuck flag silently stops this note from ever picking up a background
             // sync update again until the ViewModel itself is recreated (a full app restart).
             try {
-                if (flushedMeta != null && previousMeta != null) {
+                if (flushedMeta != null) {
                     SyncCoordinator.mutex.withLock {
                         val reconciled = reconcileWithDisk(previousMeta.noteId, snapshot)
                         val contentToSave = NoteContent(blocks = reconciled)

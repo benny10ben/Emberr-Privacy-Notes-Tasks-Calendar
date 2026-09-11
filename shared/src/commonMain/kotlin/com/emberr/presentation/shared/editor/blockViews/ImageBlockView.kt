@@ -297,7 +297,7 @@ fun ImageBlockView(
                     setFullScreenOverlay {
                         com.emberr.presentation.shared.editor.components.FullScreenImageScreen(
                             request = request,
-                            hasLocalFile = block.localFilePath != null,
+                            hasLocalFile = true,
                             thumbnailBoundsInRoot = thumbnailBoundsInRoot,
                             imageWidthToHeightRatio = widthToHeightRatio,
                             onBack = { showFullScreen = false },

@@ -137,7 +137,7 @@ internal fun ModelPickerPill(viewModel: RagViewModel) {
                             val isConfigured = !config?.apiKey.isNullOrBlank()
                             if (isConfigured) {
                                 RagDesktopMenuItem(
-                                    text = config?.model?.takeIf { it.isNotBlank() } ?: provider.displayName,
+                                    text = config.model.takeIf { it.isNotBlank() } ?: provider.displayName,
                                     isSelected = aiGenerationMode == AiGenerationMode.EXTERNAL &&
                                             selectedExternalAiProvider == provider,
                                     onClick = { showPicker = false; viewModel.selectExternalProvider(provider) }
@@ -190,7 +190,7 @@ internal fun ModelPickerPill(viewModel: RagViewModel) {
                                     selectedExternalAiProvider == provider
                             ModelOptionCard(
                                 icon = null,
-                                title = config?.model?.takeIf { it.isNotBlank() } ?: provider.displayName,
+                                title = config.model.takeIf { it.isNotBlank() } ?: provider.displayName,
                                 titleMaxLines = 1,
                                 subtitle = null,
                                 contentPadding = OptionRowPadding,

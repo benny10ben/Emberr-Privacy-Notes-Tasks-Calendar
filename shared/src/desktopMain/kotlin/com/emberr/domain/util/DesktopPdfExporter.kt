@@ -108,10 +108,10 @@ fun generateDesktopPdf(file: File, title: String, blocks: List<NoteBlock>) {
             when (block) {
                 is TextBlock, is HeadingBlock, is BulletedListBlock, is NumberedListBlock, is CheckboxBlock, is QuoteBlock -> {
                     val isHeading = block is HeadingBlock
-                    val fontSize = if (isHeading && (block as HeadingBlock).level == 1) 18f
+                    val fontSize = if (isHeading && block.level == 1) 18f
                     else if (isHeading) 14f else 12f
 
-                    val useBold = isHeading || when(block) { is TextBlock -> block.isBold; is CheckboxBlock -> block.isBold; is BulletedListBlock -> block.isBold; is NumberedListBlock -> block.isBold; is QuoteBlock -> block.isBold; else -> false }
+                    val useBold = isHeading || when(block) { is TextBlock -> block.isBold; is CheckboxBlock -> block.isBold; is BulletedListBlock -> block.isBold; is NumberedListBlock -> block.isBold; is QuoteBlock -> block.isBold }
                     val useItalic = when(block) { is TextBlock -> block.isItalic; is CheckboxBlock -> block.isItalic; is BulletedListBlock -> block.isItalic; is NumberedListBlock -> block.isItalic; is QuoteBlock -> block.isItalic; else -> false }
 
                     val currentFont = when {
@@ -128,7 +128,6 @@ fun generateDesktopPdf(file: File, title: String, blocks: List<NoteBlock>) {
                         is NumberedListBlock -> "${block.number}.  ${block.text}"
                         is CheckboxBlock -> "${if (block.isChecked) "[x]" else "[ ]"}  ${block.text}"
                         is QuoteBlock -> "\"${block.text}\""
-                        else -> ""
                     }
 
                     val leading = fontSize * 1.4f

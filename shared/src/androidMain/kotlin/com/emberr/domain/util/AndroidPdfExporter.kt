@@ -92,7 +92,6 @@ fun generateAndSaveAndroidPdf(
                         is NumberedListBlock -> "${block.number}.  ${block.text}"
                         is CheckboxBlock -> "${if (block.isChecked) "[x]" else "[ ]"}  ${block.text}"
                         is QuoteBlock -> block.text
-                        else -> ""
                     }
 
                     if (textStr.isBlank() && block is TextBlock) {
