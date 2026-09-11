@@ -12,6 +12,7 @@ import com.emberr.domain.model.DatabaseRow
 import com.emberr.domain.model.DocumentBlock
 import com.emberr.domain.model.HeadingBlock
 import com.emberr.domain.model.ImageBlock
+import com.emberr.domain.model.InlineSpan
 import com.emberr.domain.model.LinkedNoteBlock
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NumberedListBlock
@@ -108,11 +109,8 @@ class ExportEngineTest {
     }
 
     @Test
-    fun togglesBecomeACollapsibleSectionInMarkdown() {
-        assertEquals(
-            "<details>\n  <summary>Details</summary>\n</details>",
-            markdownOf(ToggleBlock(id = "toggle-1", text = "Details"))
-        )
+    fun togglesBecomeAMarkedBulletInMarkdown() {
+        assertEquals("- \u25B8 Details", markdownOf(ToggleBlock(id = "toggle-1", text = "Details")))
         assertEquals("▶ Details", plainTextOf(ToggleBlock(id = "toggle-1", text = "Details")))
     }
 
@@ -125,9 +123,9 @@ class ExportEngineTest {
     }
 
     @Test
-    fun bothKindsOfDividerBecomeAHorizontalRule() {
+    fun theTwoDividerStylesStayTellableApartInMarkdown() {
         assertEquals("---", markdownOf(SolidDividerBlock(id = "divider-1")))
-        assertEquals("---", markdownOf(ThreeDotDividerBlock(id = "divider-2")))
+        assertEquals("* * *", markdownOf(ThreeDotDividerBlock(id = "divider-2")))
         assertEquals("---", plainTextOf(SolidDividerBlock(id = "divider-1")))
     }
 
@@ -148,9 +146,9 @@ class ExportEngineTest {
         val document = DocumentBlock(id = "document-1", localFilePath = "stored.pdf", fileName = "invoice.pdf")
 
         assertEquals("[Image]", plainTextOf(image))
-        assertEquals("![Image](photo.png)", markdownOf(image))
+        assertEquals("![](photo.png)", markdownOf(image))
         assertEquals("[File: invoice.pdf]", plainTextOf(document))
-        assertEquals("[📄 invoice.pdf](stored.pdf)", markdownOf(document))
+        assertEquals("[invoice.pdf](stored.pdf)", markdownOf(document))
     }
 
     @Test
@@ -167,7 +165,7 @@ class ExportEngineTest {
     }
 
     @Test
-    fun textStylesAreNestedItalicThenBoldThenStrikethrough() {
+    fun textStylesAreNestedBoldThenItalicThenStrikethrough() {
         val styled = TextBlock(
             id = "text-1",
             text = "urgent",
@@ -176,7 +174,18 @@ class ExportEngineTest {
             isStrikeThrough = true
         )
 
-        assertEquals("~~***urgent***~~", markdownOf(styled))
+        assertEquals("***~~urgent~~***", markdownOf(styled))
+    }
+
+    @Test
+    fun formattingAppliedToPartOfALineSurvivesTheExport() {
+        val styled = TextBlock(
+            id = "text-1",
+            text = "call the plumber, urgent",
+            inlineSpans = listOf(InlineSpan(start = 18, end = 24, bold = true))
+        )
+
+        assertEquals("call the plumber, **urgent**", markdownOf(styled))
     }
 
     @Test
@@ -187,8 +196,8 @@ class ExportEngineTest {
     }
 
     @Test
-    fun aHeadingIsNeverGivenExtraBoldMarkersBecauseTheHashesAlreadyCarryIt() {
-        assertEquals("# Title", markdownOf(HeadingBlock(id = "heading-1", text = "Title", isBold = true)))
+    fun aBoldHeadingKeepsItsMarkersSoTheFlagIsNotLostOnImport() {
+        assertEquals("# **Title**", markdownOf(HeadingBlock(id = "heading-1", text = "Title", isBold = true)))
     }
 
     @Test
@@ -217,7 +226,7 @@ class ExportEngineTest {
     @Test
     fun aDatabaseBecomesAMarkdownTableWithAHeaderRow() {
         assertEquals(
-            "**Shopping**\n| Name | Amount |\n|---|---|\n| Buy milk | 12.5 |",
+            "**Shopping**\n\n| Name | Amount |\n| --- | --- |\n| Buy milk | 12.5 |",
             markdownOf(shoppingDatabase())
         )
     }
@@ -259,7 +268,7 @@ class ExportEngineTest {
         }
 
         assertEquals(
-            "**Shopping**\n| Name | Amount |\n|---|---|\n| Buy milk | 12.5 |",
+            "**Shopping**\n\n| Name | Amount |\n| --- | --- |\n| Buy milk | 12.5 |",
             markdownOf(database)
         )
     }
@@ -267,7 +276,7 @@ class ExportEngineTest {
     @Test
     fun aTableBecomesAMarkdownTableWithASeparatorAfterTheFirstRow() {
         assertEquals(
-            "| Header A | Header B |\n|---|---|\n| Cell A | Cell B |",
+            "| Header A | Header B |\n| --- | --- |\n| Cell A | Cell B |",
             markdownOf(
                 TableBlock(
                     id = "table-1",
