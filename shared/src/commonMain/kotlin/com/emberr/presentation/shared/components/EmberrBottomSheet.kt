@@ -1,6 +1,9 @@
 package com.emberr.presentation.shared.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,12 +25,35 @@ import com.emberr.presentation.shared.stableStatusBarsPadding
 import com.emberr.ui.theme.LocalAppIsDark
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.math.abs
 
 private val BottomSheetShape = RoundedCornerShape(topEnd = 26.dp, topStart = 26.dp)
 private val FloatingDialogShape = RoundedCornerShape(12.dp)
 private val SheetHorizontalPadding = 20.dp
 private val SheetIconShadowElevation = 0.dp
 private val SheetIconSpacing = 8.dp
+
+/**
+ * Scrolls a focused child just far enough to be fully visible, and not at all when it already is.
+ * A sheet has to provide this for itself because a host screen can install its own
+ * [BringIntoViewSpec] to reserve room for floating bars; inherited into a short sheet, those
+ * reservations never fit, so every keystroke asks for a scroll the sheet cannot make and the
+ * leftover distance is handed to the sheet's drag anchor instead, walking it off the bottom.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private object SheetBringIntoViewSpec : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+        val leadingEdge = offset
+        val trailingEdge = offset + size
+        val bottomDelta = trailingEdge - containerSize
+        return when {
+            leadingEdge >= 0f && trailingEdge <= containerSize -> 0f
+            leadingEdge < 0f && trailingEdge > containerSize -> 0f
+            abs(leadingEdge) < abs(bottomDelta) -> leadingEdge
+            else -> bottomDelta
+        }
+    }
+}
 
 class EmberrBottomSheetAction(
     val icon: Painter,
@@ -36,7 +62,7 @@ class EmberrBottomSheetAction(
     val onClick: () -> Unit
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun EmberrBottomSheet(
     expanded: Boolean,
@@ -50,25 +76,27 @@ fun EmberrBottomSheet(
 ) {
     if (!expanded) return
 
-    if (isDesktopPlatform) {
-        EmberrFloatingDialog(
-            onDismiss = onDismiss,
-            title = title,
-            subtitle = subtitle,
-            headerAction = headerAction,
-            contentHorizontalPadding = contentHorizontalPadding,
-            content = content
-        )
-    } else {
-        EmberrModalBottomSheet(
-            onDismiss = onDismiss,
-            title = title,
-            subtitle = subtitle,
-            applyNavPadding = applyNavPadding,
-            headerAction = headerAction,
-            contentHorizontalPadding = contentHorizontalPadding,
-            content = content
-        )
+    CompositionLocalProvider(LocalBringIntoViewSpec provides SheetBringIntoViewSpec) {
+        if (isDesktopPlatform) {
+            EmberrFloatingDialog(
+                onDismiss = onDismiss,
+                title = title,
+                subtitle = subtitle,
+                headerAction = headerAction,
+                contentHorizontalPadding = contentHorizontalPadding,
+                content = content
+            )
+        } else {
+            EmberrModalBottomSheet(
+                onDismiss = onDismiss,
+                title = title,
+                subtitle = subtitle,
+                applyNavPadding = applyNavPadding,
+                headerAction = headerAction,
+                contentHorizontalPadding = contentHorizontalPadding,
+                content = content
+            )
+        }
     }
 }
 
