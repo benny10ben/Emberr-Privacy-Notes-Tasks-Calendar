@@ -56,7 +56,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.ext.android.inject
-import org.koin.androidx.compose.KoinAndroidContext
 import java.util.UUID
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -218,179 +217,177 @@ class MainActivity : ComponentActivity() {
 
             EmberrTheme(darkTheme = darkTheme, fontSizePreference = fontSizePreference, fontStylePreference = fontStylePreference) {
                 Surface(color = Color.Transparent, modifier = Modifier.fillMaxSize()) {
-                    KoinAndroidContext {
-                        val context = LocalContext.current
+                    val context = LocalContext.current
 
-                        val backupFolderPickerLauncher = rememberLauncherForActivityResult(
-                            ActivityResultContracts.OpenDocumentTree()
-                        ) { uri ->
-                            uri?.let {
-                                try {
-                                    // Take persistable permission so the background worker can use it forever
-                                    val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                                    context.contentResolver.takePersistableUriPermission(it, takeFlags)
+                    val backupFolderPickerLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.OpenDocumentTree()
+                    ) { uri ->
+                        uri?.let {
+                            try {
+                                // Take persistable permission so the background worker can use it forever
+                                val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                                context.contentResolver.takePersistableUriPermission(it, takeFlags)
 
-                                    // Save the URI and turn on the toggle in the ViewModel
-                                    settingsViewModel.setBackupDirectory(it.toString())
-                                    settingsViewModel.setAutoBackupEnabled(true)
+                                // Save the URI and turn on the toggle in the ViewModel
+                                settingsViewModel.setBackupDirectory(it.toString())
+                                settingsViewModel.setAutoBackupEnabled(true)
 
-                                    Toast.makeText(context, "Backup folder linked!", Toast.LENGTH_SHORT).show()
-                                } catch (_: Exception) {
-                                    Toast.makeText(context, "Failed to link folder.", Toast.LENGTH_SHORT).show()
-                                }
+                                Toast.makeText(context, "Backup folder linked!", Toast.LENGTH_SHORT).show()
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "Failed to link folder.", Toast.LENGTH_SHORT).show()
                             }
                         }
-
-                        // State to hold payloads while the OS file picker is open
-                        var pendingMarkdownContent by remember { mutableStateOf("") }
-                        var pendingPdfTitle by remember { mutableStateOf("") }
-                        var pendingPdfBlocks by remember { mutableStateOf(emptyList<NoteBlock>()) }
-
-                        // Markdown Saver
-                        val exportMarkdownLauncher = rememberLauncherForActivityResult(
-                            ActivityResultContracts.CreateDocument("text/markdown")
-                        ) { uri ->
-                            uri?.let {
-                                try {
-                                    context.contentResolver.openOutputStream(it)?.use { stream ->
-                                        stream.write(pendingMarkdownContent.toByteArray())
-                                    }
-                                    Toast.makeText(context, "Markdown saved", Toast.LENGTH_SHORT).show()
-                                } catch (_: Exception) {
-                                    Toast.makeText(context, "Failed to save file", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-
-                        // PDF Saver
-                        val exportPdfLauncher = rememberLauncherForActivityResult(
-                            ActivityResultContracts.CreateDocument("application/pdf")
-                        ) { uri ->
-                            uri?.let { generateAndSaveAndroidPdf(context, it, pendingPdfTitle, pendingPdfBlocks, mediaStorageHelper) }
-                        }
-
-                        val exportBackupLauncher = rememberLauncherForActivityResult(
-                            ActivityResultContracts.CreateDocument("application/zip")
-                        ) { uri ->
-                            uri?.let { destinationUri ->
-                                lifecycleScope.launch(Dispatchers.IO) {
-                                    try {
-                                        manualBackupExporter.exportToZip(destinationUri)
-
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "Backup saved!", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // BACKUP IMPORT LAUNCHER
-                        val importBackupLauncher = rememberLauncherForActivityResult(
-                            ActivityResultContracts.OpenDocument()
-                        ) { uri ->
-                            uri?.let { sourceUri ->
-                                lifecycleScope.launch(Dispatchers.IO) {
-                                    try {
-                                        manualBackupImporter.importFromZip(sourceUri)
-
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "Backup restored successfully!", Toast.LENGTH_LONG).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        EmberrApp(
-                            startRoute = routeForThisLaunch,
-                            onExitApp = { finish() },
-                            onPickImage = { callback ->
-                                imagePickerCallback = callback
-                                pickImage.launch("image/*")
-                            },
-                            onTakePhoto = { callback ->
-                                takePhotoCallback = callback
-
-                                val photoFile = java.io.File(this@MainActivity.filesDir, "camera_${UUID.randomUUID()}.jpg")
-                                if (!photoFile.exists()) {
-                                    photoFile.createNewFile()
-                                }
-
-                                currentPhotoUri = androidx.core.content.FileProvider.getUriForFile(
-                                    this@MainActivity,
-                                    "${applicationContext.packageName}.fileprovider",
-                                    photoFile
-                                )
-                                takePhoto.launch(currentPhotoUri!!)
-                            },
-                            onPickDocument = { callback ->
-                                documentPickerCallback = callback
-                                pickDocument.launch("*/*")
-                            },
-                            onOpenFile = { filePath, mimeType ->
-                                try {
-                                    // Use our smart helper to perfectly locate the file!
-                                    val absolutePath = mediaStorageHelper.getAbsoluteMediaPath(filePath)
-                                    val file = java.io.File(absolutePath)
-
-                                    if (!file.exists()) {
-                                        Toast.makeText(this@MainActivity, "This file is no longer available on this device.", Toast.LENGTH_LONG).show()
-                                    } else {
-                                        val uri = androidx.core.content.FileProvider.getUriForFile(
-                                            this@MainActivity,
-                                            "${applicationContext.packageName}.fileprovider",
-                                            file
-                                        )
-
-                                        var finalMimeType = mimeType
-                                        if (finalMimeType == "*/*" || finalMimeType.isBlank()) {
-                                            val extension = file.extension.lowercase()
-                                            finalMimeType = android.webkit.MimeTypeMap.getSingleton()
-                                                .getMimeTypeFromExtension(extension) ?: "*/*"
-                                        }
-
-                                        val viewIntent = Intent(Intent.ACTION_VIEW).apply {
-                                            setDataAndType(uri, finalMimeType)
-                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        }
-                                        startActivity(viewIntent)
-                                    }
-                                } catch (e: ActivityNotFoundException) {
-                                    Toast.makeText(this@MainActivity, "No app found to open this document type.", Toast.LENGTH_LONG).show()
-                                } catch (e: Exception) {
-                                    Toast.makeText(this@MainActivity, "Failed to open file: ${e.message}", Toast.LENGTH_LONG).show()
-                                }
-                            },
-                            onExportMarkdown = { fileName, content ->
-                                pendingMarkdownContent = content
-                                exportMarkdownLauncher.launch(fileName)
-                            },
-                            onExportPdf = { fileName, title, blocks ->
-                                pendingPdfTitle = title
-                                pendingPdfBlocks = blocks
-                                exportPdfLauncher.launch(fileName)
-                            },
-                            onExportBackup = {
-                                val fileName = "EmberrBackup_${System.currentTimeMillis()}.emberr"
-                                exportBackupLauncher.launch(fileName)
-                            },
-                            onImportBackupClick = {
-                                importBackupLauncher.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed"))
-                            },
-                            onRequestBackupFolder = {
-                                backupFolderPickerLauncher.launch(null)
-                            }
-                        )
                     }
+
+                    // State to hold payloads while the OS file picker is open
+                    var pendingMarkdownContent by remember { mutableStateOf("") }
+                    var pendingPdfTitle by remember { mutableStateOf("") }
+                    var pendingPdfBlocks by remember { mutableStateOf(emptyList<NoteBlock>()) }
+
+                    // Markdown Saver
+                    val exportMarkdownLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.CreateDocument("text/markdown")
+                    ) { uri ->
+                        uri?.let {
+                            try {
+                                context.contentResolver.openOutputStream(it)?.use { stream ->
+                                    stream.write(pendingMarkdownContent.toByteArray())
+                                }
+                                Toast.makeText(context, "Markdown saved", Toast.LENGTH_SHORT).show()
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "Failed to save file", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+
+                    // PDF Saver
+                    val exportPdfLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.CreateDocument("application/pdf")
+                    ) { uri ->
+                        uri?.let { generateAndSaveAndroidPdf(context, it, pendingPdfTitle, pendingPdfBlocks, mediaStorageHelper) }
+                    }
+
+                    val exportBackupLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.CreateDocument("application/zip")
+                    ) { uri ->
+                        uri?.let { destinationUri ->
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                try {
+                                    manualBackupExporter.exportToZip(destinationUri)
+
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Backup saved!", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // BACKUP IMPORT LAUNCHER
+                    val importBackupLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.OpenDocument()
+                    ) { uri ->
+                        uri?.let { sourceUri ->
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                try {
+                                    manualBackupImporter.importFromZip(sourceUri)
+
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Backup restored successfully!", Toast.LENGTH_LONG).show()
+                                    }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    EmberrApp(
+                        startRoute = routeForThisLaunch,
+                        onExitApp = { finish() },
+                        onPickImage = { callback ->
+                            imagePickerCallback = callback
+                            pickImage.launch("image/*")
+                        },
+                        onTakePhoto = { callback ->
+                            takePhotoCallback = callback
+
+                            val photoFile = java.io.File(this@MainActivity.filesDir, "camera_${UUID.randomUUID()}.jpg")
+                            if (!photoFile.exists()) {
+                                photoFile.createNewFile()
+                            }
+
+                            currentPhotoUri = androidx.core.content.FileProvider.getUriForFile(
+                                this@MainActivity,
+                                "${applicationContext.packageName}.fileprovider",
+                                photoFile
+                            )
+                            takePhoto.launch(currentPhotoUri!!)
+                        },
+                        onPickDocument = { callback ->
+                            documentPickerCallback = callback
+                            pickDocument.launch("*/*")
+                        },
+                        onOpenFile = { filePath, mimeType ->
+                            try {
+                                // Use our smart helper to perfectly locate the file!
+                                val absolutePath = mediaStorageHelper.getAbsoluteMediaPath(filePath)
+                                val file = java.io.File(absolutePath)
+
+                                if (!file.exists()) {
+                                    Toast.makeText(this@MainActivity, "This file is no longer available on this device.", Toast.LENGTH_LONG).show()
+                                } else {
+                                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                                        this@MainActivity,
+                                        "${applicationContext.packageName}.fileprovider",
+                                        file
+                                    )
+
+                                    var finalMimeType = mimeType
+                                    if (finalMimeType == "*/*" || finalMimeType.isBlank()) {
+                                        val extension = file.extension.lowercase()
+                                        finalMimeType = android.webkit.MimeTypeMap.getSingleton()
+                                            .getMimeTypeFromExtension(extension) ?: "*/*"
+                                    }
+
+                                    val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(uri, finalMimeType)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    startActivity(viewIntent)
+                                }
+                            } catch (e: ActivityNotFoundException) {
+                                Toast.makeText(this@MainActivity, "No app found to open this document type.", Toast.LENGTH_LONG).show()
+                            } catch (e: Exception) {
+                                Toast.makeText(this@MainActivity, "Failed to open file: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        onExportMarkdown = { fileName, content ->
+                            pendingMarkdownContent = content
+                            exportMarkdownLauncher.launch(fileName)
+                        },
+                        onExportPdf = { fileName, title, blocks ->
+                            pendingPdfTitle = title
+                            pendingPdfBlocks = blocks
+                            exportPdfLauncher.launch(fileName)
+                        },
+                        onExportBackup = {
+                            val fileName = "EmberrBackup_${System.currentTimeMillis()}.emberr"
+                            exportBackupLauncher.launch(fileName)
+                        },
+                        onImportBackupClick = {
+                            importBackupLauncher.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed"))
+                        },
+                        onRequestBackupFolder = {
+                            backupFolderPickerLauncher.launch(null)
+                        }
+                    )
                 }
             }
         }
