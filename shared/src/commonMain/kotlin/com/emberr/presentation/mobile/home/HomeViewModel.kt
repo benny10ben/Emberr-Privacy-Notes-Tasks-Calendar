@@ -275,7 +275,7 @@ class HomeViewModel(
     val recentNotes = repository.getAllLinkableNotes()
         .map { notes ->
             notes.filter { !it.title.equals("Inbox", ignoreCase = true) }
-                .sortedByDescending { it.updatedAt }.take(4)
+                .sortedByDescending { it.updatedAt }.take(MAXIMUM_RECENT_NOTES_SHOWN)
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
@@ -877,5 +877,9 @@ class HomeViewModel(
             val folder = _allFolders.value.find { it.folderId == folderId } ?: return@launch
             repository.insertFolder(folder.copy(parentFolderId = targetParentId))
         }
+    }
+
+    companion object {
+        private const val MAXIMUM_RECENT_NOTES_SHOWN = 10
     }
 }
