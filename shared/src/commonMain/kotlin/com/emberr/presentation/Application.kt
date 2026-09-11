@@ -33,6 +33,7 @@ import com.emberr.domain.util.isDesktopPlatform
 import com.emberr.presentation.mobile.daily.DailyScreen
 import com.emberr.presentation.navigation.Screen
 import com.emberr.presentation.onboarding.OnboardingScreen
+import com.emberr.presentation.shared.components.LocalEmberrBlurSource
 import com.emberr.presentation.trash.TrashScreen
 import dev.chrisbanes.haze.HazeState
 import com.emberr.presentation.splash.LoadingScreen
@@ -275,7 +276,8 @@ fun EmberrApp(
     }
 
     CompositionLocalProvider(
-        LocalImageOverlay provides { content -> fullScreenContent = content }
+        LocalImageOverlay provides { content -> fullScreenContent = content },
+        LocalEmberrBlurSource provides if (isDesktopPlatform) null else hazeState
     ) {
         if (isDesktopPlatform) {
             var isOnboardingCompleted by remember { mutableStateOf(settingsManager.isOnboardingCompleted()) }
