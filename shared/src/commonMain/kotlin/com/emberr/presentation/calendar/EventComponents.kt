@@ -81,6 +81,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 import org.jetbrains.compose.resources.painterResource
 
 private val EventChipTextColor = Color(0xFF1A1A1A)
@@ -155,7 +156,7 @@ fun CalendarEvent.toEditorState(): EventEditorState {
 
 
 fun EventEditorState.toEpochMillis(): Long {
-    val localDateTime = LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, hour, minute)
+    val localDateTime = LocalDateTime(date.year, date.month.number, date.day, hour, minute)
     return localDateTime.toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
 }
 fun EventEditorState.toEndEpochMillis(): Long = toEpochMillis() + durationMinutes * 60_000L
@@ -811,7 +812,7 @@ private fun buildRepeatSummary(
             .sortedBy { WeekdayOrder.indexOf(it) }
             .joinToString(", ") { it.shortLabel() }
             .let { if (it.isBlank()) "" else " on $it" }
-        RecurrenceFrequency.MONTHLY -> " on day ${anchorDate.dayOfMonth}"
+        RecurrenceFrequency.MONTHLY -> " on day ${anchorDate.day}"
         else -> ""
     }
     val ending = untilDateString
@@ -1012,7 +1013,7 @@ private fun CustomRepeatDialog(
                 if (showEndDatePicker) {
                     val initialMillis = untilDateString?.let { LocalDate.parse(it) }
                         ?.let {
-                            LocalDateTime(it.year, it.monthNumber, it.dayOfMonth, 0, 0)
+                            LocalDateTime(it.year, it.month.number, it.day, 0, 0)
                                 .toInstant(TimeZone.UTC).toEpochMilliseconds()
                         }
                         ?: System.currentTimeMillis()

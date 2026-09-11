@@ -82,7 +82,7 @@ fun formatLastSynced(epochMillis: Long?): String {
     val month = local.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
     val hour = local.hour.toString().padStart(2, '0')
     val minute = local.minute.toString().padStart(2, '0')
-    return "Last synced: $month ${local.dayOfMonth}, $hour:$minute"
+    return "Last synced: $month ${local.day}, $hour:$minute"
 }
 
 class SelfHostSetupViewModel(

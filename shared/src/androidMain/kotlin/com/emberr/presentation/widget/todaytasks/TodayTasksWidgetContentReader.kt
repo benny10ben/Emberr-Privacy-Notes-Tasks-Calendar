@@ -13,6 +13,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 
 private const val maximumTasksShown = 12
 private const val maximumCharactersPerTitle = 120
@@ -73,9 +74,9 @@ private val dayNames = listOf(
 )
 
 private fun formatDateHeading(date: LocalDate): String {
-    val month = monthNames.getOrNull(date.monthNumber - 1) ?: date.month.name
+    val month = monthNames.getOrNull(date.month.number - 1) ?: date.month.name
     val day = dayNames.getOrNull(date.dayOfWeek.ordinal) ?: date.dayOfWeek.name
-    return "$month ${date.dayOfMonth}, $day"
+    return "$month ${date.day}, $day"
 }
 
 private fun toLocalTime(timestamp: Long): LocalDateTime =

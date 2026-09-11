@@ -79,6 +79,7 @@ import emberr.shared.generated.resources.calendar
 import emberr.shared.generated.resources.ellipsis
 import emberr.shared.generated.resources.history2
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 import org.jetbrains.compose.resources.painterResource
 
 private fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = composed {
@@ -715,7 +716,7 @@ private fun DailyTopBar(
                 val isToday = selectedDate == Clock.System.todayIn(TimeZone.currentSystemDefault())
                 val titleText = if (isToday) "Today" else {
                     val shortDay = selectedDate.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
-                    "$shortDay ${selectedDate.dayOfMonth}"
+                    "$shortDay ${selectedDate.day}"
                 }
 
                 Text(
@@ -902,7 +903,7 @@ internal fun TaskDaySection(
                     val timeLabel = if (timestamp == null || timestamp == 0L) {
                         "All Day"
                     } else {
-                        val dt = kotlinx.datetime.Instant.fromEpochMilliseconds(timestamp)
+                        val dt = Instant.fromEpochMilliseconds(timestamp)
                             .toLocalDateTime(TimeZone.currentSystemDefault())
                         val hour = dt.hour
                         val amPm = if (hour >= 12) "PM" else "AM"

@@ -13,6 +13,7 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 import kotlinx.serialization.Serializable
 
 enum class RecurrenceFrequency { DAILY, WEEKLY, MONTHLY, YEARLY }
@@ -63,16 +64,16 @@ object RecurrenceEngine {
     }
 
     private fun occursOnMonthly(rule: RecurrenceRule, anchor: LocalDate, candidate: LocalDate): Boolean {
-        val targetDay = minOf(anchor.dayOfMonth, daysInMonth(candidate.year, candidate.month))
-        if (candidate.dayOfMonth != targetDay) return false
-        val monthsBetween = (candidate.year - anchor.year) * 12 + (candidate.monthNumber - anchor.monthNumber)
+        val targetDay = minOf(anchor.day, daysInMonth(candidate.year, candidate.month))
+        if (candidate.day != targetDay) return false
+        val monthsBetween = (candidate.year - anchor.year) * 12 + (candidate.month.number - anchor.month.number)
         return monthsBetween % rule.interval == 0
     }
 
     private fun occursOnYearly(rule: RecurrenceRule, anchor: LocalDate, candidate: LocalDate): Boolean {
-        if (candidate.monthNumber != anchor.monthNumber) return false
-        val targetDay = minOf(anchor.dayOfMonth, daysInMonth(candidate.year, candidate.month))
-        if (candidate.dayOfMonth != targetDay) return false
+        if (candidate.month.number != anchor.month.number) return false
+        val targetDay = minOf(anchor.day, daysInMonth(candidate.year, candidate.month))
+        if (candidate.day != targetDay) return false
         val yearsBetween = candidate.year - anchor.year
         return yearsBetween % rule.interval == 0
     }
@@ -96,7 +97,7 @@ object RecurrenceEngine {
     ): Long {
         val originalDateTime = Instant.fromEpochMilliseconds(originalTimestamp).toLocalDateTime(timeZone)
         val retargeted = LocalDateTime(
-            newDate.year, newDate.monthNumber, newDate.dayOfMonth,
+            newDate.year, newDate.month.number, newDate.day,
             originalDateTime.hour, originalDateTime.minute, originalDateTime.second
         )
         return retargeted.toInstant(timeZone).toEpochMilliseconds()

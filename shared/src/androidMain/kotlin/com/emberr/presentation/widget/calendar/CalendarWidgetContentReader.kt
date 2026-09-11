@@ -13,6 +13,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
+import kotlinx.datetime.number
 
 private const val maximumDotsPerDay = 4
 private const val weeksShown = 6
@@ -75,7 +76,7 @@ class CalendarWidgetContentReader(
             (0 until daysPerWeek).map { dayIndex ->
                 val date = gridStart.plus(DatePeriod(days = weekIndex * daysPerWeek + dayIndex))
 
-                if (date.monthNumber != firstOfMonth.monthNumber || date.year != firstOfMonth.year) {
+                if (date.month.number != firstOfMonth.month.number || date.year != firstOfMonth.year) {
                     CalendarDayCell(
                         dateString = null,
                         dayNumber = null,
@@ -86,7 +87,7 @@ class CalendarWidgetContentReader(
                     val dateString = date.toString()
                     CalendarDayCell(
                         dateString = dateString,
-                        dayNumber = date.dayOfMonth,
+                        dayNumber = date.day,
                         isToday = date == today,
                         dotColorHexes = dotsByDate[dateString].orEmpty()
                     )
@@ -121,12 +122,12 @@ private fun parseFirstOfMonth(shownMonth: String?): LocalDate? {
 }
 
 private fun firstOfMonthFor(date: LocalDate): LocalDate =
-    LocalDate(date.year, date.monthNumber, 1)
+    LocalDate(date.year, date.month.number, 1)
 
 private fun monthKeyOf(date: LocalDate): String =
-    "${date.year}-${date.monthNumber.toString().padStart(2, '0')}"
+    "${date.year}-${date.month.number.toString().padStart(2, '0')}"
 
 private fun formatMonthLabel(firstOfMonth: LocalDate): String {
-    val month = monthNames.getOrNull(firstOfMonth.monthNumber - 1) ?: firstOfMonth.month.name
+    val month = monthNames.getOrNull(firstOfMonth.month.number - 1) ?: firstOfMonth.month.name
     return "$month ${firstOfMonth.year}"
 }

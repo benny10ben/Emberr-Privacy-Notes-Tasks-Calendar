@@ -22,6 +22,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 import java.util.UUID
 
 data class DocumentGroup(
@@ -75,7 +76,7 @@ class DocumentsViewModel(
 
                     val instant = Instant.fromEpochMilliseconds(note.createdAt)
                     val localDate = instant.toLocalDateTime(TimeZone.currentSystemDefault()).date
-                    val monthYearString = "${months[localDate.monthNumber]} ${localDate.year}"
+                    val monthYearString = "${months[localDate.month.number]} ${localDate.year}"
 
                     content?.blocks?.forEach { block ->
                         if (block is DocumentBlock && !block.isDeleted) {

@@ -79,6 +79,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.animation.core.animateFloatAsState
 import com.emberr.data.local.room.NoteMetadataEntity
@@ -413,7 +414,6 @@ fun NoteBlockItem(
                                 modifier = Modifier.size(32.dp).rotate(rotation).clickable { actions.onToggleExpand(block.id) }
                             )
                         }
-                        else -> {}
                     }
                 }
             }
@@ -569,7 +569,7 @@ fun NoteBlockItem(
                                             .clip(RoundedCornerShape(5.dp))
                                             .background(MaterialTheme.colorScheme.surface)
                                         .clickable {
-                                            val occurrenceDate = block.reminderTimestamp?.let {
+                                            val occurrenceDate = block.reminderTimestamp.let {
                                                 Instant.fromEpochMilliseconds(it)
                                                     .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
                                             }
@@ -667,12 +667,12 @@ fun NoteBlockItem(
                                 }
                                 if (hasReminder) {
                                     val timeText = remember(block.reminderTimestamp) {
-                                        val instant = Instant.fromEpochMilliseconds(block.reminderTimestamp!!)
+                                        val instant = Instant.fromEpochMilliseconds(block.reminderTimestamp)
                                         val dt = instant.toLocalDateTime(TimeZone.currentSystemDefault())
                                         val amPm = if (dt.hour >= 12) "PM" else "AM"
                                         val hour12 = if (dt.hour % 12 == 0) 12 else dt.hour % 12
                                         val minStr = dt.minute.toString().padStart(2, '0')
-                                        "${dt.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }} ${dt.dayOfMonth}, $hour12:$minStr $amPm"
+                                        "${dt.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }} ${dt.day}, $hour12:$minStr $amPm"
                                     }
                                     Text(
                                         text = timeText,
@@ -787,7 +787,6 @@ fun NoteBlockItem(
                                     Box(Modifier.size(dotSize).clip(CircleShape).background(dotColor))
                                 }
                             }
-                            else -> {}
                         }
                     }
                 }
@@ -827,7 +826,7 @@ fun NoteBlockItem(
                         } ?: Clock.System.now()
                         val currentDt = currentInstant.toLocalDateTime(tz)
                         val newDt = LocalDateTime(
-                            currentDt.year, currentDt.monthNumber, currentDt.dayOfMonth,
+                            currentDt.year, currentDt.month.number, currentDt.day,
                             hour, minute, 0, 0
                         )
                         actions.onUpdateReminder(

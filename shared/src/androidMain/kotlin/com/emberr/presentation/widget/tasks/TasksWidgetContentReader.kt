@@ -152,7 +152,7 @@ private fun dailyDateLabel(dateString: String): String {
         else -> {
             val shortDay = date.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
             val shortMonth = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
-            "$shortDay, $shortMonth ${date.dayOfMonth}"
+            "$shortDay, $shortMonth ${date.day}"
         }
     }
 }

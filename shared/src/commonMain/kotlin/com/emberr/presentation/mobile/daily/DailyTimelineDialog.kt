@@ -849,7 +849,7 @@ private fun timelineDayLabel(date: LocalDate, today: LocalDate): String = when (
     else -> {
         val weekday = shortName(date.dayOfWeek.name)
         val month = shortName(date.month.name)
-        "$weekday, ${date.dayOfMonth} $month ${date.year}"
+        "$weekday, ${date.day} $month ${date.year}"
     }
 }
 

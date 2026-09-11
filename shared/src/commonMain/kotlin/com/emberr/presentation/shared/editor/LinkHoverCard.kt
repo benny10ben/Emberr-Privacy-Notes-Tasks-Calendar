@@ -118,7 +118,7 @@ private fun lastEditedLabel(updatedAt: Long): String {
     val editedOn = Instant.fromEpochMilliseconds(updatedAt)
         .toLocalDateTime(TimeZone.currentSystemDefault())
     val month = editedOn.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
-    return "Edited $month ${editedOn.dayOfMonth}"
+    return "Edited $month ${editedOn.day}"
 }
 
 @Composable

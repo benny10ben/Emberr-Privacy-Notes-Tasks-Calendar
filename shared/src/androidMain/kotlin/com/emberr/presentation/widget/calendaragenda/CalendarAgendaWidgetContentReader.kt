@@ -17,6 +17,7 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 
 private const val weeksShown = 6
 private const val daysPerWeek = 7
@@ -73,11 +74,11 @@ class CalendarAgendaWidgetContentReader(
             (0 until daysPerWeek).map { dayIndex ->
                 val date = gridStart.plus(DatePeriod(days = weekIndex * daysPerWeek + dayIndex))
 
-                if (date.monthNumber != firstOfMonth.monthNumber || date.year != firstOfMonth.year) {
+                if (date.month.number != firstOfMonth.month.number || date.year != firstOfMonth.year) {
                     AgendaDayCell(dayNumber = null, isToday = false, hasEvents = false)
                 } else {
                     AgendaDayCell(
-                        dayNumber = date.dayOfMonth,
+                        dayNumber = date.day,
                         isToday = date == today,
                         hasEvents = date.toString() in datesWithEvents
                     )
@@ -132,19 +133,19 @@ private fun parseFirstOfMonth(shownMonth: String?): LocalDate? {
 }
 
 private fun firstOfMonthFor(date: LocalDate): LocalDate =
-    LocalDate(date.year, date.monthNumber, 1)
+    LocalDate(date.year, date.month.number, 1)
 
 private fun monthKeyOf(date: LocalDate): String =
-    "${date.year}-${date.monthNumber.toString().padStart(2, '0')}"
+    "${date.year}-${date.month.number.toString().padStart(2, '0')}"
 
 private fun formatMonthLabel(firstOfMonth: LocalDate): String =
-    monthNames.getOrNull(firstOfMonth.monthNumber - 1) ?: firstOfMonth.month.name
+    monthNames.getOrNull(firstOfMonth.month.number - 1) ?: firstOfMonth.month.name
 
 private fun formatWhenLabel(timestamp: Long): String {
     val moment = Instant.fromEpochMilliseconds(timestamp)
         .toLocalDateTime(TimeZone.currentSystemDefault())
-    val month = shortMonthNames.getOrNull(moment.monthNumber - 1) ?: moment.month.name.take(3)
-    return "$month ${moment.dayOfMonth}, ${formatClockTime(moment)}"
+    val month = shortMonthNames.getOrNull(moment.month.number - 1) ?: moment.month.name.take(3)
+    return "$month ${moment.day}, ${formatClockTime(moment)}"
 }
 
 private fun formatClockTime(moment: LocalDateTime): String {

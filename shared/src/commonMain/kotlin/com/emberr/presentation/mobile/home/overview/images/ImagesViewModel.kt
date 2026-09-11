@@ -22,6 +22,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 import java.util.UUID
 
 data class ImageGroup(
@@ -66,7 +67,7 @@ class ImagesViewModel(
 
                     val instant   = Instant.fromEpochMilliseconds(entity.noteCreatedAt)
                     val localDate = instant.toLocalDateTime(TimeZone.currentSystemDefault()).date
-                    val key       = "${months[localDate.monthNumber]} ${localDate.year}"
+                    val key       = "${months[localDate.month.number]} ${localDate.year}"
 
                     monthGroups.getOrPut(key) { mutableListOf() }.add(
                         ImageBlock(id = entity.blockId, localFilePath = entity.localFilePath)

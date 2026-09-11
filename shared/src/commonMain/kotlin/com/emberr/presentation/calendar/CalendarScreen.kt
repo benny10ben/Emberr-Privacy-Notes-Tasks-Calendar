@@ -115,6 +115,7 @@ import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.time.Duration.Companion.milliseconds
@@ -702,7 +703,7 @@ private fun MultiDayHeaderBar(
 
 internal fun formatFullDate(date: LocalDate): String {
     val monthAbbrev = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
-    return "$monthAbbrev ${date.dayOfMonth}${ordinalSuffix(date.dayOfMonth)}, ${date.year}"
+    return "$monthAbbrev ${date.day}${ordinalSuffix(date.day)}, ${date.year}"
 }
 
 private fun formatSelectedDateTitle(date: LocalDate): String = formatFullDate(date)
@@ -976,12 +977,12 @@ private fun formatHourLabel(hour: Int): String {
 
 private fun formatShortDayLabel(date: LocalDate): String {
     val shortDay = date.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
-    return "$shortDay ${date.dayOfMonth}"
+    return "$shortDay ${date.day}"
 }
 
 private fun formatSingleLetterDayLabel(date: LocalDate): String {
     val initial = date.dayOfWeek.name.take(1)
-    return "$initial ${date.dayOfMonth}"
+    return "$initial ${date.day}"
 }
 
 private fun LocalDate.startOfWeek(): LocalDate {
@@ -1206,7 +1207,7 @@ private fun MonthGridContent(
     val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
     val gridDates = remember(anchorMonth) { buildMonthGridDates(anchorMonth) }
     val yearMonth = remember(anchorMonth) {
-        "${anchorMonth.year}-${anchorMonth.monthNumber.toString().padStart(2, '0')}"
+        "${anchorMonth.year}-${anchorMonth.month.number.toString().padStart(2, '0')}"
     }
     val monthEvents by remember(yearMonth) { viewModel.eventsForMonth(yearMonth) }
         .collectAsState(initial = emptyList())
@@ -1270,7 +1271,7 @@ private fun MonthDayCell(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = date.dayOfMonth.toString(),
+                text = date.day.toString(),
                 style = MaterialTheme.typography.labelSmall,
                 color = when {
                     isToday -> MaterialTheme.colorScheme.onPrimary

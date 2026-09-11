@@ -16,6 +16,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 
 private const val maximumEventsShown = 60
 private const val maximumCharactersPerTitle = 100
@@ -85,8 +86,8 @@ private fun formatDateLabel(targetDate: LocalDate, today: LocalDate): String =
         today -> "Today"
         today.plus(DatePeriod(days = 1)) -> "Tomorrow"
         else -> {
-            val month = shortMonthNames.getOrNull(targetDate.monthNumber - 1) ?: targetDate.month.name.take(3)
-            "$month ${targetDate.dayOfMonth}"
+            val month = shortMonthNames.getOrNull(targetDate.month.number - 1) ?: targetDate.month.name.take(3)
+            "$month ${targetDate.day}"
         }
     }
 

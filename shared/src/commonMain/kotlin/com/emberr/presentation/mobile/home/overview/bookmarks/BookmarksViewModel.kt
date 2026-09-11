@@ -30,6 +30,7 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 import java.util.UUID
 
 data class BookmarkGroup(
@@ -79,7 +80,7 @@ class BookmarksViewModel constructor(
                     .groupBy {
                         val localDate = Instant.fromEpochMilliseconds(it.noteUpdatedAt)
                             .toLocalDateTime(TimeZone.currentSystemDefault()).date
-                        "${months[localDate.monthNumber]} ${localDate.year}"
+                        "${months[localDate.month.number]} ${localDate.year}"
                     }
                     .map { (monthYear, entities) ->
                         BookmarkGroup(

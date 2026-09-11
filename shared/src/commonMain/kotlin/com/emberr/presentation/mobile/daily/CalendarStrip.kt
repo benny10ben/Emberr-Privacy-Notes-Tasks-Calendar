@@ -45,6 +45,7 @@ import emberr.shared.generated.resources.chevron_right
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
+import kotlinx.datetime.number
 import kotlin.time.Clock
 import org.jetbrains.compose.resources.painterResource
 import kotlin.math.abs
@@ -305,7 +306,7 @@ private fun WeekStripChip(
                 color = mutedTextColor
             )
             Text(
-                text = date.dayOfMonth.toString(),
+                text = date.day.toString(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Normal,
                 color = primaryTextColor
@@ -337,7 +338,7 @@ fun BottomSheetMonthCalendar(
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "${months[currentMonth.monthNumber]} ${currentMonth.year}",
+                    text = "${months[currentMonth.month.number]} ${currentMonth.year}",
                     style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
@@ -366,7 +367,7 @@ fun BottomSheetMonthCalendar(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        val daysInMonth = remember(currentMonth) { currentMonth.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).dayOfMonth }
+        val daysInMonth = remember(currentMonth) { currentMonth.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day }
         val startOffset = currentMonth.dayOfWeek.ordinal
         val totalCells = daysInMonth + startOffset
         val rows = if (totalCells % 7 == 0) totalCells / 7 else totalCells / 7 + 1
@@ -413,7 +414,7 @@ private fun BottomSheetDateCell(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = date.dayOfMonth.toString(), style = MaterialTheme.typography.labelSmall,
+            text = date.day.toString(), style = MaterialTheme.typography.labelSmall,
             fontWeight = if (isSelected || isToday) FontWeight.Medium else FontWeight.Normal,
             color = textColor, modifier = Modifier.offset(y = if (hasTasks) (-3).dp else 0.dp)
         )

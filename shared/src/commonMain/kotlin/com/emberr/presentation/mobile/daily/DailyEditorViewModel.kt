@@ -37,6 +37,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.number
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -761,7 +762,7 @@ class DailyEditorViewModel(
     @OptIn(ExperimentalCoroutinesApi::class)
     val calendarTaskMap: StateFlow<Map<LocalDate, List<CalendarTaskEntity>>> = _visibleCalendarMonth
         .flatMapLatest { date ->
-            val monthStr = date.monthNumber.toString().padStart(2, '0')
+            val monthStr = date.month.number.toString().padStart(2, '0')
             val yearMonth = "${date.year}-$monthStr"
             repository.getCalendarTasksForMonth(yearMonth)
         }
