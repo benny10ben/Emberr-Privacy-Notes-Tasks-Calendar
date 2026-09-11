@@ -38,6 +38,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import com.emberr.presentation.shared.components.TopBarIconButton
 import com.emberr.presentation.shared.components.EmberrVerticalScrollbar
+import dev.chrisbanes.haze.hazeSource
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.chevron_left
 import emberr.shared.generated.resources.circle_plus
@@ -118,7 +119,7 @@ fun ImagesScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .haze(state = hazeState)
+                    .hazeSource(state = hazeState)
                     .background(MaterialTheme.colorScheme.background),
                 contentPadding = PaddingValues(
                     top = if (isDesktopPlatform) 80.dp else 110.dp,

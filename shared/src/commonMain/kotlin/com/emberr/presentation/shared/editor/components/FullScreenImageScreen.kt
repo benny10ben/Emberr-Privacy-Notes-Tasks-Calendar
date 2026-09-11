@@ -48,6 +48,7 @@ import com.emberr.presentation.shared.editor.DefaultBlockShape
 import com.emberr.presentation.shared.stableStatusBarsPadding
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeSource
 import org.jetbrains.compose.resources.painterResource
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.chevron_left
@@ -165,7 +166,7 @@ fun FullScreenImageScreen(
                 overlayPositionInRoot = coordinates.positionInRoot()
             }
     ) {
-        Box(modifier = Modifier.fillMaxSize().haze(state = hazeState)) {
+        Box(modifier = Modifier.fillMaxSize().hazeSource(state = hazeState)) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
