@@ -305,18 +305,24 @@ fun NoteScreen(
         showFeedback("Copied to clipboard")
     }
 
+    // Copy and Download both render through the same engine the AI vault uses:
+    // shared/src/commonMain/kotlin/com/emberr/domain/vault/NoteMarkdownWriter.kt
     val handleCopyMarkdown: () -> Unit = {
         showOptionsMenu = false
-        val md = viewModel.generateMarkdownExport()
-        clipboardManager.setText(AnnotatedString(md))
-        showFeedback("Copied as Markdown")
+        scope.launch {
+            val md = viewModel.generateMarkdownExport()
+            clipboardManager.setText(AnnotatedString(md))
+            showFeedback("Copied as Markdown")
+        }
     }
 
     val handleDownloadMarkdown: () -> Unit = {
         showOptionsMenu = false
-        val safeTitle = noteTitle.ifBlank { "Untitled_Note" }.replace(Regex("[^a-zA-Z0-9.-]"), "_")
-        val content = com.emberr.domain.util.ExportEngine.generateMarkdown(blocks, noteTitle)
-        onExportMarkdown("$safeTitle.md", content)
+        scope.launch {
+            val safeTitle = noteTitle.ifBlank { "Untitled_Note" }.replace(Regex("[^a-zA-Z0-9.-]"), "_")
+            val content = viewModel.generateMarkdownExport()
+            onExportMarkdown("$safeTitle.md", content)
+        }
     }
 
     val handleDownloadPdf: () -> Unit = {

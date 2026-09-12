@@ -373,9 +373,15 @@ class NoteEditorViewModel(
         return "$title\n\n$body"
     }
 
-    fun generateMarkdownExport(): String {
+    suspend fun generateMarkdownExport(): String {
         val title = _noteTitle.value.ifBlank { "Untitled Note" }
-        val body = com.emberr.domain.util.ExportEngine.generateMarkdown(_blocks.value)
+        val categoryNamesById = repository.getAllCategories().first()
+            .filter { !it.isDeleted }
+            .associate { it.categoryId to it.name }
+        val body = com.emberr.domain.util.ExportEngine.generateMarkdown(
+            blocks = _blocks.value,
+            categoryNamesById = categoryNamesById
+        )
         return "# $title\n\n$body"
     }
 }

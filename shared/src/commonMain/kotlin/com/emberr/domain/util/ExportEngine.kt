@@ -15,14 +15,18 @@ object ExportEngine {
         return builder.toString().trim()
     }
 
+    // Renders through the same engine the AI vault uses:
+    // shared/src/commonMain/kotlin/com/emberr/domain/vault/NoteMarkdownWriter.kt
     fun generateMarkdown(
         blocks: List<NoteBlock>,
         title: String? = null,
-        noteTitlesById: Map<String, String> = emptyMap()
+        noteTitlesById: Map<String, String> = emptyMap(),
+        categoryNamesById: Map<String, String> = emptyMap()
     ): String = NoteMarkdownWriter.writeSharedMarkdown(
         blocks = blocks,
         title = title,
-        noteTitlesById = noteTitlesById
+        noteTitlesById = noteTitlesById,
+        categoryNamesById = categoryNamesById
     )
 
     private fun buildPlainText(blocks: List<NoteBlock>, builder: StringBuilder) {
