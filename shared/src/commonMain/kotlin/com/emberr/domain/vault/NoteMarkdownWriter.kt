@@ -78,13 +78,14 @@ object NoteMarkdownWriter {
     fun writeSharedMarkdown(
         blocks: List<NoteBlock>,
         title: String? = null,
-        noteTitlesById: Map<String, String> = emptyMap()
+        noteTitlesById: Map<String, String> = emptyMap(),
+        categoryNamesById: Map<String, String> = emptyMap()
     ): String {
         val visibleBlocks = blocks.filter { !it.isDeleted }
         val options = RenderOptions(
             profile = VaultMarkdownProfile.SHARED,
             noteTitlesById = noteTitlesById,
-            categoryNamesById = emptyMap(),
+            categoryNamesById = categoryNamesById,
             mediaPathPrefix = "",
             timeZone = TimeZone.currentSystemDefault()
         )
@@ -159,7 +160,7 @@ object NoteMarkdownWriter {
                 marker = if (block.isChecked) VaultFormat.CHECKED_MARKER else VaultFormat.UNCHECKED_MARKER,
                 indent = indent,
                 tag = tag,
-                trailingGroup = if (options.isVault) renderTaskAttributes(block, options) else null
+                trailingGroup = renderTaskAttributes(block, options)
             )
             is BulletedListBlock -> renderListItem(block, block.text, VaultFormat.BULLET_MARKER, indent, tag)
             is NumberedListBlock -> renderListItem(block, block.text, "${block.number}. ", indent, tag)
@@ -170,7 +171,7 @@ object NoteMarkdownWriter {
             is ImageBlock -> renderImage(block, tag, options)
             is DocumentBlock -> renderDocument(block, tag, options)
             is VoiceBlock -> renderVoice(block, tag, options)
-            is SketchBlock -> renderSketch(block, tag, options)
+            is SketchBlock -> renderSketch(block, tag)
             is TableBlock -> renderTable(block, tag)
             is DatabaseBlock -> renderDatabase(block, tag, options)
             is SolidDividerBlock -> withTagOnItsOwnLine(VaultFormat.SOLID_DIVIDER_LINE, tag)
@@ -276,8 +277,6 @@ object NoteMarkdownWriter {
     }
 
     private fun renderVoice(block: VoiceBlock, tag: String?, options: RenderOptions): String {
-        if (!options.isVault) return ""
-
         val fileName = mediaFileNameOf(block.localFilePath)
         val fence = buildString {
             appendLine("```${VaultFormat.VOICE_FENCE_NAME}")
@@ -288,9 +287,7 @@ object NoteMarkdownWriter {
         return withTagOnItsOwnLine(fence, tag)
     }
 
-    private fun renderSketch(block: SketchBlock, tag: String?, options: RenderOptions): String {
-        if (!options.isVault) return ""
-
+    private fun renderSketch(block: SketchBlock, tag: String?): String {
         val fence = buildString {
             appendLine("```${VaultFormat.SKETCH_FENCE_NAME}")
             appendLine("strokes: ${block.strokes.size}")

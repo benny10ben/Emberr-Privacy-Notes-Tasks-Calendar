@@ -152,11 +152,24 @@ class ExportEngineTest {
     }
 
     @Test
-    fun voiceNotesSketchesAndLinkedNotesAreSkippedBecauseTheyHaveNoTextForm() {
+    fun voiceNotesAndSketchesHaveNoPlainTextFormButStillAppearInMarkdown() {
         val blocks = arrayOf(
             TextBlock(id = "text-1", text = "kept"),
             VoiceBlock(id = "voice-1", localFilePath = "memo.m4a"),
-            SketchBlock(id = "sketch-1"),
+            SketchBlock(id = "sketch-1")
+        )
+
+        assertEquals("kept", plainTextOf(*blocks))
+        assertEquals(
+            "kept\n\n```emberr-voice\nfile: memo.m4a\nseconds: 0\n```\n\n```emberr-sketch\nstrokes: 0\n```",
+            markdownOf(*blocks)
+        )
+    }
+
+    @Test
+    fun aLinkedNoteWithNoKnownTitleIsSkippedInMarkdown() {
+        val blocks = arrayOf(
+            TextBlock(id = "text-1", text = "kept"),
             LinkedNoteBlock(id = "linked-1", linkedNoteId = "note-2")
         )
 
