@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.emberr.domain.util.isDesktopPlatform
 import com.emberr.ui.theme.LocalAppIsDark
 
 @Composable
@@ -23,7 +24,11 @@ fun EmberrButtonSecondary(
         modifier = modifier.height(46.dp),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (LocalAppIsDark.current) Color(0xFF363636) else MaterialTheme.colorScheme.surface,
+            containerColor = when {
+                !isDesktopPlatform -> MaterialTheme.colorScheme.surfaceVariant
+                LocalAppIsDark.current -> MaterialTheme.colorScheme.surfaceVariant
+                else -> Color(0xFFD8D8D8)
+            },
             contentColor = MaterialTheme.colorScheme.onSurface
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)

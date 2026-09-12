@@ -1,5 +1,6 @@
 package com.emberr.presentation.shared.components
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -17,6 +18,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.ui.theme.LocalAppIsDark
 
 @Composable
 fun EmberrTextField(
@@ -52,8 +55,16 @@ fun EmberrTextField(
         colors = OutlinedTextFieldDefaults.colors(
             unfocusedBorderColor = Color.Transparent,
             focusedBorderColor = Color.Transparent,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedContainerColor = when {
+                !isDesktopPlatform -> MaterialTheme.colorScheme.surfaceVariant
+                LocalAppIsDark.current -> MaterialTheme.colorScheme.surfaceVariant
+                else -> Color(0xFFD8D8D8)
+            },
+            focusedContainerColor = when {
+                !isDesktopPlatform -> MaterialTheme.colorScheme.surfaceVariant
+                LocalAppIsDark.current -> MaterialTheme.colorScheme.surfaceVariant
+                else -> Color(0xFFD8D8D8)
+            },
             cursorColor = MaterialTheme.colorScheme.primary
         ),
         modifier = modifier.onPreviewKeyEvent { event ->
