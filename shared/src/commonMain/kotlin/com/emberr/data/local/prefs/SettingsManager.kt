@@ -113,6 +113,10 @@ interface SettingsManager {
     fun isAiFeaturesDisabled(): Boolean
     fun saveAiFeaturesDisabled(disabled: Boolean)
 
+    val externalAiReadOnlyFlow: Flow<Boolean>
+    fun isExternalAiReadOnly(): Boolean
+    fun saveExternalAiReadOnly(readOnly: Boolean)
+
     val bookmarkCategoryOrderJsonFlow: Flow<String>
     fun getBookmarkCategoryOrderJson(): String
     fun saveBookmarkCategoryOrderJson(json: String)
