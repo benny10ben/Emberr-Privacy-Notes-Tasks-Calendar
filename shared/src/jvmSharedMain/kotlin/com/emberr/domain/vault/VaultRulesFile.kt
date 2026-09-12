@@ -33,15 +33,7 @@ object VaultRulesFile {
         This folder mirrors the notes in the Emberr app. Editing a file here changes the real
         note, usually within a second. Emberr has to be running for that to happen.
 
-        ## Rules
-
-        1. Never remove or change a `^em-xxxx` tag. It is that block's permanent id, and it is how
-           an edit reaches the right block instead of rewriting the whole note.
-        2. Never change `id:` in the block at the top of a file.
-        3. New content does not need a tag. Emberr adds one.
-        4. A block can be several lines long. The tag sits at the end of the whole block, not at
-           the end of every line.
-
+    """.trimIndent() + "\n\n" + VaultMarkdownFormatGuide.TEXT + "\n\n" + """
         ## How to do things
 
         | Goal | Do this |
@@ -60,105 +52,6 @@ object VaultRulesFile {
 
         `Daily/` and `Subnotes/` belong to Emberr. Do not create folders with those names, and do
         not put new notes in them.
-
-        ## Formatting
-
-        Use `**bold**`, `*italic*`, `~~strikethrough~~` and `<u>underline</u>`.
-
-        Do not use `_` for emphasis. It is left as a literal underscore on purpose, so file names
-        and snake_case survive untouched.
-
-        ## Lists, quotes, code
-
-        ```markdown
-        - [ ] a task ^em-c3d5
-        - [x] a finished task ^em-d4e6
-        - a bullet ^em-e5f7
-        1. a numbered item ^em-f6a8
-        - ▸ a collapsible toggle ^em-a7b9
-        > a quote ^em-b8c1
-        ```
-
-        Indent a list item by two spaces per level. A code block puts its tag on its own line
-        after the closing fence.
-
-        ## Task due dates and repeats
-
-        A checkbox can carry a small group at the end of the line, before the tag:
-
-        ```markdown
-        - [ ] Email finance {due: 2026-09-12 14:00} ^em-c3d5
-        - [ ] Standup {due: 2026-09-14 09:30; for: 15m; category: Work; repeat: weekly on mon,wed} ^em-d4e6
-        ```
-
-        | Key | Meaning |
-        |---|---|
-        | `due` | `YYYY-MM-DD HH:MM` in local time. The date on its own means midnight |
-        | `for` | how long it takes, like `45m`. Left out when it is the default 30 minutes |
-        | `category` | a calendar category by name, which has to already exist |
-        | `repeat` | see below |
-        | `link` | a web address to open from the task |
-        | `details` | a longer note about the task |
-
-        Inside a value, write `\;` for a semicolon, `\{` and `\}` for braces, and `\n` for a line
-        break, so the whole group stays on one line.
-
-        Repeat reads the way you would say it:
-
-        ```
-        daily
-        every 3 days
-        weekly
-        weekly on mon,wed,fri
-        every 2 weeks on mon
-        monthly
-        yearly until 2030-01-01
-        ```
-
-        Drop the whole group to clear all of it. Drop one key to clear just that one. Any key we do
-        not recognise makes the braces ordinary text, so `{some note}` at the end of a line stays
-        exactly as typed.
-
-        ## Databases and tables
-
-        A database is a config fence followed by a normal markdown table. The `id` column holds
-        row ids.
-
-        ````markdown
-        ```emberr-database
-        title: Q3 Budget
-        view: kanban by Status
-        columns:
-          Item: text
-          Cost: money
-          Status: status
-        ```
-
-        | id   | Item   | Cost | Status      |
-        |------|--------|------|-------------|
-        | r-01 | Server | 240  | Done        |
-        | r-02 | Domain | 12   | In Progress |
-        ^em-9c02
-        ````
-
-        - delete a row by deleting its line
-        - add a row by adding a line and leaving the `id` cell blank
-        - change a cell by editing it
-        - never invent or reuse a row id
-        - column types are `text`, `number`, `money`, `checkbox`, `date`, `tags`, `url`, `email`,
-          `phone`, `priority`, `status`, `files`, `audio`, `notes`, `formula`
-        - the `view:` line is read-only for now, so changing it does nothing
-
-        A plain table is just a markdown table with its tag on the line below.
-
-        ## Things you cannot change from here
-
-        - drawings, which appear only as a stroke count
-        - voice recordings
-        - cell colours, column widths, kanban settings
-
-        None of this is at risk. Emberr keeps it all. It simply is not written into these files,
-        so leave those fences and settings alone.
 
         ## Conflict files
 
