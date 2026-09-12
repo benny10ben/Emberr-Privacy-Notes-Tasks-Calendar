@@ -16,12 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import com.emberr.domain.model.PendingShare
 import com.emberr.domain.util.WidgetComposeRequest
+import com.emberr.domain.vault.VaultMirrorService
 import com.emberr.domain.util.WidgetComposeRequestBus
 import com.emberr.domain.util.WidgetCalendarDateBus
 import com.emberr.domain.util.WidgetCalendarEventBus
@@ -186,6 +188,14 @@ class MainActivity : ComponentActivity() {
                 .collect {
                     localMediaGarbageCollector.deleteExpiredTempFiles()
                 }
+        }
+
+        // Watching holds a thread and wakes on a timer, so it only runs while the app is on screen.
+        val vaultMirrorService: VaultMirrorService by inject()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                vaultMirrorService.startImportingFileChanges(this)
+            }
         }
 
         setContent {

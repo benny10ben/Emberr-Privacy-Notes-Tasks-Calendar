@@ -40,6 +40,13 @@ import com.emberr.domain.selfhost.crypto.SecureSyncKeyStorage
 import com.emberr.domain.selfhost.sync.SelfHostSyncScheduler
 import com.emberr.domain.selfhost.sync.SelfHostSyncWorker
 import com.emberr.domain.sync.SyncRepository
+import com.emberr.domain.vault.VaultExporter
+import com.emberr.domain.vault.VaultFileLedger
+import com.emberr.domain.vault.VaultFolderWatcher
+import com.emberr.domain.vault.VaultImporter
+import com.emberr.domain.vault.VaultMirrorService
+import com.emberr.domain.vault.VaultPathMemory
+import com.emberr.domain.vault.VaultStartupReconciler
 import com.emberr.domain.util.AndroidAudioRecorder
 import com.emberr.domain.util.AndroidImageDownloader
 import com.emberr.domain.util.AndroidMediaStorageHelper
@@ -314,7 +321,50 @@ val androidModule = module {
     single { BackupScheduler(context = get(), settingsManager = get()) }
     single { BackupNotifier(context = get()) }
     single<BackupRescheduler> { AndroidBackupRescheduler(backupScheduler = get()) }
+
+    // Vault mirror. The folder is app-private, so it needs no storage permission and no other app
+    // can reach it.
+    single { VaultFileLedger() }
+    single { VaultPathMemory(androidContext().filesDir) }
+    single {
+        VaultExporter(
+            vaultRootDirectory = java.io.File(androidContext().filesDir, VAULT_FOLDER_NAME),
+            noteDao = get(),
+            folderDao = get(),
+            noteRepository = get(),
+            fileLedger = get(),
+            pathMemory = get()
+        )
+    }
+    single {
+        VaultImporter(
+            noteDao = get(),
+            folderDao = get(),
+            noteRepository = get(),
+            fileLedger = get(),
+            vaultExporter = get()
+        )
+    }
+    single { VaultFolderWatcher(vaultRootDirectory = get<VaultExporter>().vaultRootDirectory) }
+    single {
+        VaultStartupReconciler(
+            noteDao = get(),
+            noteRepository = get(),
+            vaultImporter = get(),
+            vaultExporter = get()
+        )
+    }
+    single {
+        VaultMirrorService(
+            vaultExporter = get(),
+            vaultImporter = get(),
+            folderWatcher = get(),
+            startupReconciler = get(),
+            pathMemory = get()
+        )
+    }
 }
 
+private const val VAULT_FOLDER_NAME = "vault"
 private const val SETTINGS_STORE_FILE_NAME = "emberr_settings"
 private const val SETTINGS_SECRET_STORE_FILE_NAME = "emberr_settings_secrets"

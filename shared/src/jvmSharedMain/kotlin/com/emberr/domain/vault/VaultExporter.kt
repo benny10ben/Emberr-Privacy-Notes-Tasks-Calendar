@@ -44,6 +44,7 @@ private class VaultSnapshot(
 )
 
 class VaultExporter(
+    val vaultRootDirectory: File,
     private val noteDao: NoteDao,
     private val folderDao: FolderDao,
     private val noteRepository: NoteRepository,
@@ -51,7 +52,6 @@ class VaultExporter(
     private val pathMemory: VaultPathMemory
 ) {
 
-    val vaultRootDirectory: File = File(System.getProperty("user.home"), ".emberr/vault")
     private val exportMutex = Mutex()
     private var folderDirectoriesByFolderId: Map<String, String> = emptyMap()
 

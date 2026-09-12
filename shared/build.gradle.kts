@@ -79,6 +79,12 @@ kotlin {
     }
 
     sourceSets {
+        // Android and desktop are both JVM, so file-based code that is not Android-specific lives
+        // here instead of being written twice.
+        val jvmSharedMain = create("jvmSharedMain") {
+            dependsOn(getByName("commonMain"))
+        }
+
         getByName("commonMain") {
             dependencies {
                 implementation(compose.runtime)
@@ -123,6 +129,7 @@ kotlin {
         }
 
         getByName("androidMain") {
+            dependsOn(jvmSharedMain)
             dependencies {
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.core.ktx)
@@ -154,6 +161,7 @@ kotlin {
         }
 
         getByName("desktopMain") {
+            dependsOn(jvmSharedMain)
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.jsoup)

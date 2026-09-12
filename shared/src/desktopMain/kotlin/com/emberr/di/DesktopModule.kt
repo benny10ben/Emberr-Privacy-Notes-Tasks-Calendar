@@ -57,6 +57,9 @@ import com.emberr.domain.sync.discovery.SyncDiscoveryManager
 import com.emberr.database.EmberrDatabase
 import org.koin.dsl.module
 
+// Everything Emberr keeps on disk lives under this one folder.
+private val emberrDirectory = java.io.File(System.getProperty("user.home"), ".emberr")
+
 val desktopModule = module {
 
     // Room
@@ -127,9 +130,10 @@ val desktopModule = module {
 
     // Vault mirror
     single { VaultFileLedger() }
-    single { VaultPathMemory(java.io.File(System.getProperty("user.home"), ".emberr")) }
+    single { VaultPathMemory(emberrDirectory) }
     single {
         VaultExporter(
+            vaultRootDirectory = java.io.File(emberrDirectory, "vault"),
             noteDao = get(),
             folderDao = get(),
             noteRepository = get(),

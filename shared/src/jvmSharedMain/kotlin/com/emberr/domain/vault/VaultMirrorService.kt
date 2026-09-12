@@ -73,8 +73,21 @@ class VaultMirrorService(
         }
     }
 
+    // Desktop keeps one long-lived scope, so both halves can share it.
     fun startWatching(scope: CoroutineScope) {
+        startExportingAppChanges(scope)
+        startImportingFileChanges(scope)
+    }
+
+    // A background sync can change notes while no window is on screen, so this half belongs on a
+    // scope that lives as long as the process.
+    fun startExportingAppChanges(scope: CoroutineScope) {
         startListeningForAppChanges(scope)
+    }
+
+    // This half holds a watcher thread and wakes on a timer, so it belongs on a scope that ends
+    // when the app stops being visible.
+    fun startImportingFileChanges(scope: CoroutineScope) {
         startListeningForFileChanges(scope)
         startSweepingForRemovals(scope)
     }
