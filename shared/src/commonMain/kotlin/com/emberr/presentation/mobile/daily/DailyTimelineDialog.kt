@@ -27,6 +27,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,6 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.Painter
@@ -84,6 +87,7 @@ import com.emberr.domain.model.inlineSpansOrEmpty
 import com.emberr.domain.util.isDesktopPlatform
 import com.emberr.presentation.LocalImageOverlay
 import com.emberr.presentation.shared.components.EmberrBlur
+import com.emberr.presentation.shared.components.LocalEmberrBlurSource
 import com.emberr.presentation.shared.components.TopBarIconButton
 import com.emberr.presentation.shared.components.emberrBlur
 import com.emberr.presentation.shared.components.fullScreenDialogProperties
@@ -96,8 +100,8 @@ import com.emberr.presentation.shared.editor.blockViews.LinkedNoteBlockView
 import com.emberr.presentation.shared.editor.blockViews.TableBlockView
 import com.emberr.presentation.shared.editor.blockViews.databaseBlockView.DatabaseBlockView
 import com.emberr.presentation.shared.editor.blockViews.databaseBlockView.buildNoteLinkAnnotatedString
-import com.emberr.ui.theme.LocalAppIsDark
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeSource
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.arrow_down
@@ -171,6 +175,7 @@ fun DailyTimelineDialog(
             LocalImageOverlay provides { content -> fullScreenOverlayContent = content }
         ) {
             val hazeState = remember { HazeState() }
+            val ambientHazeState = LocalEmberrBlurSource.current
             var searchQuery by remember { mutableStateOf("") }
 
             val rows = remember(days) { buildTimelineRows(days) }
@@ -189,7 +194,16 @@ fun DailyTimelineDialog(
             val currentMatchPosition =
                 stepMatchPosition(nearestMatchPosition, matchRowIndices.size, matchStepOffset)
 
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(if (isDesktopPlatform) 0.55f else 0.94f)
@@ -197,15 +211,24 @@ fun DailyTimelineDialog(
                         .fillMaxHeight(0.92f)
                         .safeDrawingPadding()
                         .clip(DialogShape)
+                        .emberrBlur(
+                            ambientHazeState,
+                            EmberrBlur.Thick.copy(
+                                backgroundColor = MaterialTheme.colorScheme.surface,
+                                tints = listOf(HazeTint(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))),
+                                fallbackTint = HazeTint(MaterialTheme.colorScheme.surface)
+                            )
+                        )
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {}
+                        )
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .hazeSource(hazeState)
-                            .background(
-                                if (LocalAppIsDark.current) MaterialTheme.colorScheme.surface
-                                else MaterialTheme.colorScheme.background
-                            )
                     ) {
                         TimelineList(
                             rows = rows,
@@ -263,16 +286,26 @@ private fun TimelineHeader(
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
-        TopBarIconButton(
-            icon = Icons.Default.Close,
-            contentDescription = "Close timeline",
-            bgColor = Color.Transparent,
-            tint = MaterialTheme.colorScheme.onSurface,
-            hazeState = hazeState,
-            hazeStyle = EmberrBlur.Regular,
-            shadowElevation = 0.dp,
-            onClick = onDismiss
-        )
+        Box(
+            modifier = Modifier
+                .clip(CircleShape)
+                .border(
+                    width = 0.2.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                    shape = CircleShape
+                )
+        ) {
+            TopBarIconButton(
+                icon = Icons.Default.Close,
+                contentDescription = "Close timeline",
+                bgColor = Color.Transparent,
+                tint = MaterialTheme.colorScheme.onSurface,
+                hazeState = hazeState,
+                hazeStyle = EmberrBlur.Regular,
+                shadowElevation = 0.dp,
+                onClick = onDismiss
+            )
+        }
     }
 }
 
@@ -287,6 +320,9 @@ private fun TimelineSearchBar(
     hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -321,14 +357,14 @@ private fun TimelineSearchBar(
                     color = MaterialTheme.colorScheme.primary
                 ),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).focusRequester(focusRequester),
                 decorationBox = { innerTextField ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (query.isEmpty()) {
                             Text(
                                 text = "Search the timeline",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                             )
                         }
                         innerTextField()
@@ -442,16 +478,25 @@ private fun TimelineList(
         itemsIndexed(rows, key = { _, row -> row.key }) { index, row ->
             val isSearchMatch = index in matchRowIndexSet
             when (row) {
-                is TimelineRow.DayHeader -> Box(
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = timelineDayLabel(row.date, today),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (isSearchMatch) FontWeight.Bold else null,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                is TimelineRow.DayHeader -> {
+                    if (index != 0) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(top = 8.dp),
+                            thickness = 1.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = timelineDayLabel(row.date, today),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isSearchMatch) FontWeight.Bold else null,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
 
                 is TimelineRow.EmptyDay -> Text(

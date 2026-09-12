@@ -184,7 +184,7 @@ fun DailyScreen(
         }
     }
 
-    val showToolbar = !isSelectionMode && !showAddNoteDialog && isKeyboardOpen
+    val showToolbar = !isSelectionMode && !showAddNoteDialog && !showTimelineDialog && isKeyboardOpen
 
     val globalTags by viewModel.globalTags.collectAsState()
     val calendarTaskMap by viewModel.calendarTaskMap.collectAsState()

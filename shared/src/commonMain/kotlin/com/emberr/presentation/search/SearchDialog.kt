@@ -37,6 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.Painter
@@ -48,11 +50,12 @@ import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.domain.model.NoteSearchResult
 import com.emberr.domain.util.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBlur
+import com.emberr.presentation.shared.components.LocalEmberrBlurSource
 import com.emberr.presentation.shared.components.TopBarIconButton
 import com.emberr.presentation.shared.components.emberrBlur
 import com.emberr.presentation.shared.components.fullScreenDialogProperties
-import com.emberr.ui.theme.LocalAppIsDark
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeSource
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.calendar_day
@@ -82,6 +85,7 @@ fun SearchDialog(
         properties = fullScreenDialogProperties()
     ) {
         val hazeState = remember { HazeState() }
+        val ambientHazeState = LocalEmberrBlurSource.current
 
         Box(
             modifier = Modifier
@@ -90,15 +94,19 @@ fun SearchDialog(
                 .fillMaxHeight(0.92f)
                 .safeDrawingPadding()
                 .clip(DialogShape)
+                .emberrBlur(
+                    ambientHazeState,
+                    EmberrBlur.Thick.copy(
+                        backgroundColor = MaterialTheme.colorScheme.surface,
+                        tints = listOf(HazeTint(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))),
+                        fallbackTint = HazeTint(MaterialTheme.colorScheme.surface)
+                    )
+                )
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .hazeSource(hazeState)
-                    .background(
-                        if (LocalAppIsDark.current) MaterialTheme.colorScheme.surface
-                        else MaterialTheme.colorScheme.background
-                    )
             ) {
                 when {
                     query.isBlank() -> SearchMessage("Start typing to search titles, snippets, and note content.")
@@ -160,16 +168,26 @@ private fun SearchHeader(
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
-        TopBarIconButton(
-            icon = Icons.Default.Close,
-            contentDescription = "Close search",
-            bgColor = Color.Transparent,
-            tint = MaterialTheme.colorScheme.onSurface,
-            hazeState = hazeState,
-            hazeStyle = EmberrBlur.Regular,
-            shadowElevation = 0.dp,
-            onClick = onDismiss
-        )
+        Box(
+            modifier = Modifier
+                .clip(CircleShape)
+                .border(
+                    width = 0.2.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                    shape = CircleShape
+                )
+        ) {
+            TopBarIconButton(
+                icon = Icons.Default.Close,
+                contentDescription = "Close search",
+                bgColor = Color.Transparent,
+                tint = MaterialTheme.colorScheme.onSurface,
+                hazeState = hazeState,
+                hazeStyle = EmberrBlur.Regular,
+                shadowElevation = 0.dp,
+                onClick = onDismiss
+            )
+        }
     }
 }
 
@@ -180,6 +198,9 @@ private fun SearchInputBar(
     hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -214,14 +235,14 @@ private fun SearchInputBar(
                     color = MaterialTheme.colorScheme.primary
                 ),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).focusRequester(focusRequester),
                 decorationBox = { innerTextField ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (query.isEmpty()) {
                             Text(
                                 text = "Search all notes",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                             )
                         }
                         innerTextField()
