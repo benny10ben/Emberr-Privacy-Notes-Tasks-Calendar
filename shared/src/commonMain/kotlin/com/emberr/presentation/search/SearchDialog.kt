@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -89,62 +90,74 @@ fun SearchDialog(
 
         Box(
             modifier = Modifier
-                .fillMaxWidth(if (isDesktopPlatform) 0.55f else 0.94f)
-                .widthIn(max = 720.dp)
-                .fillMaxHeight(0.92f)
-                .safeDrawingPadding()
-                .clip(DialogShape)
-                .emberrBlur(
-                    ambientHazeState,
-                    EmberrBlur.Thick.copy(
-                        backgroundColor = MaterialTheme.colorScheme.surface,
-                        tints = listOf(HazeTint(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))),
-                        fallbackTint = HazeTint(MaterialTheme.colorScheme.surface)
-                    )
-                )
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                ),
+            contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .hazeSource(hazeState)
+                    .fillMaxWidth(if (isDesktopPlatform) 0.55f else 0.94f)
+                    .widthIn(max = 720.dp)
+                    .fillMaxHeight(0.92f)
+                    .safeDrawingPadding()
+                    .clip(DialogShape)
+                    .emberrBlur(
+                        ambientHazeState,
+                        EmberrBlur.Thick
+                    )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {}
+                    )
             ) {
-                when {
-                    query.isBlank() -> SearchMessage("Start typing to search titles, snippets, and note content.")
-                    results.isEmpty() -> SearchMessage("No matching notes found.")
-                    else -> LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 72.dp, bottom = 96.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(results, key = { it.note.noteId }) { result ->
-                            SearchResultRow(
-                                result = result,
-                                query = query,
-                                onClick = {
-                                    if (result.note.isDaily) {
-                                        result.note.dateString?.let(onDailyNoteClick)
-                                    } else {
-                                        onNoteClick(result.note.noteId)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .hazeSource(hazeState)
+                ) {
+                    when {
+                        query.isBlank() -> SearchMessage("Start typing to search titles, snippets, and note content.")
+                        results.isEmpty() -> SearchMessage("No matching notes found.")
+                        else -> LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 72.dp, bottom = 96.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(results, key = { it.note.noteId }) { result ->
+                                SearchResultRow(
+                                    result = result,
+                                    query = query,
+                                    onClick = {
+                                        if (result.note.isDaily) {
+                                            result.note.dateString?.let(onDailyNoteClick)
+                                        } else {
+                                            onNoteClick(result.note.noteId)
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
+
+                SearchHeader(
+                    hazeState = hazeState,
+                    onDismiss = onDismiss,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+
+                SearchInputBar(
+                    query = query,
+                    onQueryChange = viewModel::onQueryChange,
+                    hazeState = hazeState,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
-
-            SearchHeader(
-                hazeState = hazeState,
-                onDismiss = onDismiss,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-
-            SearchInputBar(
-                query = query,
-                onQueryChange = viewModel::onQueryChange,
-                hazeState = hazeState,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
         }
     }
 }
@@ -293,6 +306,7 @@ private fun SearchMessage(text: String) {
             text = text,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 32.dp)
         )
     }
