@@ -128,6 +128,19 @@ kotlin {
             }
         }
 
+        val jvmSharedTest = create("jvmSharedTest") {
+            dependsOn(getByName("commonTest"))
+            dependsOn(jvmSharedMain)
+        }
+
+        getByName("androidHostTest") {
+            dependsOn(jvmSharedTest)
+        }
+
+        getByName("desktopTest") {
+            dependsOn(jvmSharedTest)
+        }
+
         getByName("androidMain") {
             dependsOn(jvmSharedMain)
             dependencies {

@@ -29,15 +29,19 @@ data class VaultImportReport(
     val detail: String? = null
 )
 
+interface VaultNoteImporter {
+    suspend fun importFile(file: File): VaultImportReport
+}
+
 class VaultImporter(
     private val noteDao: NoteDao,
     private val folderDao: FolderDao,
     private val noteRepository: NoteRepository,
     private val fileLedger: VaultFileLedger,
     private val vaultExporter: VaultExporter
-) {
+) : VaultNoteImporter {
 
-    suspend fun importFile(file: File): VaultImportReport = withContext(Dispatchers.IO) {
+    override suspend fun importFile(file: File): VaultImportReport = withContext(Dispatchers.IO) {
         vaultExporter.vaultMutex.withLock { importFileWhileLocked(file) }
     }
 
