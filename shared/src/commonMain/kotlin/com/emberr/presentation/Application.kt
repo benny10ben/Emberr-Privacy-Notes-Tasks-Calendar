@@ -402,6 +402,7 @@ fun EmberrApp(
                                 onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
                                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                                 onNavigateToTrash = { navController.navigate("trash_route") },
+                                isSearchDialogOpen = showSearchDialog,
                                 dateArg = backStackEntry.savedStateHandle.get<String>("date")
                             )
                         }
@@ -506,7 +507,8 @@ fun EmberrApp(
                                 onPickDocument = onPickDocument,
                                 onOpenFile = onOpenFile,
                                 onExportMarkdown = onExportMarkdown,
-                                onExportPdf = onExportPdf
+                                onExportPdf = onExportPdf,
+                                isSearchDialogOpen = showSearchDialog
                             )
                         }
 
