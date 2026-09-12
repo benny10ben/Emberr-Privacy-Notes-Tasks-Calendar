@@ -40,6 +40,8 @@ import com.emberr.domain.selfhost.crypto.SecureSyncKeyStorage
 import com.emberr.domain.selfhost.sync.SelfHostSyncScheduler
 import com.emberr.domain.selfhost.sync.SelfHostSyncWorker
 import com.emberr.domain.sync.SyncRepository
+import com.emberr.domain.ai.tools.VaultToolExecutor
+import com.emberr.domain.ai.tools.VaultToolRunner
 import com.emberr.domain.vault.VaultExporter
 import com.emberr.domain.vault.VaultFileLedger
 import com.emberr.domain.vault.VaultFolderWatcher
@@ -264,7 +266,10 @@ val androidModule = module {
             chatSessionRepository = get(),
             modelDownloadScheduler = get(),
             reindexAllNotesUseCase = get(),
-            localModelUploadManager = get()
+            localModelUploadManager = get(),
+            vaultToolRunner = get(),
+            vaultPendingWriteEvents = get(),
+            vaultToolCallEvents = get()
         )
     }
 
@@ -346,6 +351,14 @@ val androidModule = module {
         )
     }
     single { VaultFolderWatcher(vaultRootDirectory = get<VaultExporter>().vaultRootDirectory) }
+    single<VaultToolRunner> {
+        VaultToolExecutor(
+            vaultRootDirectory = get<VaultExporter>().vaultRootDirectory,
+            vaultImporter = get<VaultImporter>(),
+            pendingWriteEvents = get(),
+            toolCallEvents = get()
+        )
+    }
     single {
         VaultStartupReconciler(
             noteDao = get(),

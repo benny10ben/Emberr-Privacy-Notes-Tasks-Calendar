@@ -28,6 +28,8 @@ import com.emberr.domain.backup.manual.DesktopManualBackupImporter
 import com.emberr.database.DatabaseDriverFactory
 import com.emberr.domain.ai.LocalAiEngine
 import com.emberr.domain.ai.RagRepository
+import com.emberr.domain.ai.tools.VaultToolExecutor
+import com.emberr.domain.ai.tools.VaultToolRunner
 import com.emberr.domain.selfhost.crypto.KeyDerivationManager
 import com.emberr.domain.selfhost.crypto.Pbkdf2KeyDerivationManager
 import com.emberr.domain.selfhost.crypto.SecureSyncKeyStorage
@@ -96,7 +98,7 @@ val desktopModule = module {
     }
     single { com.emberr.domain.ai.models.LocalModelUploadManager() }
     single { com.emberr.domain.ai.models.ModelDownloadScheduler(modelDownloadManager = get()) }
-    factory { RagViewModel(get(), get(), get(), get(), get(), get()) }
+    factory { RagViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
 
     // Secret storage
     single { SecretBackendProbe() }
@@ -151,6 +153,14 @@ val desktopModule = module {
         )
     }
     single { VaultFolderWatcher(vaultRootDirectory = get<VaultExporter>().vaultRootDirectory) }
+    single<VaultToolRunner> {
+        VaultToolExecutor(
+            vaultRootDirectory = get<VaultExporter>().vaultRootDirectory,
+            vaultImporter = get<VaultImporter>(),
+            pendingWriteEvents = get(),
+            toolCallEvents = get()
+        )
+    }
     single {
         VaultStartupReconciler(
             noteDao = get(),

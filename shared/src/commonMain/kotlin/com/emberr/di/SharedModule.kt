@@ -99,9 +99,13 @@ val sharedModule = module {
         )
     }
 
+    single { com.emberr.domain.ai.tools.VaultPendingWriteEvents() }
+    single { com.emberr.domain.ai.tools.VaultToolCallEvents() }
+
     single {
         com.emberr.domain.ai.external.ExternalAiEngine(
-            aiSettingsRepository = get()
+            aiSettingsRepository = get(),
+            vaultToolRunner = get()
         )
     }
 
