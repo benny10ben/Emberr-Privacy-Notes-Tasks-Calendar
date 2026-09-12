@@ -578,7 +578,13 @@ fun HomeScreen(
                                                             value = addFolderInput,
                                                             onValueChange = { addFolderInput = it },
                                                             placeholder = "e.g. Personal, Work...",
-                                                            modifier = Modifier.fillMaxWidth()
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            onSubmit = {
+                                                                if (addFolderInput.isNotBlank()) {
+                                                                    handleCreateFolder(addFolderInput.trim())
+                                                                    showAddFolderPopup = false
+                                                                }
+                                                            }
                                                         )
                                                         Row(
                                                             modifier = Modifier.fillMaxWidth(),
@@ -636,7 +642,13 @@ fun HomeScreen(
                                                             value = addNoteInput,
                                                             onValueChange = { addNoteInput = it },
                                                             placeholder = "Note title...",
-                                                            modifier = Modifier.fillMaxWidth()
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            onSubmit = {
+                                                                if (addNoteInput.isNotBlank()) {
+                                                                    handleCreateNote(addNoteInput.trim())
+                                                                    showAddNotePopup = false
+                                                                }
+                                                            }
                                                         )
                                                         Row(
                                                             modifier = Modifier.fillMaxWidth(),
@@ -1492,7 +1504,8 @@ fun RenameBottomSheet(
                 value = newName,
                 onValueChange = { newName = it },
                 placeholder = "Name...",
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onSubmit = { if (newName.isNotBlank()) closeAnd { onRename(newName.trim()) } }
             )
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
@@ -1533,7 +1546,8 @@ fun AddFolderBottomSheet(
                 value = folderName,
                 onValueChange = { folderName = it },
                 placeholder = "e.g. Personal, Work...",
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onSubmit = { if (folderName.isNotBlank()) closeAnd { onCreate(folderName.trim()) } }
             )
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
@@ -1580,7 +1594,8 @@ fun AddNoteBottomSheet(
                 value = noteTitle,
                 onValueChange = { noteTitle = it },
                 placeholder = "Note title...",
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onSubmit = { closeAnd { onCreate(noteTitle.trim()) } }
             )
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
@@ -1629,7 +1644,8 @@ private fun NewNoteInFolderMenu(
                 value = input,
                 onValueChange = onInputChange,
                 placeholder = "Note title...",
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onSubmit = { if (input.isNotBlank()) onCreate(input.trim()) }
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),

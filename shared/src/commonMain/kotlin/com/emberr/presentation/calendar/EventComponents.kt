@@ -315,14 +315,16 @@ private fun EventEditorFields(
             value = state.name,
             onValueChange = onNameChange,
             placeholder = "Event name",
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            onSubmit = onSave
         )
 
         EmberrTextField(
             value = state.url,
             onValueChange = onUrlChange,
             placeholder = "URL (optional)",
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            onSubmit = onSave
         )
         val canEditDate = state.editScope == RecurrenceEditScope.ALL_EVENTS
         EventFieldRow(

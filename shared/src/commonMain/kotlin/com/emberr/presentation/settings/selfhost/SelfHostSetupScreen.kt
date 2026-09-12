@@ -179,7 +179,8 @@ private fun SetupForm(
                 SettingsGroup(title = "Restore Vault") {
                     RestorePassphraseCard(
                         passphraseInput = form.existingPassphraseInput,
-                        onPassphraseChanged = viewModel::onExistingPassphraseChanged
+                        onPassphraseChanged = viewModel::onExistingPassphraseChanged,
+                        onSubmit = { if (form.canFinishSetup) viewModel.completeSetup() }
                     )
                 }
             }
@@ -414,19 +415,23 @@ private fun ServerDetailsCard(form: SelfHostSetupFormState, viewModel: SelfHostS
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        val onSubmitServerDetails: () -> Unit = { if (form.canTestConnection) viewModel.testConnection() }
+
         EmberrTextField(
             value = form.serverUrl,
             onValueChange = viewModel::onServerUrlChanged,
             placeholder = "https://cloud.example.com/remote.php/dav",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            onSubmit = onSubmitServerDetails
         )
 
         EmberrTextField(
             value = form.username,
             onValueChange = viewModel::onUsernameChanged,
             placeholder = "Username",
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            onSubmit = onSubmitServerDetails
         )
 
         EmberrTextField(
@@ -444,7 +449,8 @@ private fun ServerDetailsCard(form: SelfHostSetupFormState, viewModel: SelfHostS
                     )
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            onSubmit = onSubmitServerDetails
         )
 
         Spacer(modifier = Modifier.height(4.dp))
@@ -495,7 +501,11 @@ private fun ServerDetailsCard(form: SelfHostSetupFormState, viewModel: SelfHostS
 }
 
 @Composable
-private fun RestorePassphraseCard(passphraseInput: String, onPassphraseChanged: (String) -> Unit) {
+private fun RestorePassphraseCard(
+    passphraseInput: String,
+    onPassphraseChanged: (String) -> Unit,
+    onSubmit: (() -> Unit)? = null
+) {
     var isPassphraseVisible by remember { mutableStateOf(false) }
 
     Column(
@@ -524,7 +534,8 @@ private fun RestorePassphraseCard(passphraseInput: String, onPassphraseChanged: 
                     )
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            onSubmit = onSubmit
         )
     }
 }

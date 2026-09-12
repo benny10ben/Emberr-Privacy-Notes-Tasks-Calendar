@@ -304,7 +304,8 @@ private fun CategoryEditor(
             value = state.name,
             onValueChange = onNameChange,
             placeholder = "Category name",
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            onSubmit = onSave
         )
 
         Text(

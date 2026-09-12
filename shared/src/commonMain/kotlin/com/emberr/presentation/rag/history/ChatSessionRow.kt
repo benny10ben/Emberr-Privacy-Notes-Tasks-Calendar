@@ -159,7 +159,8 @@ internal fun ChatSessionRow(
                 onValueChange = { titleInput = it },
                 placeholder = "Chat name",
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onSubmit = { onRename(titleInput); showRenameDialog = false }
             )
             Spacer(Modifier.height(20.dp))
             Row(

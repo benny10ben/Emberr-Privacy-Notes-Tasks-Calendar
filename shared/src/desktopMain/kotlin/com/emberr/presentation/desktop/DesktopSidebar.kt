@@ -198,13 +198,14 @@ private fun DesktopNamePopup(
     placeholder: String = "Name..."
 ) {
     var input by remember(initialValue) { mutableStateOf(initialValue) }
+    val onSubmit: () -> Unit = { if (input.isNotBlank()) onConfirm(input.trim()) }
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 10.dp))
-        EmberrTextField(value = input, onValueChange = { input = it }, placeholder = placeholder, modifier = Modifier.fillMaxWidth())
+        EmberrTextField(value = input, onValueChange = { input = it }, placeholder = placeholder, modifier = Modifier.fillMaxWidth(), onSubmit = onSubmit)
         Spacer(Modifier.height(10.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             EmberrButtonSecondary(text = "Cancel", onClick = onDismiss, modifier = Modifier.weight(1f))
-            EmberrButtonPrimary(text = confirmLabel, onClick = { if (input.isNotBlank()) onConfirm(input.trim()) }, modifier = Modifier.weight(1f))
+            EmberrButtonPrimary(text = confirmLabel, onClick = onSubmit, modifier = Modifier.weight(1f))
         }
     }
 }

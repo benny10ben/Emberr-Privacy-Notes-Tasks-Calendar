@@ -85,23 +85,26 @@ import org.jetbrains.compose.resources.painterResource
 internal fun RenameViewSheet(context: DatabaseSheetContext) {
     val state = context.state
 
+    val onConfirmRename: () -> Unit = {
+        val viewId = state.renamingViewId
+        if (viewId != null && state.textInput.isNotBlank()) {
+            val newName = state.textInput.trim()
+            state.applyAction { context.actions.onRenameDatabaseView(context.block.id, viewId, newName) }
+        }
+    }
+
     Column(modifier = Modifier.sheetSidePadding()) {
         EmberrTextField(
             value = state.textInput,
             onValueChange = { state.textInput = it },
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            onSubmit = onConfirmRename
         )
     }
     SheetCancelAndConfirmButtons(
         confirmText = "Save",
         onCancel = { state.close() },
-        onConfirm = {
-            val viewId = state.renamingViewId
-            if (viewId != null && state.textInput.isNotBlank()) {
-                val newName = state.textInput.trim()
-                state.applyAction { context.actions.onRenameDatabaseView(context.block.id, viewId, newName) }
-            }
-        },
+        onConfirm = onConfirmRename,
         modifier = Modifier.padding(vertical = 12.dp)
     )
 
@@ -124,23 +127,26 @@ internal fun RenameViewSheet(context: DatabaseSheetContext) {
 internal fun SaveAsTemplateSheet(context: DatabaseSheetContext) {
     val state = context.state
 
+    val onConfirmSaveAsTemplate: () -> Unit = {
+        val name = state.textInput.trim()
+        if (name.isNotEmpty()) {
+            state.applyAction { context.actions.onSaveDatabaseAsTemplate(context.block.id, name) }
+        }
+    }
+
     Column(modifier = Modifier.sheetSidePadding()) {
         EmberrTextField(
             value = state.textInput,
             onValueChange = { state.textInput = it },
             placeholder = "Template name",
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            onSubmit = onConfirmSaveAsTemplate
         )
     }
     SheetCancelAndConfirmButtons(
         confirmText = "Save",
         onCancel = { state.close() },
-        onConfirm = {
-            val name = state.textInput.trim()
-            if (name.isNotEmpty()) {
-                state.applyAction { context.actions.onSaveDatabaseAsTemplate(context.block.id, name) }
-            }
-        },
+        onConfirm = onConfirmSaveAsTemplate,
         modifier = Modifier.padding(vertical = 12.dp)
     )
 }
@@ -406,6 +412,26 @@ internal fun FilterSheet(context: DatabaseSheetContext) {
         }
     }
 
+    fun onConfirmFilter() {
+        val columnId = state.activeColId ?: return
+        val canApply = when {
+            isCheckbox -> true
+            state.filterOperator in listOf("not_empty", "empty") -> true
+            state.filterOperator == "priority" -> state.filterPriority.isNotBlank()
+            state.filterOperator == "between" -> state.textInput.isNotBlank() && state.textInputMax.isNotBlank()
+            else -> state.textInput.isNotBlank()
+        }
+        if (!canApply) return
+
+        val operator = state.filterOperator
+        val value = when (operator) {
+            "priority" -> state.filterPriority.trim()
+            "between" -> "${state.textInput.trim()}|${state.textInputMax.trim()}"
+            else -> state.textInput.trim()
+        }
+        state.applyAction { context.actions.onAddDbFilter(context.block.id, columnId, operator, value) }
+    }
+
     val needsTextInput = state.filterOperator in listOf(
         "contains", "equals", "not_equals", "gt", "gte", "lt", "lte", "before", "after", "starts_with", "ends_with"
     )
@@ -417,7 +443,8 @@ internal fun FilterSheet(context: DatabaseSheetContext) {
                 value = state.textInput,
                 onValueChange = { state.textInput = it },
                 placeholder = if (isNumber) "Enter number…" else "Enter value…",
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onSubmit = ::onConfirmFilter
             )
         }
     }
@@ -430,13 +457,15 @@ internal fun FilterSheet(context: DatabaseSheetContext) {
                     value = state.textInput,
                     onValueChange = { state.textInput = it },
                     placeholder = if (isDate) "Start" else "Min",
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    onSubmit = ::onConfirmFilter
                 )
                 EmberrTextField(
                     value = state.textInputMax,
                     onValueChange = { state.textInputMax = it },
                     placeholder = if (isDate) "End" else "Max",
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    onSubmit = ::onConfirmFilter
                 )
             }
         }
@@ -477,25 +506,7 @@ internal fun FilterSheet(context: DatabaseSheetContext) {
     SheetCancelAndConfirmButtons(
         confirmText = "Apply",
         onCancel = { state.close() },
-        onConfirm = {
-            val columnId = state.activeColId ?: return@SheetCancelAndConfirmButtons
-            val canApply = when {
-                isCheckbox -> true
-                state.filterOperator in listOf("not_empty", "empty") -> true
-                state.filterOperator == "priority" -> state.filterPriority.isNotBlank()
-                state.filterOperator == "between" -> state.textInput.isNotBlank() && state.textInputMax.isNotBlank()
-                else -> state.textInput.isNotBlank()
-            }
-            if (!canApply) return@SheetCancelAndConfirmButtons
-
-            val operator = state.filterOperator
-            val value = when (operator) {
-                "priority" -> state.filterPriority.trim()
-                "between" -> "${state.textInput.trim()}|${state.textInputMax.trim()}"
-                else -> state.textInput.trim()
-            }
-            state.applyAction { context.actions.onAddDbFilter(context.block.id, columnId, operator, value) }
-        },
+        onConfirm = ::onConfirmFilter,
         modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
     )
 }

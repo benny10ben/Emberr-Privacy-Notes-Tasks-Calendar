@@ -281,23 +281,26 @@ private fun ColumnWidthStepper(icon: Painter, onClick: () -> Unit) {
 internal fun RenameColumnSheet(context: DatabaseSheetContext) {
     val state = context.state
 
+    fun onConfirmRenameColumn() {
+        val column = context.activeColumn
+        if (column != null && state.textInput.isNotBlank()) {
+            val newName = state.textInput.trim()
+            state.applyAction { context.actions.onUpdateDbColumn(context.block.id, column.id, newName, column.type) }
+        }
+    }
+
     Column(modifier = Modifier.sheetSidePadding()) {
         EmberrTextField(
             value = state.textInput,
             onValueChange = { state.textInput = it },
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            onSubmit = ::onConfirmRenameColumn
         )
     }
     SheetCancelAndConfirmButtons(
         confirmText = "Save",
         onCancel = { state.close() },
-        onConfirm = {
-            val column = context.activeColumn
-            if (column != null && state.textInput.isNotBlank()) {
-                val newName = state.textInput.trim()
-                state.applyAction { context.actions.onUpdateDbColumn(context.block.id, column.id, newName, column.type) }
-            }
-        },
+        onConfirm = ::onConfirmRenameColumn,
         modifier = Modifier.padding(vertical = 12.dp)
     )
 }
@@ -353,22 +356,25 @@ internal fun EditFormulaSheet(context: DatabaseSheetContext) {
         }
     }
 
+    fun onConfirmFormula() {
+        val columnId = state.activeColId ?: return
+        val expression = state.textInput.trim()
+        state.applyAction { context.actions.onUpdateDbFormula(context.block.id, columnId, expression) }
+    }
+
     Column(modifier = Modifier.sheetSidePadding()) {
         EmberrTextField(
             value = state.textInput,
             onValueChange = { state.textInput = it },
             placeholder = "e.g. prop(\"Price\") * 2",
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            onSubmit = ::onConfirmFormula
         )
     }
     SheetCancelAndConfirmButtons(
         confirmText = "Save",
         onCancel = { state.close() },
-        onConfirm = {
-            val columnId = state.activeColId ?: return@SheetCancelAndConfirmButtons
-            val expression = state.textInput.trim()
-            state.applyAction { context.actions.onUpdateDbFormula(context.block.id, columnId, expression) }
-        },
+        onConfirm = ::onConfirmFormula,
         modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
     )
 }

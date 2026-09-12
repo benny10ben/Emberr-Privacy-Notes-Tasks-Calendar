@@ -808,7 +808,13 @@ fun DesktopMainScreen(
                                                     value = addNoteInput,
                                                     onValueChange = { addNoteInput = it },
                                                     placeholder = "Note title...",
-                                                    modifier = Modifier.fillMaxWidth()
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    onSubmit = {
+                                                        if (addNoteInput.isNotBlank()) {
+                                                            handleCreateNote(addNoteInput.trim())
+                                                            showAddNotePopup = false
+                                                        }
+                                                    }
                                                 )
                                                 Row(
                                                     Modifier.fillMaxWidth().padding(vertical = 12.dp),
@@ -886,7 +892,13 @@ fun DesktopMainScreen(
                                                     value = addFolderInput,
                                                     onValueChange = { addFolderInput = it },
                                                     placeholder = "e.g. Personal, Work...",
-                                                    modifier = Modifier.fillMaxWidth()
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    onSubmit = {
+                                                        if (addFolderInput.isNotBlank()) {
+                                                            handleCreateFolder(addFolderInput.trim())
+                                                            showAddFolderPopup = false
+                                                        }
+                                                    }
                                                 )
                                                 Row(
                                                     Modifier.fillMaxWidth().padding(vertical = 12.dp),

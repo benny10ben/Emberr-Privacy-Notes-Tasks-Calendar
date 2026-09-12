@@ -78,6 +78,21 @@ internal fun ExternalAiSettingsSheet(
             apiKeyInput = ""
         }
 
+        val hasUsableKey = apiKeyInput.isNotBlank() || loadedConfig?.apiKey?.isNotBlank() == true
+        val hasUsableEndpoint = selectedProvider != ExternalAiProvider.CUSTOM || baseUrlInput.isNotBlank()
+        val onSave: () -> Unit = {
+            if (hasUsableKey && hasUsableEndpoint) {
+                val configToSave = ExternalAiProviderConfig(
+                    apiKey = apiKeyInput.ifBlank { loadedConfig?.apiKey.orEmpty() },
+                    model = modelInput.ifBlank { selectedProvider.defaultModel.orEmpty() },
+                    baseUrl = baseUrlInput.ifBlank { null },
+                    updatedAt = Clock.System.now().toEpochMilliseconds()
+                )
+                viewModel.saveExternalAiConfig(selectedProvider, configToSave)
+                closeAnd { }
+            }
+        }
+
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             Text(
                 text = "Provider",
@@ -111,7 +126,8 @@ internal fun ExternalAiSettingsSheet(
                     onValueChange = { baseUrlInput = it },
                     placeholder = "https://your-endpoint.example.com/v1",
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    onSubmit = onSave
                 )
             }
 
@@ -127,7 +143,8 @@ internal fun ExternalAiSettingsSheet(
                 onValueChange = { modelInput = it },
                 placeholder = selectedProvider.defaultModel ?: "Enter a model name",
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onSubmit = onSave
             )
 
             Spacer(Modifier.height(20.dp))
@@ -155,15 +172,11 @@ internal fun ExternalAiSettingsSheet(
                         )
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onSubmit = onSave
             )
 
             Spacer(Modifier.height(24.dp))
-
-            val hasUsableKey =
-                apiKeyInput.isNotBlank() || loadedConfig?.apiKey?.isNotBlank() == true
-            val hasUsableEndpoint =
-                selectedProvider != ExternalAiProvider.CUSTOM || baseUrlInput.isNotBlank()
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -179,16 +192,7 @@ internal fun ExternalAiSettingsSheet(
                 EmberrButtonPrimary(
                     text = "Save",
                     enabled = hasUsableKey && hasUsableEndpoint,
-                    onClick = {
-                        val configToSave = ExternalAiProviderConfig(
-                            apiKey = apiKeyInput.ifBlank { loadedConfig?.apiKey.orEmpty() },
-                            model = modelInput.ifBlank { selectedProvider.defaultModel.orEmpty() },
-                            baseUrl = baseUrlInput.ifBlank { null },
-                            updatedAt = Clock.System.now().toEpochMilliseconds()
-                        )
-                        viewModel.saveExternalAiConfig(selectedProvider, configToSave)
-                        closeAnd { }
-                    },
+                    onClick = onSave,
                     modifier = Modifier.weight(1f)
                 )
             }
