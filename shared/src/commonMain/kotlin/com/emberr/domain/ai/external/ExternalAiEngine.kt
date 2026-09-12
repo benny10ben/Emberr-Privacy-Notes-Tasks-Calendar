@@ -2,6 +2,9 @@ package com.emberr.domain.ai.external
 
 import com.emberr.domain.ai.AiGenerationEngine
 import com.emberr.domain.ai.chat.ChatTurn
+import com.emberr.domain.ai.tools.VaultToolInstructions
+import com.emberr.domain.ai.tools.VaultToolRunner
+import com.emberr.domain.ai.tools.VaultTools
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
@@ -13,7 +16,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
 class ExternalAiEngine(
-    private val aiSettingsRepository: AiSettingsRepository
+    private val aiSettingsRepository: AiSettingsRepository,
+    private val vaultToolRunner: VaultToolRunner
 ) : AiGenerationEngine {
 
     private val httpClient = HttpClient {
@@ -49,17 +53,25 @@ class ExternalAiEngine(
         }
 
         val maxOutputTokens = aiSettingsRepository.maxOutputTokens.first()
+        val readOnly = aiSettingsRepository.externalAiReadOnly.first()
+        val effectiveSystemPrompt = if (readOnly) {
+            systemPrompt
+        } else {
+            "$systemPrompt\n\n${VaultToolInstructions.FOR_WRITE_ACCESS}"
+        }
 
         try {
             adapterFor(provider).streamChatCompletion(
                 httpClient = httpClient,
                 config = config,
                 providerDisplayName = provider.displayName,
-                systemPrompt = systemPrompt,
+                systemPrompt = effectiveSystemPrompt,
                 userQuestion = userQuestion,
                 contextBlock = contextBlock,
                 conversationHistory = conversationHistory,
-                maxOutputTokens = maxOutputTokens
+                maxOutputTokens = maxOutputTokens,
+                toolDefinitions = if (readOnly) VaultTools.readOnly else VaultTools.all,
+                toolRunner = vaultToolRunner
             ).collect { token -> emit(token) }
         } catch (cause: ExternalAiException) {
             throw cause

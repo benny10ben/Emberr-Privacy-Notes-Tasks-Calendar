@@ -1,6 +1,10 @@
 package com.emberr.domain.ai.external
 
 import com.emberr.domain.ai.chat.ChatTurn
+import com.emberr.domain.ai.tools.VaultToolDefinition
+import com.emberr.domain.ai.tools.VaultToolLimits
+import com.emberr.domain.ai.tools.VaultToolRunner
+import com.emberr.domain.ai.tools.renderForModel
 import io.ktor.client.HttpClient
 import io.ktor.client.request.parameter
 import io.ktor.client.request.preparePost
@@ -10,15 +14,38 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.utils.io.readLine
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 
 @Serializable
 private data class GeminiPart(
-    val text: String
+    val text: String? = null,
+    val functionCall: GeminiFunctionCall? = null,
+    val functionResponse: GeminiFunctionResponse? = null,
+    val thoughtSignature: String? = null
+)
+
+@Serializable
+private data class GeminiFunctionCall(
+    val name: String,
+    val args: JsonObject = JsonObject(emptyMap())
+)
+
+@Serializable
+private data class GeminiFunctionResponse(
+    val name: String,
+    val response: JsonObject
 )
 
 @Serializable
@@ -36,7 +63,8 @@ private data class GeminiGenerationConfig(
 private data class GeminiRequest(
     @SerialName("system_instruction") val systemInstruction: GeminiContent,
     val contents: List<GeminiContent>,
-    val generationConfig: GeminiGenerationConfig
+    val generationConfig: GeminiGenerationConfig,
+    val tools: List<JsonObject>? = null
 )
 
 @Serializable
@@ -48,6 +76,8 @@ private data class GeminiCandidate(
 private data class GeminiStreamChunk(
     val candidates: List<GeminiCandidate> = emptyList()
 )
+
+private class GeminiRoundResult(val functionCallParts: List<GeminiPart>)
 
 class GeminiAdapter : ChatCompletionAdapter {
 
@@ -61,24 +91,81 @@ class GeminiAdapter : ChatCompletionAdapter {
         userQuestion: String,
         contextBlock: String,
         conversationHistory: List<ChatTurn>,
-        maxOutputTokens: Int
+        maxOutputTokens: Int,
+        toolDefinitions: List<VaultToolDefinition>,
+        toolRunner: VaultToolRunner?
     ): Flow<String> = flow {
-        val contents = buildList {
-            conversationHistory.forEach { turn ->
-                add(GeminiContent(role = "user", parts = listOf(GeminiPart(turn.userMessage))))
-                add(GeminiContent(role = "model", parts = listOf(GeminiPart(turn.assistantMessage))))
-            }
-            add(GeminiContent(role = "user", parts = listOf(GeminiPart(userQuestion))))
+        val contents = mutableListOf<GeminiContent>()
+        conversationHistory.forEach { turn ->
+            contents.add(GeminiContent(role = "user", parts = listOf(GeminiPart(text = turn.userMessage))))
+            contents.add(GeminiContent(role = "model", parts = listOf(GeminiPart(text = turn.assistantMessage))))
         }
+        contents.add(GeminiContent(role = "user", parts = listOf(GeminiPart(text = userQuestion))))
 
+        val tools = toolDefinitions.takeIf { it.isNotEmpty() && toolRunner != null }
+            ?.let { listOf(it.toGeminiToolsJson()) }
+
+        var remainingToolRounds = VaultToolLimits.MAX_TOOL_ROUNDS_PER_TURN
+        while (true) {
+            val toolsForThisRound = tools.takeIf { remainingToolRounds > 0 }
+
+            val round = streamOneRound(
+                httpClient = httpClient,
+                config = config,
+                providerDisplayName = providerDisplayName,
+                systemPrompt = systemPrompt,
+                contextBlock = contextBlock,
+                contents = contents,
+                tools = toolsForThisRound,
+                maxOutputTokens = maxOutputTokens
+            )
+
+            if (round.functionCallParts.isEmpty()) break
+
+            remainingToolRounds--
+            contents.add(GeminiContent(role = "model", parts = round.functionCallParts))
+            contents.add(
+                GeminiContent(
+                    role = "user",
+                    parts = round.functionCallParts.map { part ->
+                        val functionCall = part.functionCall!!
+                        val result = toolRunner!!.run(functionCall.name, functionCall.args.toVaultToolArguments())
+                        GeminiPart(
+                            functionResponse = GeminiFunctionResponse(
+                                name = functionCall.name,
+                                response = buildJsonObject {
+                                    put("name", functionCall.name)
+                                    put("content", result.renderForModel())
+                                }
+                            )
+                        )
+                    }
+                )
+            )
+        }
+    }
+
+    private suspend fun FlowCollector<String>.streamOneRound(
+        httpClient: HttpClient,
+        config: ExternalAiProviderConfig,
+        providerDisplayName: String,
+        systemPrompt: String,
+        contextBlock: String,
+        contents: List<GeminiContent>,
+        tools: List<JsonObject>?,
+        maxOutputTokens: Int
+    ): GeminiRoundResult {
         val requestBody = json.encodeToString(
             GeminiRequest.serializer(),
             GeminiRequest(
-                systemInstruction = GeminiContent(parts = listOf(GeminiPart("$systemPrompt\n\n$contextBlock"))),
+                systemInstruction = GeminiContent(parts = listOf(GeminiPart(text = "$systemPrompt\n\n$contextBlock"))),
                 contents = contents,
-                generationConfig = GeminiGenerationConfig(maxOutputTokens = maxOutputTokens)
+                generationConfig = GeminiGenerationConfig(maxOutputTokens = maxOutputTokens),
+                tools = tools
             )
         )
+
+        val functionCallParts = mutableListOf<GeminiPart>()
 
         httpClient.preparePost("$API_BASE_URL/${config.model}:streamGenerateContent") {
             parameter("alt", "sse")
@@ -104,8 +191,40 @@ class GeminiAdapter : ChatCompletionAdapter {
                     continue
                 }
 
-                val text = chunk.candidates.firstOrNull()?.content?.parts?.joinToString("") { it.text }
-                if (!text.isNullOrEmpty()) emit(text)
+                val parts = chunk.candidates.firstOrNull()?.content?.parts.orEmpty()
+                parts.forEach { part ->
+                    val text = part.text
+                    if (!text.isNullOrEmpty()) emit(text)
+
+                    if (part.functionCall != null) functionCallParts.add(part)
+                }
+            }
+        }
+
+        return GeminiRoundResult(functionCallParts)
+    }
+
+    private fun List<VaultToolDefinition>.toGeminiToolsJson(): JsonObject = buildJsonObject {
+        putJsonArray("functionDeclarations") {
+            forEach { definition ->
+                addJsonObject {
+                    put("name", definition.name)
+                    put("description", definition.description)
+                    putJsonObject("parameters") {
+                        put("type", "OBJECT")
+                        putJsonObject("properties") {
+                            definition.parameters.forEach { parameter ->
+                                putJsonObject(parameter.name) {
+                                    put("type", "STRING")
+                                    put("description", parameter.description)
+                                }
+                            }
+                        }
+                        putJsonArray("required") {
+                            definition.parameters.filter { it.isRequired }.forEach { add(it.name) }
+                        }
+                    }
+                }
             }
         }
     }

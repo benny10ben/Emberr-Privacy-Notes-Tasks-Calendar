@@ -1,6 +1,10 @@
 package com.emberr.domain.ai.external
 
 import com.emberr.domain.ai.chat.ChatTurn
+import com.emberr.domain.ai.tools.VaultToolDefinition
+import com.emberr.domain.ai.tools.VaultToolLimits
+import com.emberr.domain.ai.tools.VaultToolRunner
+import com.emberr.domain.ai.tools.renderForModel
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.preparePost
@@ -11,24 +15,47 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.utils.io.readLine
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 
 @Serializable
 private data class ChatCompletionRequest(
     val model: String,
     val messages: List<ChatMessagePayload>,
     @SerialName("max_tokens") val maxTokens: Int,
-    val stream: Boolean = true
+    val stream: Boolean = true,
+    val tools: List<JsonObject>? = null
 )
 
 @Serializable
 private data class ChatMessagePayload(
     val role: String,
-    val content: String
+    val content: String? = null,
+    @SerialName("tool_calls") val toolCalls: List<ToolCallPayload>? = null,
+    @SerialName("tool_call_id") val toolCallId: String? = null
+)
+
+@Serializable
+private data class ToolCallPayload(
+    val id: String,
+    val type: String = "function",
+    val function: FunctionCallPayload
+)
+
+@Serializable
+private data class FunctionCallPayload(
+    val name: String,
+    val arguments: String
 )
 
 @Serializable
@@ -43,8 +70,26 @@ private data class ChunkChoice(
 
 @Serializable
 private data class ChunkDelta(
-    val content: String? = null
+    val content: String? = null,
+    @SerialName("tool_calls") val toolCalls: List<ChunkToolCall>? = null
 )
+
+@Serializable
+private data class ChunkToolCall(
+    val index: Int,
+    val id: String? = null,
+    val function: ChunkFunctionCall? = null
+)
+
+@Serializable
+private data class ChunkFunctionCall(
+    val name: String? = null,
+    val arguments: String? = null
+)
+
+private class AccumulatedToolCall(val id: String, val name: String, val argumentsJson: String)
+
+private class OpenAiRoundResult(val assistantText: String, val toolCalls: List<AccumulatedToolCall>)
 
 class OpenAiCompatibleAdapter : ChatCompletionAdapter {
 
@@ -58,21 +103,75 @@ class OpenAiCompatibleAdapter : ChatCompletionAdapter {
         userQuestion: String,
         contextBlock: String,
         conversationHistory: List<ChatTurn>,
-        maxOutputTokens: Int
+        maxOutputTokens: Int,
+        toolDefinitions: List<VaultToolDefinition>,
+        toolRunner: VaultToolRunner?
     ): Flow<String> = flow {
-        val messages = buildList {
-            add(ChatMessagePayload(role = "system", content = "$systemPrompt\n\n$contextBlock"))
-            conversationHistory.forEach { turn ->
-                add(ChatMessagePayload(role = "user", content = turn.userMessage))
-                add(ChatMessagePayload(role = "assistant", content = turn.assistantMessage))
-            }
-            add(ChatMessagePayload(role = "user", content = userQuestion))
+        val messages = mutableListOf<ChatMessagePayload>()
+        messages.add(ChatMessagePayload(role = "system", content = "$systemPrompt\n\n$contextBlock"))
+        conversationHistory.forEach { turn ->
+            messages.add(ChatMessagePayload(role = "user", content = turn.userMessage))
+            messages.add(ChatMessagePayload(role = "assistant", content = turn.assistantMessage))
         }
+        messages.add(ChatMessagePayload(role = "user", content = userQuestion))
 
+        val tools = toolDefinitions.takeIf { it.isNotEmpty() && toolRunner != null }
+            ?.map { it.toOpenAiToolJson() }
+
+        var remainingToolRounds = VaultToolLimits.MAX_TOOL_ROUNDS_PER_TURN
+        while (true) {
+            val toolsForThisRound = tools.takeIf { remainingToolRounds > 0 }
+
+            val round = streamOneRound(
+                httpClient = httpClient,
+                config = config,
+                providerDisplayName = providerDisplayName,
+                messages = messages,
+                tools = toolsForThisRound,
+                maxOutputTokens = maxOutputTokens
+            )
+
+            if (round.toolCalls.isEmpty()) break
+
+            remainingToolRounds--
+            messages.add(
+                ChatMessagePayload(
+                    role = "assistant",
+                    content = round.assistantText.takeIf { it.isNotEmpty() },
+                    toolCalls = round.toolCalls.map { toolCall ->
+                        ToolCallPayload(
+                            id = toolCall.id,
+                            function = FunctionCallPayload(name = toolCall.name, arguments = toolCall.argumentsJson)
+                        )
+                    }
+                )
+            )
+
+            round.toolCalls.forEach { toolCall ->
+                val result = toolRunner!!.run(toolCall.name, parseArguments(toolCall.argumentsJson))
+                messages.add(ChatMessagePayload(role = "tool", content = result.renderForModel(), toolCallId = toolCall.id))
+            }
+        }
+    }
+
+    private suspend fun FlowCollector<String>.streamOneRound(
+        httpClient: HttpClient,
+        config: ExternalAiProviderConfig,
+        providerDisplayName: String,
+        messages: List<ChatMessagePayload>,
+        tools: List<JsonObject>?,
+        maxOutputTokens: Int
+    ): OpenAiRoundResult {
         val requestBody = json.encodeToString(
             ChatCompletionRequest.serializer(),
-            ChatCompletionRequest(model = config.model, messages = messages, maxTokens = maxOutputTokens)
+            ChatCompletionRequest(model = config.model, messages = messages, maxTokens = maxOutputTokens, tools = tools)
         )
+
+        val assistantText = StringBuilder()
+        val toolCallIdsByIndex = mutableMapOf<Int, String>()
+        val toolCallNamesByIndex = mutableMapOf<Int, String>()
+        val toolCallArgumentsByIndex = mutableMapOf<Int, StringBuilder>()
+        val orderedToolCallIndices = mutableListOf<Int>()
 
         httpClient.preparePost(resolveEndpoint(config)) {
             header(HttpHeaders.Authorization, "Bearer ${config.apiKey}")
@@ -98,8 +197,65 @@ class OpenAiCompatibleAdapter : ChatCompletionAdapter {
                     continue
                 }
 
-                val delta = chunk.choices.firstOrNull()?.delta?.content
-                if (!delta.isNullOrEmpty()) emit(delta)
+                val delta = chunk.choices.firstOrNull()?.delta ?: continue
+
+                val text = delta.content
+                if (!text.isNullOrEmpty()) {
+                    assistantText.append(text)
+                    emit(text)
+                }
+
+                delta.toolCalls?.forEach { toolCall ->
+                    val index = toolCall.index
+                    if (!orderedToolCallIndices.contains(index)) orderedToolCallIndices.add(index)
+                    toolCall.id?.let { toolCallIdsByIndex[index] = it }
+                    toolCall.function?.name?.let { toolCallNamesByIndex[index] = it }
+                    toolCall.function?.arguments?.let { fragment ->
+                        toolCallArgumentsByIndex.getOrPut(index) { StringBuilder() }.append(fragment)
+                    }
+                }
+            }
+        }
+
+        val toolCalls = orderedToolCallIndices.map { index ->
+            AccumulatedToolCall(
+                id = toolCallIdsByIndex[index].orEmpty(),
+                name = toolCallNamesByIndex[index].orEmpty(),
+                argumentsJson = toolCallArgumentsByIndex[index]?.toString().orEmpty()
+            )
+        }
+
+        return OpenAiRoundResult(assistantText.toString(), toolCalls)
+    }
+
+    private fun parseArguments(argumentsJson: String): Map<String, String> {
+        if (argumentsJson.isBlank()) return emptyMap()
+        val parsed = try {
+            json.parseToJsonElement(argumentsJson)
+        } catch (cause: SerializationException) {
+            return emptyMap()
+        }
+        return (parsed as? JsonObject)?.toVaultToolArguments().orEmpty()
+    }
+
+    private fun VaultToolDefinition.toOpenAiToolJson(): JsonObject = buildJsonObject {
+        put("type", "function")
+        putJsonObject("function") {
+            put("name", name)
+            put("description", description)
+            putJsonObject("parameters") {
+                put("type", "object")
+                putJsonObject("properties") {
+                    parameters.forEach { parameter ->
+                        putJsonObject(parameter.name) {
+                            put("type", "string")
+                            put("description", parameter.description)
+                        }
+                    }
+                }
+                putJsonArray("required") {
+                    parameters.filter { it.isRequired }.forEach { add(it.name) }
+                }
             }
         }
     }
