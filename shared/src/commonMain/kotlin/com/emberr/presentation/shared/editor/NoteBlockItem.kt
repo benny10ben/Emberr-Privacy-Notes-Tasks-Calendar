@@ -103,7 +103,6 @@ import com.emberr.presentation.shared.editor.blockViews.ImageBlockView
 import com.emberr.presentation.shared.editor.blockViews.AudioBlockView
 import com.emberr.presentation.shared.editor.blockViews.BookmarkBlockView
 import com.emberr.presentation.shared.editor.blockViews.LinkedNoteBlockView
-import com.emberr.presentation.shared.editor.blockViews.plugins.SketchCanvasBlockView
 import com.emberr.presentation.shared.editor.blockViews.TableBlockView
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.TransformedText
@@ -781,12 +780,7 @@ fun NoteBlockItem(
                                 onPlayAudio = { path, onComplete -> actions.onPlayAudio(path, onComplete) },
                                 onStopAudio = { actions.onStopAudio() }
                             )
-                            is SketchBlock -> SketchCanvasBlockView(
-                                block = block,
-                                inSelectionMode = inSelectionMode,
-                                onStrokesChanged = { actions.onUpdateSketch(block.id, it) },
-                                onScrollEnabledChange = { actions.setScrollEnabled(it) }
-                            )
+                            is SketchBlock -> {}
                             is SolidDividerBlock -> {
                                 Box(
                                     modifier = Modifier
