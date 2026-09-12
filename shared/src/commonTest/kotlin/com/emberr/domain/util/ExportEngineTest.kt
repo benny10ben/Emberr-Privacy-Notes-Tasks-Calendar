@@ -17,7 +17,6 @@ import com.emberr.domain.model.LinkedNoteBlock
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NumberedListBlock
 import com.emberr.domain.model.QuoteBlock
-import com.emberr.domain.model.SketchBlock
 import com.emberr.domain.model.SolidDividerBlock
 import com.emberr.domain.model.TableBlock
 import com.emberr.domain.model.TextBlock
@@ -152,16 +151,15 @@ class ExportEngineTest {
     }
 
     @Test
-    fun voiceNotesAndSketchesHaveNoPlainTextFormButStillAppearInMarkdown() {
+    fun aVoiceNoteHasNoPlainTextFormButStillAppearsInMarkdown() {
         val blocks = arrayOf(
             TextBlock(id = "text-1", text = "kept"),
-            VoiceBlock(id = "voice-1", localFilePath = "memo.m4a"),
-            SketchBlock(id = "sketch-1")
+            VoiceBlock(id = "voice-1", localFilePath = "memo.m4a")
         )
 
         assertEquals("kept", plainTextOf(*blocks))
         assertEquals(
-            "kept\n\n```emberr-voice\nfile: memo.m4a\nseconds: 0\n```\n\n```emberr-sketch\nstrokes: 0\n```",
+            "kept\n\n```emberr-voice\nfile: memo.m4a\nseconds: 0\n```",
             markdownOf(*blocks)
         )
     }

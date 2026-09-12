@@ -23,14 +23,11 @@ import com.emberr.domain.model.MediaItem
 import com.emberr.domain.model.LinkedNoteBlock
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NumberedListBlock
-import com.emberr.domain.model.Point
 import com.emberr.domain.model.RecurrenceFrequency
 import com.emberr.domain.model.RecurrenceRule
 import com.emberr.domain.model.QuoteBlock
-import com.emberr.domain.model.SketchBlock
 import com.emberr.domain.model.SortConfig
 import com.emberr.domain.model.SolidDividerBlock
-import com.emberr.domain.model.Stroke
 import com.emberr.domain.model.TableBlock
 import com.emberr.domain.model.TableCellContentType
 import com.emberr.domain.model.TableCellStyle
@@ -412,19 +409,6 @@ class NoteMarkdownRoundTripTest {
                 durationSeconds = 34,
                 isPinned = true,
                 updatedAt = 117L
-            ),
-            SketchBlock(
-                id = "block-sketch",
-                strokes = listOf(
-                    Stroke(
-                        points = listOf(Point(1f, 2f), Point(3f, 4f)),
-                        colorHex = "#FF2196F3",
-                        strokeWidth = 9.5f
-                    ),
-                    Stroke(points = listOf(Point(5f, 6f)), isEraser = true)
-                ),
-                isPinned = true,
-                updatedAt = 118L
             ),
             LinkedNoteBlock(
                 id = "block-linked",

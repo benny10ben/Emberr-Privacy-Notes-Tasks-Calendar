@@ -258,8 +258,6 @@ fun TasksScreen(
                         override fun onRequestDbFilePicker(blockId: String, rowId: String, colId: String, isAudio: Boolean) {}
                         override fun onStopDbAudioRecording(blockId: String, rowId: String, colId: String, cancel: Boolean) {}
                         override fun onTogglePin() {}
-                        override fun setScrollEnabled(enabled: Boolean) {}
-                        override fun onUpdateSketch(id: String, strokes: List<com.emberr.domain.model.Stroke>) {}
                         override fun onUpdateTable(id: String, rows: List<List<String>>) {}
                         override fun onUpdateTableColumnWidth(id: String, columnIndex: Int, width: Int) {}
                         override fun onUpdateTableStyle(

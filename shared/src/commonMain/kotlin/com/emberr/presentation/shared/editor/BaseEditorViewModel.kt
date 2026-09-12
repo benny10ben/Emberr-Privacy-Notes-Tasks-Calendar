@@ -1360,7 +1360,7 @@ abstract class BaseEditorViewModel(
             val isMediaOrDivider = prevBlock is ImageBlock || prevBlock is DocumentBlock ||
                     prevBlock is DatabaseBlock || prevBlock is SolidDividerBlock ||
                     prevBlock is ThreeDotDividerBlock || prevBlock is BookmarkBlock ||
-                    prevBlock is SketchBlock || prevBlock is VoiceBlock
+                    prevBlock is VoiceBlock
 
             if (isMediaOrDivider) {
                 modifyBlocks { list ->
@@ -1712,7 +1712,6 @@ abstract class BaseEditorViewModel(
                 "voice" -> VoiceBlock(id = newId, indentationLevel = indent, isPinned = isPinnedContext, updatedAt = now)
                 "database" -> buildDatabaseBlock(newId, indent, isPinnedContext, now, databaseTemplate)
                 "table" -> TableBlock(id = newId, indentationLevel = indent, isPinned = isPinnedContext, updatedAt = now)
-                "sketch" -> SketchBlock(id = newId, indentationLevel = indent, isPinned = isPinnedContext, updatedAt = now)
                 else -> return@modifyBlocks list
             }
 
@@ -1739,16 +1738,6 @@ abstract class BaseEditorViewModel(
             mutableList
         }
         newIdToFocus?.let { _focusRequest.value = FocusRequest(id = it) }
-        scheduleAutosave()
-    }
-
-    fun updateSketchStrokes(blockId: String, strokes: List<Stroke>) {
-        val now = System.currentTimeMillis()
-        modifyBlocks { list ->
-            mapBlockById(list, blockId) {
-                if (it is SketchBlock) it.copy(strokes = strokes, updatedAt = now) else it
-            }
-        }
         scheduleAutosave()
     }
 

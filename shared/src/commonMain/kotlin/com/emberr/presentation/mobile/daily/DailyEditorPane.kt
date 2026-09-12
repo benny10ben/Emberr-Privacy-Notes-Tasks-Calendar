@@ -24,7 +24,6 @@ import com.emberr.domain.model.ColumnType
 import com.emberr.domain.model.FilterConfig
 import com.emberr.domain.model.GalleryCardSize
 import com.emberr.domain.model.NoteBlock
-import com.emberr.domain.model.Stroke
 import com.emberr.domain.model.TextAlignment
 import com.emberr.domain.model.ViewType
 import com.emberr.domain.util.isDesktopPlatform
@@ -228,8 +227,6 @@ fun DailyEditorPane(
             override fun onPlayAudio(filePath: String, onComplete: () -> Unit) = viewModel.playAudio(filePath, onComplete)
             override fun onStopAudio() = viewModel.stopAudio()
             override fun onTogglePin() = viewModel.togglePinSelectedBlocks()
-            override fun onUpdateSketch(id: String, strokes: List<Stroke>) =
-                viewModel.updateSketchStrokes(id, strokes)
             override fun onUpdateTable(id: String, rows: List<List<String>>) =
                 viewModel.updateTable(id, rows)
             override fun onUpdateTableColumnWidth(id: String, columnIndex: Int, width: Int) =

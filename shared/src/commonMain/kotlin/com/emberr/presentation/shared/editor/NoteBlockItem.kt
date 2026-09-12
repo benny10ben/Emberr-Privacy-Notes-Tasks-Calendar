@@ -66,7 +66,6 @@ import com.emberr.domain.model.LinkedNoteBlock
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NumberedListBlock
 import com.emberr.domain.model.QuoteBlock
-import com.emberr.domain.model.SketchBlock
 import com.emberr.domain.model.TextBlock
 import com.emberr.domain.model.ToggleBlock
 import com.emberr.domain.model.VoiceBlock
@@ -177,7 +176,7 @@ fun NoteBlockItem(
         is BulletedListBlock -> block.text
         is NumberedListBlock -> block.text
         is ToggleBlock -> block.text
-        is BookmarkBlock, is ImageBlock, is DocumentBlock, is DatabaseBlock, is TableBlock, is VoiceBlock, is SketchBlock -> ""
+        is BookmarkBlock, is ImageBlock, is DocumentBlock, is DatabaseBlock, is TableBlock, is VoiceBlock -> ""
         else -> ""
     }
 
@@ -240,7 +239,7 @@ fun NoteBlockItem(
         }
     }
 
-    val isTextBased = block !is BookmarkBlock && block !is ImageBlock && block !is DocumentBlock && block !is DatabaseBlock && block !is TableBlock && block !is VoiceBlock && block !is SketchBlock && block !is SolidDividerBlock && block !is ThreeDotDividerBlock && block !is LinkedNoteBlock
+    val isTextBased = block !is BookmarkBlock && block !is ImageBlock && block !is DocumentBlock && block !is DatabaseBlock && block !is TableBlock && block !is VoiceBlock && block !is SolidDividerBlock && block !is ThreeDotDividerBlock && block !is LinkedNoteBlock
     LaunchedEffect(focusRequest?.nonce) {
         if (focusRequest == null || focusRequest.id != block.id) return@LaunchedEffect
 
@@ -780,7 +779,6 @@ fun NoteBlockItem(
                                 onPlayAudio = { path, onComplete -> actions.onPlayAudio(path, onComplete) },
                                 onStopAudio = { actions.onStopAudio() }
                             )
-                            is SketchBlock -> {}
                             is SolidDividerBlock -> {
                                 Box(
                                     modifier = Modifier

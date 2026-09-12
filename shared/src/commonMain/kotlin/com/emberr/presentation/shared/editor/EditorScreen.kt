@@ -272,8 +272,6 @@ interface EditorActions {
     fun onRequestDbFilePicker(blockId: String, rowId: String, colId: String, isAudio: Boolean)
     fun onStopDbAudioRecording(blockId: String, rowId: String, colId: String, cancel: Boolean)
     fun onTogglePin()
-    fun setScrollEnabled(enabled: Boolean) {}
-    fun onUpdateSketch(id: String, strokes: List<com.emberr.domain.model.Stroke>)
     fun onUpdateTable(id: String, rows: List<List<String>>)
     fun onUpdateTableColumnWidth(id: String, columnIndex: Int, width: Int)
     fun onUpdateTableStyle(

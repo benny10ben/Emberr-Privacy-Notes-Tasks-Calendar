@@ -19,7 +19,6 @@ import com.emberr.domain.model.LinkedNoteBlock
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NumberedListBlock
 import com.emberr.domain.model.QuoteBlock
-import com.emberr.domain.model.SketchBlock
 import com.emberr.domain.model.SolidDividerBlock
 import com.emberr.domain.model.TableBlock
 import com.emberr.domain.model.TextBlock
@@ -401,7 +400,6 @@ object NoteMarkdownReader {
     ): NoteBlock = when (chunk.fenceInfo) {
         VaultFormat.DATABASE_FENCE_NAME -> buildDatabaseBlock(chunk, existing, request)
         VaultFormat.VOICE_FENCE_NAME -> buildVoiceBlock(chunk, existing, request)
-        VaultFormat.SKETCH_FENCE_NAME -> buildSketchBlock(existing, request)
         else -> buildCodeBlock(chunk, existing, request)
     }
 
@@ -434,11 +432,6 @@ object NoteMarkdownReader {
             existing,
             request.timestamp
         )
-    }
-
-    private fun buildSketchBlock(existing: NoteBlock?, request: VaultNoteReadRequest): NoteBlock {
-        val base = existing as? SketchBlock ?: SketchBlock(id = idFor(existing, request))
-        return settle(base.copy(), existing, request.timestamp)
     }
 
     private fun buildTableBlock(

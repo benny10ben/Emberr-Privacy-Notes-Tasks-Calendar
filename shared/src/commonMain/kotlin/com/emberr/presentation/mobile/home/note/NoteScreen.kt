@@ -334,8 +334,6 @@ fun NoteScreen(
         }
     }
 
-    var isListScrollEnabled by remember { mutableStateOf(true) }
-
     val editorListState = androidx.compose.foundation.lazy.rememberLazyListState()
     var titleTopPx by remember { mutableFloatStateOf(Float.MAX_VALUE) }
     var topBarBottomPx by remember { mutableFloatStateOf(0f) }
@@ -447,11 +445,6 @@ fun NoteScreen(
             override fun onPlayAudio(filePath: String, onComplete: () -> Unit) = viewModel.playAudio(filePath, onComplete)
             override fun onStopAudio() = viewModel.stopAudio()
             override fun onTogglePin() = viewModel.togglePinSelectedBlocks()
-            override fun setScrollEnabled(enabled: Boolean) {
-                isListScrollEnabled = enabled
-            }
-            override fun onUpdateSketch(id: String, strokes: List<com.emberr.domain.model.Stroke>) =
-                viewModel.updateSketchStrokes(id, strokes)
             override fun onUpdateTable(id: String, rows: List<List<String>>) =
                 viewModel.updateTable(id, rows)
             override fun onUpdateTableColumnWidth(id: String, columnIndex: Int, width: Int) =

@@ -63,7 +63,7 @@ object ExportEngine {
                         builder.appendLine("$indent  ${row.joinToString(" | ")}")
                     }
                 }
-                is VoiceBlock, is SketchBlock -> { /* Ignored */ }
+                is VoiceBlock -> { /* Ignored */ }
                 is LinkedNoteBlock -> { /* Ignored - only linkedNoteId is available here, no title to render */ }
             }
         }

@@ -237,19 +237,6 @@ object TestNoteBlocks {
             indentationLevel = 1,
             updatedAt = 114L
         ),
-        SketchBlock(
-            id = "sketch-1",
-            strokes = listOf(
-                Stroke(
-                    points = listOf(Point(1.5f, 2.5f), Point(3.5f, 4.5f)),
-                    colorHex = "#FFFF0000",
-                    strokeWidth = 8f,
-                    isEraser = true
-                )
-            ),
-            indentationLevel = 1,
-            updatedAt = 115L
-        ),
         SolidDividerBlock(
             id = "solid-divider-1",
             indentationLevel = 1,

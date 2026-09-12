@@ -312,7 +312,6 @@ class NoteIndexer(
         is ImageBlock    -> null
         is DocumentBlock -> null
         is VoiceBlock    -> null
-        is SketchBlock   -> null
         is SolidDividerBlock    -> null
         is ThreeDotDividerBlock    -> null
         is LinkedNoteBlock -> null

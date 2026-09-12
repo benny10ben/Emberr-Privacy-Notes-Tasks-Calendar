@@ -16,7 +16,6 @@ import com.emberr.domain.model.LinkedNoteBlock
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NumberedListBlock
 import com.emberr.domain.model.QuoteBlock
-import com.emberr.domain.model.SketchBlock
 import com.emberr.domain.model.SolidDividerBlock
 import com.emberr.domain.model.TableBlock
 import com.emberr.domain.model.TextBlock
@@ -171,7 +170,6 @@ object NoteMarkdownWriter {
             is ImageBlock -> renderImage(block, tag, options)
             is DocumentBlock -> renderDocument(block, tag, options)
             is VoiceBlock -> renderVoice(block, tag, options)
-            is SketchBlock -> renderSketch(block, tag)
             is TableBlock -> renderTable(block, tag)
             is DatabaseBlock -> renderDatabase(block, tag, options)
             is SolidDividerBlock -> withTagOnItsOwnLine(VaultFormat.SOLID_DIVIDER_LINE, tag)
@@ -282,15 +280,6 @@ object NoteMarkdownWriter {
             appendLine("```${VaultFormat.VOICE_FENCE_NAME}")
             if (fileName != null) appendLine("file: ${options.mediaPathPrefix}$fileName")
             appendLine("seconds: ${block.durationSeconds}")
-            append("```")
-        }
-        return withTagOnItsOwnLine(fence, tag)
-    }
-
-    private fun renderSketch(block: SketchBlock, tag: String?): String {
-        val fence = buildString {
-            appendLine("```${VaultFormat.SKETCH_FENCE_NAME}")
-            appendLine("strokes: ${block.strokes.size}")
             append("```")
         }
         return withTagOnItsOwnLine(fence, tag)

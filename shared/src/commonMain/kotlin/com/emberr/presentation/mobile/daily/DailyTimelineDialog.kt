@@ -76,7 +76,6 @@ import com.emberr.domain.model.LinkedNoteBlock
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NumberedListBlock
 import com.emberr.domain.model.QuoteBlock
-import com.emberr.domain.model.SketchBlock
 import com.emberr.domain.model.TableBlock
 import com.emberr.domain.model.TextBlock
 import com.emberr.domain.model.ToggleBlock
@@ -694,12 +693,6 @@ private fun TimelineBlockContent(
             onStopRecording = {},
             onPlayAudio = { filePath, onComplete -> editorActions.onPlayAudio(filePath, onComplete) },
             onStopAudio = { editorActions.onStopAudio() }
-        )
-
-        is SketchBlock -> TimelineMediaLabel(
-            icon = painterResource(Res.drawable.pen),
-            label = "Sketch",
-            isSearchMatch = isSearchMatch
         )
 
         is TableBlock -> Box(modifier = Modifier.reduceSideInset(TableBlockSideInsetCancellation)) {

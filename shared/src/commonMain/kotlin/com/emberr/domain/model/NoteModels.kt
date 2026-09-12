@@ -496,35 +496,6 @@ data class VoiceBlock(
 
 @Immutable
 @Serializable
-data class Point(val x: Float, val y: Float)
-
-@Immutable
-@Serializable
-data class Stroke(
-    val points: List<Point>,
-    val colorHex: String = "#FF000000",
-    val strokeWidth: Float = 4f,
-    val isEraser: Boolean = false
-)
-
-@Immutable
-@Serializable
-@SerialName("sketch")
-data class SketchBlock(
-    override val id: String,
-    val strokes: List<Stroke> = emptyList(),
-    override val indentationLevel: Int = 0,
-    override val isBold: Boolean = false,
-    override val isItalic: Boolean = false,
-    override val isStrikeThrough: Boolean = false,
-    override val isUnderlined: Boolean = false,
-    override val isDeleted: Boolean = false,
-    override val isPinned: Boolean = false,
-    override val updatedAt: Long = 0L
-) : NoteBlock()
-
-@Immutable
-@Serializable
 @SerialName("solid_divider")
 data class SolidDividerBlock(
     override val id: String,
@@ -603,7 +574,6 @@ fun NoteBlock.markDeleted(): NoteBlock = when (this) {
     is TableBlock -> copy(isDeleted = true, updatedAt = System.currentTimeMillis())
     is VoiceBlock -> copy(isDeleted = true, updatedAt = System.currentTimeMillis())
     is QuoteBlock -> copy(isDeleted = true, updatedAt = System.currentTimeMillis())
-    is SketchBlock -> copy(isDeleted = true, updatedAt = System.currentTimeMillis())
     is SolidDividerBlock -> copy(isDeleted = true, updatedAt = System.currentTimeMillis())
     is ThreeDotDividerBlock -> copy(isDeleted = true, updatedAt = System.currentTimeMillis())
 }
@@ -670,7 +640,6 @@ fun NoteBlock.withPin(pinned: Boolean, now: Long): NoteBlock = when (this) {
     is TableBlock -> copy(isPinned = pinned, updatedAt = now)
     is VoiceBlock -> copy(isPinned = pinned, updatedAt = now)
     is QuoteBlock -> copy(isPinned = pinned, updatedAt = now)
-    is SketchBlock -> copy(isPinned = pinned, updatedAt = now)
     is SolidDividerBlock -> copy(isPinned = pinned, updatedAt = now)
     is ThreeDotDividerBlock -> copy(isPinned = pinned, updatedAt = now)
 }
@@ -691,7 +660,6 @@ fun NoteBlock.withUpdatedAt(now: Long): NoteBlock = when (this) {
     is TableBlock -> copy(updatedAt = now)
     is VoiceBlock -> copy(updatedAt = now)
     is QuoteBlock -> copy(updatedAt = now)
-    is SketchBlock -> copy(updatedAt = now)
     is SolidDividerBlock -> copy(updatedAt = now)
     is ThreeDotDividerBlock -> copy(updatedAt = now)
 }
@@ -721,7 +689,6 @@ fun NoteBlock.deepCopyWithNewIds(): NoteBlock {
         is DocumentBlock -> copy(id = newId)
         is TableBlock -> copy(id = newId)
         is VoiceBlock -> copy(id = newId)
-        is SketchBlock -> copy(id = newId)
         is SolidDividerBlock -> copy(id = newId)
         is ThreeDotDividerBlock -> copy(id = newId)
     }

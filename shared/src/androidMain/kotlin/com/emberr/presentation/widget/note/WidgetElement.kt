@@ -13,7 +13,6 @@ import com.emberr.domain.model.LinkedNoteBlock
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NumberedListBlock
 import com.emberr.domain.model.QuoteBlock
-import com.emberr.domain.model.SketchBlock
 import com.emberr.domain.model.SolidDividerBlock
 import com.emberr.domain.model.TableBlock
 import com.emberr.domain.model.TextBlock
@@ -147,8 +146,6 @@ private fun convertBlockToElements(
     )
 
     is ImageBlock -> textLine(block, "Image", WidgetTextStyleName.SUBTLE)
-
-    is SketchBlock -> textLine(block, "Sketch", WidgetTextStyleName.SUBTLE)
 
     is DocumentBlock -> textLine(block, block.fileName, WidgetTextStyleName.SUBTLE)
 

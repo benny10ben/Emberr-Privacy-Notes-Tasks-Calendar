@@ -41,7 +41,6 @@ import com.emberr.domain.model.FilterConfig
 import com.emberr.domain.model.GalleryCardSize
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NoteContent
-import com.emberr.domain.model.Stroke
 import com.emberr.domain.model.TextAlignment
 import com.emberr.domain.model.ViewType
 import com.emberr.presentation.shared.editor.EditorActions
@@ -1412,7 +1411,6 @@ fun DesktopMainScreen(
                             override fun onPlayAudio(filePath: String, onComplete: () -> Unit) = dailyViewModel.playAudio(filePath, onComplete)
                             override fun onStopAudio() = dailyViewModel.stopAudio()
                             override fun onTogglePin() = dailyViewModel.togglePinSelectedBlocks()
-                            override fun onUpdateSketch(id: String, strokes: List<Stroke>) = dailyViewModel.updateSketchStrokes(id, strokes)
                             override fun onUpdateTable(id: String, rows: List<List<String>>) = dailyViewModel.updateTable(id, rows)
                             override fun onUpdateTableColumnWidth(id: String, columnIndex: Int, width: Int) = dailyViewModel.updateTableColumnWidth(id, columnIndex, width)
                             override fun onUpdateTableStyle(

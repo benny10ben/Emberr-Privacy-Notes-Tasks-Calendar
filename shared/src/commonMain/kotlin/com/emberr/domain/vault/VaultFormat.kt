@@ -6,7 +6,6 @@ object VaultFormat {
 
     const val DATABASE_FENCE_NAME = "emberr-database"
     const val VOICE_FENCE_NAME = "emberr-voice"
-    const val SKETCH_FENCE_NAME = "emberr-sketch"
 
     const val TOGGLE_MARKER = "- ▸ "
     const val CHECKED_MARKER = "- [x] "
