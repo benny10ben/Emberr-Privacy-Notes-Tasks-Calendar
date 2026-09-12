@@ -9,7 +9,7 @@ import com.emberr.data.local.room.getRoomDatabase
 import com.emberr.domain.backup.BackupFormat
 import com.emberr.domain.backup.automatic.BackupRescheduler
 import com.emberr.domain.repository.NoteRepository
-import com.emberr.domain.util.SyncEventBus
+import com.emberr.domain.util.sync.SyncEventBus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import java.io.File

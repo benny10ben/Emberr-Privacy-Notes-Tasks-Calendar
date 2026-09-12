@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.system
 
 import android.Manifest
 import android.app.AlarmManager

@@ -34,7 +34,7 @@ import com.emberr.domain.model.CellData
 import com.emberr.domain.model.DatabaseBlock
 import com.emberr.domain.model.DatabaseView
 import com.emberr.domain.model.ViewType
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBottomSheet
 import com.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.emberr.presentation.shared.components.EmberrDesktopMenu

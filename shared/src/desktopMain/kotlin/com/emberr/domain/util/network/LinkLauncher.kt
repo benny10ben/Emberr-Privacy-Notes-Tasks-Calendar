@@ -1,5 +1,6 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.network
 
+import com.emberr.domain.util.system.showNativeToast
 import java.awt.Desktop
 import java.net.URI
 import java.util.concurrent.TimeUnit

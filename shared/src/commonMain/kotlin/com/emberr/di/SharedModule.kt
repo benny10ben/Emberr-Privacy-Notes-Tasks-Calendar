@@ -9,8 +9,8 @@ import com.emberr.domain.ai.NoteIndexer
 import com.emberr.domain.selfhost.sync.ForegroundSyncPoller
 import com.emberr.domain.selfhost.sync.SelfHostSyncEngine
 import com.emberr.domain.selfhost.webdav.WebDavSyncClient
-import com.emberr.domain.util.HeuristicTaskExtractor
-import com.emberr.domain.util.TaskExtractor
+import com.emberr.domain.util.task.HeuristicTaskExtractor
+import com.emberr.domain.util.task.TaskExtractor
 import com.emberr.presentation.settings.selfhost.SelfHostSetupViewModel
 import com.emberr.presentation.mobile.daily.DailyEditorViewModel
 import com.emberr.presentation.search.SearchViewModel

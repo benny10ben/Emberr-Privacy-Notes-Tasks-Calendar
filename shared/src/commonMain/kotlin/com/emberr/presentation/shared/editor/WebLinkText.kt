@@ -28,10 +28,10 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import com.emberr.domain.model.InlineSpan
-import com.emberr.domain.util.isDesktopPlatform
-import com.emberr.domain.util.openLinkInRunningBrowser
-import com.emberr.domain.util.showNativeToast
-import com.emberr.domain.util.triggerHapticFeedback
+import com.emberr.domain.util.system.isDesktopPlatform
+import com.emberr.domain.util.network.openLinkInRunningBrowser
+import com.emberr.domain.util.system.showNativeToast
+import com.emberr.domain.util.system.triggerHapticFeedback
 import com.emberr.presentation.shared.editor.components.DesktopCursor
 import com.emberr.presentation.shared.editor.components.desktopPointerCursor
 import com.emberr.ui.theme.LocalAppIsDark

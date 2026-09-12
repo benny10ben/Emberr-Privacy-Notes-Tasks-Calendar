@@ -83,7 +83,7 @@ import com.emberr.domain.model.VoiceBlock
 import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.data.local.room.TagEntity
 import com.emberr.domain.model.inlineSpansOrEmpty
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.LocalImageOverlay
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.components.LocalEmberrBlurSource

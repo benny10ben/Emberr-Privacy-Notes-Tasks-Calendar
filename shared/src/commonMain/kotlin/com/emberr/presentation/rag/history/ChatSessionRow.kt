@@ -33,7 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.emberr.domain.ai.chat.ChatSession
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.rag.components.ModelOptionCard
 import com.emberr.presentation.rag.components.OptionRowOuterPadding
 import com.emberr.presentation.rag.components.SheetContentHorizontalPadding

@@ -51,7 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.navigation.Screen
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.components.emberrBlur

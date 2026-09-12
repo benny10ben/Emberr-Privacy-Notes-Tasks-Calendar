@@ -7,8 +7,8 @@ import com.emberr.domain.model.ImageBlock
 import com.emberr.domain.model.NoteContent
 import com.emberr.domain.model.markDeleted
 import com.emberr.domain.repository.NoteRepository
-import com.emberr.domain.util.MediaStorageHelper
-import com.emberr.domain.util.SyncCoordinator
+import com.emberr.domain.util.media.MediaStorageHelper
+import com.emberr.domain.util.sync.SyncCoordinator
 import com.emberr.presentation.shared.editor.FocusRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

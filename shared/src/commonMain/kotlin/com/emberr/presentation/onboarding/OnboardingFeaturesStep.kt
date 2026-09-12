@@ -5,7 +5,7 @@ import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.calendar
 import emberr.shared.generated.resources.calendar_clock

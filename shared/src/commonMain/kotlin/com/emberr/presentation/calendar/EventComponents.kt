@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.dp
 import com.emberr.domain.model.RecurrenceEditScope
 import com.emberr.domain.model.RecurrenceFrequency
 import com.emberr.domain.model.RecurrenceRule
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBlur
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.isoDayNumber

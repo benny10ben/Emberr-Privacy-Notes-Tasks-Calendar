@@ -45,7 +45,7 @@ import com.emberr.domain.model.RecurrenceRule
 import com.emberr.domain.model.TextBlock
 import com.emberr.domain.model.ToggleBlock
 import com.emberr.domain.model.markDeleted
-import com.emberr.domain.util.SyncCoordinator
+import com.emberr.domain.util.sync.SyncCoordinator
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.DateTimeUnit

@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.emberr.domain.ai.AiGenerationMode
 import com.emberr.domain.ai.external.ExternalAiProvider
 import com.emberr.domain.ai.external.ExternalAiProviderConfig
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.rag.RagViewModel
 import com.emberr.presentation.rag.components.ModelOptionCard
 import com.emberr.presentation.rag.components.OptionRowOuterPadding

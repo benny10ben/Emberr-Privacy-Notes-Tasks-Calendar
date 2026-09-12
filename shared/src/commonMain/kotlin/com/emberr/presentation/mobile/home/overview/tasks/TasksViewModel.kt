@@ -10,8 +10,8 @@ import com.emberr.domain.model.NoteContent
 import com.emberr.domain.model.markDeleted
 import com.emberr.domain.repository.NoteRepository
 import com.emberr.domain.sync.AutoSyncTrigger
-import com.emberr.domain.util.SyncCoordinator
-import com.emberr.domain.util.SyncEventBus
+import com.emberr.domain.util.sync.SyncCoordinator
+import com.emberr.domain.util.sync.SyncEventBus
 import com.emberr.presentation.reminders.ReminderScheduler
 import com.emberr.presentation.shared.editor.FocusRequest
 import kotlinx.coroutines.CancellationException

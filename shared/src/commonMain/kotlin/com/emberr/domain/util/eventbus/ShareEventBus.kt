@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.eventbus
 
 import com.emberr.domain.model.PendingShare
 import kotlinx.coroutines.flow.MutableSharedFlow

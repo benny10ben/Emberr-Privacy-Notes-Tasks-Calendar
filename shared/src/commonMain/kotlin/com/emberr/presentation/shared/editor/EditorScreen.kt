@@ -66,7 +66,7 @@ import com.emberr.domain.model.TextBlock
 import com.emberr.domain.model.ToggleBlock
 import com.emberr.domain.model.ViewType
 import com.emberr.domain.model.VoiceBlock
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.KmpBackHandler
 import com.emberr.presentation.shared.editor.blockViews.LinkedNoteOptionsMenu
 import dev.chrisbanes.haze.HazeState

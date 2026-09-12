@@ -48,8 +48,8 @@ import androidx.compose.ui.unit.dp
 import coil3.network.httpHeaders
 import coil3.request.crossfade
 import com.emberr.domain.model.BookmarkBlock
-import com.emberr.domain.util.isDesktopPlatform
-import com.emberr.domain.util.showNativeToast
+import com.emberr.domain.util.system.isDesktopPlatform
+import com.emberr.domain.util.system.showNativeToast
 import com.emberr.presentation.shared.editor.rememberWebLinkActions
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.components.emberrBlur

@@ -9,9 +9,9 @@ import com.emberr.domain.model.NoteContent
 import com.emberr.domain.model.markDeleted
 import com.emberr.domain.repository.BookmarkCategoryOrderStore
 import com.emberr.domain.repository.NoteRepository
-import com.emberr.domain.util.HtmlMetadataFetcher
+import com.emberr.domain.util.network.HtmlMetadataFetcher
 import com.emberr.domain.sync.AutoSyncTrigger
-import com.emberr.domain.util.SyncCoordinator
+import com.emberr.domain.util.sync.SyncCoordinator
 import com.emberr.presentation.shared.editor.FocusRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable

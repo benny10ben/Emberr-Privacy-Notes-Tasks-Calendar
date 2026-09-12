@@ -29,10 +29,10 @@ import com.emberr.domain.repository.BookmarkCategoryOrderStore
 import com.emberr.domain.repository.FavoriteNoteOrderStore
 import com.emberr.domain.selfhost.sync.ApiConfigSyncEntry
 import com.emberr.domain.selfhost.translation.EmbeddedBlockPayload
-import com.emberr.domain.util.ChatSyncEventBus
-import com.emberr.domain.util.MediaStorageHelper
-import com.emberr.domain.util.SyncEventBus
-import com.emberr.domain.util.withSyncCoordinatorOrSkip
+import com.emberr.domain.util.sync.ChatSyncEventBus
+import com.emberr.domain.util.media.MediaStorageHelper
+import com.emberr.domain.util.sync.SyncEventBus
+import com.emberr.domain.util.sync.withSyncCoordinatorOrSkip
 import com.emberr.database.EmberrDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

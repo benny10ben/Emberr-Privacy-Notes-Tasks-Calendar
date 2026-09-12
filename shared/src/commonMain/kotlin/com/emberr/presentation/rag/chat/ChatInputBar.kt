@@ -48,7 +48,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.customEmberrShadow
 import com.emberr.presentation.rag.RagViewModel
 import com.emberr.presentation.rag.settings.AiSettingsMenuContent

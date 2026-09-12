@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.system
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable

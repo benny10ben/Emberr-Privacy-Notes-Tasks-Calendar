@@ -29,7 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.emberr.domain.model.DocumentBlock
 import com.emberr.domain.sync.MediaRetryCoordinator
-import com.emberr.domain.util.MediaStorageHelper
+import com.emberr.domain.util.media.MediaStorageHelper
 import com.emberr.presentation.shared.editor.DefaultBlockShape
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.circle_x

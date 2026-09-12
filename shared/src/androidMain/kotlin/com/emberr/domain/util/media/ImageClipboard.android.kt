@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.media
 
 import android.content.ClipData
 import android.content.ClipboardManager

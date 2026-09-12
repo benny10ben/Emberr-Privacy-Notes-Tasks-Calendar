@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.system
 
 actual val isDesktopPlatform = true
 actual fun showFeedback(message: String) {

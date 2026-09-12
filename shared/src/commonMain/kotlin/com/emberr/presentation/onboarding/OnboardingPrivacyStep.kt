@@ -7,7 +7,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.folder_sync
 import emberr.shared.generated.resources.shield_alert

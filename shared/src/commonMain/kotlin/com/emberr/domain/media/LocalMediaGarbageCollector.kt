@@ -8,7 +8,7 @@ import com.emberr.domain.model.ImageBlock
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.VoiceBlock
 import com.emberr.domain.repository.NoteRepository
-import com.emberr.domain.util.MediaStorageHelper
+import com.emberr.domain.util.media.MediaStorageHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File

@@ -10,11 +10,11 @@ import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.NoteContent
 import com.emberr.domain.model.PendingShare
 import com.emberr.domain.repository.NoteRepository
-import com.emberr.domain.util.HtmlMetadataFetcher
-import com.emberr.domain.util.MediaStorageHelper
-import com.emberr.domain.util.ShareEventBus
-import com.emberr.domain.util.SyncCoordinator
-import com.emberr.domain.util.showNativeToast
+import com.emberr.domain.util.network.HtmlMetadataFetcher
+import com.emberr.domain.util.media.MediaStorageHelper
+import com.emberr.domain.util.eventbus.ShareEventBus
+import com.emberr.domain.util.sync.SyncCoordinator
+import com.emberr.domain.util.system.showNativeToast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

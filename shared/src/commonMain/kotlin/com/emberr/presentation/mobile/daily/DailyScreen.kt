@@ -71,7 +71,7 @@ import com.emberr.presentation.shared.editor.BlockStyleBar
 import com.emberr.presentation.shared.rememberStableStatusBarsPadding
 import com.emberr.presentation.shared.stableStatusBarsPadding
 import com.emberr.presentation.sync.SyncViewModel
-import com.emberr.domain.util.showNativeToast
+import com.emberr.domain.util.system.showNativeToast
 import dev.chrisbanes.haze.hazeSource
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.calendar

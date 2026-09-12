@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import org.koin.compose.viewmodel.koinViewModel
 import com.emberr.domain.model.BookmarkBlock
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.stableStatusBarsPadding
 import com.emberr.presentation.shared.components.KmpBackHandler

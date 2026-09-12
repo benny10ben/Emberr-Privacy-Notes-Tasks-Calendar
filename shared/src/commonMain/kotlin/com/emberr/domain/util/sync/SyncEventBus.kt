@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.sync
 
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow

@@ -4,7 +4,7 @@ import com.emberr.core.security.SyncEncryptionManager
 import com.emberr.core.security.SyncHmacSigner
 import com.emberr.data.local.prefs.SettingsManager
 import com.emberr.data.local.prefs.SyncConstants
-import com.emberr.domain.util.LocalNetworkHostValidator
+import com.emberr.domain.util.network.LocalNetworkHostValidator
 import io.ktor.client.*
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException

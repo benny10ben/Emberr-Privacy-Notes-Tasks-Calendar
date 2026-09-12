@@ -45,11 +45,11 @@ import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import com.emberr.domain.model.ImageBlock
 import com.emberr.domain.sync.MediaRetryCoordinator
-import com.emberr.domain.util.ImageClipboard
-import com.emberr.domain.util.ImageDownloader
-import com.emberr.domain.util.MediaStorageHelper
-import com.emberr.domain.util.isDesktopPlatform
-import com.emberr.domain.util.showFeedback
+import com.emberr.domain.util.media.ImageClipboard
+import com.emberr.domain.util.media.ImageDownloader
+import com.emberr.domain.util.media.MediaStorageHelper
+import com.emberr.domain.util.system.isDesktopPlatform
+import com.emberr.domain.util.system.showFeedback
 import com.emberr.presentation.LocalImageOverlay
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.components.emberrBlur

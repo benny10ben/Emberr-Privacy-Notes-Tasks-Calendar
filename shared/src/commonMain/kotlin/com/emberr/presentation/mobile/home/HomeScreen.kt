@@ -50,9 +50,9 @@ import com.emberr.data.local.prefs.SyncConstants
 import com.emberr.data.local.room.FolderEntity
 import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.domain.model.NoteContent
-import com.emberr.domain.util.WidgetComposeRequest
-import com.emberr.domain.util.WidgetComposeRequestBus
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.eventbus.WidgetComposeRequest
+import com.emberr.domain.util.eventbus.WidgetComposeRequestBus
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.mobile.daily.DailyEditorViewModel
 import com.emberr.presentation.mobile.daily.TaskDaySection
 import com.emberr.presentation.shared.UserSettings
@@ -68,7 +68,7 @@ import com.emberr.presentation.shared.components.TopBarIconButtonGroup
 import com.emberr.presentation.shared.components.TopBarIconButtonItem
 import com.emberr.presentation.shared.components.smoothWheelScroll
 import com.emberr.presentation.sync.SyncViewModel
-import com.emberr.domain.util.showNativeToast
+import com.emberr.domain.util.system.showNativeToast
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.isActive
@@ -1308,7 +1308,7 @@ fun NoteCard(
     onLongClick: () -> Unit,
     handlesGestures: Boolean = true
 ) {
-    val mediaStorageHelper: com.emberr.domain.util.MediaStorageHelper = koinInject()
+    val mediaStorageHelper: com.emberr.domain.util.media.MediaStorageHelper = koinInject()
     val bgColor = when {
         isSelected -> MaterialTheme.colorScheme.onSurface; isDesktopPlatform -> MaterialTheme.colorScheme.background; else -> MaterialTheme.colorScheme.surface
     }

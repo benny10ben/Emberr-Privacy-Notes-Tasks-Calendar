@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.voice
 
 /**
  * Multiplatform contract for voice-to-text recognition.

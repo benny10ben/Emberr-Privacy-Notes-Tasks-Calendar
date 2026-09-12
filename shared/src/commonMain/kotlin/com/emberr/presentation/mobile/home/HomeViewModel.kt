@@ -11,10 +11,10 @@ import com.emberr.domain.model.*
 import com.emberr.domain.repository.FavoriteNoteOrderStore
 import com.emberr.domain.repository.NoteRepository
 import com.emberr.domain.template.DefaultTemplateSeeder
-import com.emberr.domain.util.VoiceTaskEventBus
-import com.emberr.domain.util.VoiceRecognizer
-import com.emberr.domain.util.SyncCoordinator
-import com.emberr.domain.util.TaskExtractor
+import com.emberr.domain.util.eventbus.VoiceTaskEventBus
+import com.emberr.domain.util.voice.VoiceRecognizer
+import com.emberr.domain.util.sync.SyncCoordinator
+import com.emberr.domain.util.task.TaskExtractor
 import com.emberr.presentation.reminders.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

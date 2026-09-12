@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.sync
 
 import kotlinx.coroutines.sync.Mutex
 

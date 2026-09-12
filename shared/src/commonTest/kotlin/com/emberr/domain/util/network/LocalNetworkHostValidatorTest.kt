@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.network
 
 import kotlin.test.Test
 import kotlin.test.assertFalse

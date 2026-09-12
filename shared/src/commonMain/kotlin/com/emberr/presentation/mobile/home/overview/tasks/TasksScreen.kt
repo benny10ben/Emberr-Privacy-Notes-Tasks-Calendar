@@ -37,9 +37,9 @@ import com.emberr.domain.model.FilterConfig
 import com.emberr.domain.model.GalleryCardSize
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.TextAlignment
-import com.emberr.domain.util.WidgetComposeRequest
-import com.emberr.domain.util.WidgetComposeRequestBus
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.eventbus.WidgetComposeRequest
+import com.emberr.domain.util.eventbus.WidgetComposeRequestBus
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.components.KmpBackHandler
 import com.emberr.presentation.shared.editor.BlockSelectionPill

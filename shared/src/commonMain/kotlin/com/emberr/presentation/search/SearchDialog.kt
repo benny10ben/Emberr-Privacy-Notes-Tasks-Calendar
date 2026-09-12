@@ -49,7 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.domain.model.NoteSearchResult
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.components.LocalEmberrBlurSource
 import com.emberr.presentation.shared.components.TopBarIconButton

@@ -54,7 +54,7 @@ import com.emberr.domain.model.ColumnType
 import com.emberr.domain.model.FilterConfig
 import com.emberr.domain.model.GalleryCardSize
 import com.emberr.domain.model.ViewType
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBottomSheet
 import com.emberr.presentation.shared.editor.EditorToolbar
 import dev.chrisbanes.haze.HazeState
@@ -82,7 +82,7 @@ import androidx.compose.ui.platform.LocalDensity
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.TextAlignment
 import com.emberr.domain.repository.EmojiRepository
-import com.emberr.domain.util.showFeedback
+import com.emberr.domain.util.system.showFeedback
 import com.emberr.presentation.shared.components.EmberrDesktopMenu
 import com.emberr.presentation.shared.components.TopBarIconButton
 import com.emberr.presentation.shared.StickyNoteWindowBus
@@ -852,7 +852,7 @@ private fun NoteHeader(
     onIconClick: () -> Unit,
     onTitlePositioned: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit = {}
 ) {
-    val mediaStorageHelper: com.emberr.domain.util.MediaStorageHelper = org.koin.compose.koinInject()
+    val mediaStorageHelper: com.emberr.domain.util.media.MediaStorageHelper = org.koin.compose.koinInject()
 
     val topPadding by animateDpAsState(
         targetValue = if (noteIcon != null) 48.dp else 16.dp,

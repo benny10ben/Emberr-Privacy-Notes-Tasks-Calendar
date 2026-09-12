@@ -52,8 +52,8 @@ import com.emberr.domain.model.InlineSpan
 import com.emberr.domain.model.TableCellStyle
 import com.emberr.domain.model.ColumnType
 import com.emberr.domain.model.displayText
-import com.emberr.domain.util.isDesktopPlatform
-import com.emberr.domain.util.triggerHapticFeedback
+import com.emberr.domain.util.system.isDesktopPlatform
+import com.emberr.domain.util.system.triggerHapticFeedback
 import com.emberr.presentation.shared.editor.RichTextVisualTransformation
 import com.emberr.presentation.shared.editor.rememberWebLinkColor
 import com.emberr.presentation.shared.components.smoothWheelScroll

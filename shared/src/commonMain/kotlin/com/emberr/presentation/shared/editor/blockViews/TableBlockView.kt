@@ -81,7 +81,7 @@ import com.emberr.domain.model.InlineSpan
 import com.emberr.domain.model.TableCellContentType
 import com.emberr.domain.model.TableCellStyle
 import com.emberr.domain.model.TextAlignment
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBottomSheet
 import com.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.emberr.presentation.shared.components.EmberrDesktopMenu

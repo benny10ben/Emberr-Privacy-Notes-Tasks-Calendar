@@ -35,7 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.emberr.domain.model.VoiceBlock
 import com.emberr.domain.sync.MediaRetryCoordinator
-import com.emberr.domain.util.MediaStorageHelper
+import com.emberr.domain.util.media.MediaStorageHelper
 import com.emberr.presentation.shared.editor.DefaultBlockShape
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.circle_x

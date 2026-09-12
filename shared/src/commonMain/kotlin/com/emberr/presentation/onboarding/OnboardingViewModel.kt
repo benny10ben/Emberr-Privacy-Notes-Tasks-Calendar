@@ -7,7 +7,7 @@ import com.emberr.data.local.prefs.SyncConstants
 import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.domain.model.NoteContent
 import com.emberr.domain.repository.NoteRepository
-import com.emberr.domain.util.MediaStorageHelper
+import com.emberr.domain.util.media.MediaStorageHelper
 import com.emberr.presentation.shared.editor.ActiveEditorRegistry
 import emberr.shared.generated.resources.Res
 import kotlinx.coroutines.Job

@@ -27,7 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.rag.RagViewModel
 import com.emberr.presentation.rag.components.RagDesktopMenuItem
 import com.emberr.presentation.rag.components.SheetContentHorizontalPadding

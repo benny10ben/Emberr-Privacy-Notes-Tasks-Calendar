@@ -26,7 +26,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.emberr.domain.ai.chat.ChatMessage
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.MarkdownText
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.copy

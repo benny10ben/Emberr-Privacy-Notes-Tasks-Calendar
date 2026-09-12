@@ -39,8 +39,8 @@ import com.emberr.domain.selfhost.webdav.WebDavSyncClient
 import com.emberr.domain.selfhost.webdav.WebDavSyncPaths
 import com.emberr.domain.sync.MediaTransferPhase
 import com.emberr.domain.sync.MediaTransferStatusBus
-import com.emberr.domain.util.MediaStorageHelper
-import com.emberr.domain.util.withSyncCoordinatorOrSkip
+import com.emberr.domain.util.media.MediaStorageHelper
+import com.emberr.domain.util.sync.withSyncCoordinatorOrSkip
 import com.emberr.domain.vault.VaultMirrorTrigger
 import com.emberr.database.EmberrDatabase
 import java.io.File
@@ -804,7 +804,7 @@ class SelfHostSyncEngine(
             val remoteSession = remoteJson?.let { collectionJson.decodeFromString(ChatSessionEntity.serializer(), it) }
             if (remoteSession != null) chatSessionDao.upsertSession(remoteSession)
         }
-        com.emberr.domain.util.ChatSyncEventBus.emitSessionChanged(sessionId)
+        com.emberr.domain.util.sync.ChatSyncEventBus.emitSessionChanged(sessionId)
         return remoteEntry
     }
 
@@ -893,7 +893,7 @@ class SelfHostSyncEngine(
 
             // Emit an event so open editors immediately refresh title, cover, and pinned states.
             // This happens before pushing, since local database/cache merges are already committed.
-            com.emberr.domain.util.SyncEventBus.emitSyncCompleted(
+            com.emberr.domain.util.sync.SyncEventBus.emitSyncCompleted(
                 if (mergedMetadata.isDaily) mergedMetadata.dateString ?: noteId else noteId
             )
 
@@ -934,7 +934,7 @@ class SelfHostSyncEngine(
         val noteId = localMetadata.noteId
         noteRepository.hardDeleteLocalNote(noteId)
         SelfHostSyncLog.d("TextSync: applied remote tombstone for $noteId, hard-deleted local copy")
-        com.emberr.domain.util.SyncEventBus.emitSyncCompleted(
+        com.emberr.domain.util.sync.SyncEventBus.emitSyncCompleted(
             if (isDaily) remoteEntry.dateString ?: noteId else noteId
         )
         return ReconcileOutcome.SYNCED

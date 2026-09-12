@@ -26,7 +26,7 @@ import com.emberr.domain.model.GalleryCardSize
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.TextAlignment
 import com.emberr.domain.model.ViewType
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.editor.BlockSelectionPill
 import com.emberr.presentation.shared.editor.EditorActions
 import com.emberr.presentation.shared.editor.EditorScreen

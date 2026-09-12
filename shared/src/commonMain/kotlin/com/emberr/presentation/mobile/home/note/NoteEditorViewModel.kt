@@ -4,9 +4,9 @@ import androidx.lifecycle.viewModelScope
 import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.domain.model.*
 import com.emberr.domain.repository.NoteRepository
-import com.emberr.domain.util.AudioRecorder
-import com.emberr.domain.util.MediaStorageHelper
-import com.emberr.domain.util.SyncCoordinator
+import com.emberr.domain.util.voice.AudioRecorder
+import com.emberr.domain.util.media.MediaStorageHelper
+import com.emberr.domain.util.sync.SyncCoordinator
 import com.emberr.presentation.reminders.ReminderScheduler
 import com.emberr.presentation.shared.editor.BaseEditorViewModel
 import kotlinx.coroutines.CancellationException
@@ -67,8 +67,8 @@ class NoteEditorViewModel(
 
     init {
         viewModelScope.launch {
-            com.emberr.domain.util.SyncEventBus.events.collect { event ->
-                if (event !is com.emberr.domain.util.NoteSyncEvent.NoteChanged) return@collect
+            com.emberr.domain.util.sync.SyncEventBus.events.collect { event ->
+                if (event !is com.emberr.domain.util.sync.NoteSyncEvent.NoteChanged) return@collect
                 val syncedEntityId = event.entityId
                 val currentId = currentMetadata?.noteId
                 if (currentId != null && syncedEntityId == currentId) {
@@ -203,7 +203,7 @@ class NoteEditorViewModel(
         currentlyLoadedNoteId = noteId
         clearUndoHistory()
 
-        com.emberr.domain.util.AiEventBus.activeNoteId = noteId
+        com.emberr.domain.util.eventbus.AiEventBus.activeNoteId = noteId
 
         autosaveJob?.cancel()
         indexingJob?.cancel()
@@ -369,7 +369,7 @@ class NoteEditorViewModel(
 
     fun generatePlainTextExport(): String {
         val title = _noteTitle.value.ifBlank { "Untitled Note" }
-        val body = com.emberr.domain.util.ExportEngine.generatePlainText(_blocks.value)
+        val body = com.emberr.domain.util.export.ExportEngine.generatePlainText(_blocks.value)
         return "$title\n\n$body"
     }
 
@@ -378,7 +378,7 @@ class NoteEditorViewModel(
         val categoryNamesById = repository.getAllCategories().first()
             .filter { !it.isDeleted }
             .associate { it.categoryId to it.name }
-        val body = com.emberr.domain.util.ExportEngine.generateMarkdown(
+        val body = com.emberr.domain.util.export.ExportEngine.generateMarkdown(
             blocks = _blocks.value,
             categoryNamesById = categoryNamesById
         )

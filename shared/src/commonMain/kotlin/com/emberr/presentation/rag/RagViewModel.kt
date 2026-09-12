@@ -179,7 +179,7 @@ class RagViewModel(
 
     private fun observeChatSessionSyncEvents() {
         viewModelScope.launch {
-            com.emberr.domain.util.ChatSyncEventBus.events.collect { changedSessionId ->
+            com.emberr.domain.util.sync.ChatSyncEventBus.events.collect { changedSessionId ->
                 if (changedSessionId != _currentSessionId.value) return@collect
                 if (_isLoading.value) return@collect
                 loadSession(changedSessionId)

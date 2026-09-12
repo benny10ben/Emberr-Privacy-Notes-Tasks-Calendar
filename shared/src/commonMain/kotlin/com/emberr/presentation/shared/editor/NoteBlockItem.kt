@@ -56,7 +56,7 @@ import com.emberr.data.local.room.TagEntity
 import com.emberr.domain.model.BookmarkBlock
 import com.emberr.domain.model.BulletedListBlock
 import com.emberr.domain.model.CheckboxBlock
-import com.emberr.domain.util.triggerHapticFeedback
+import com.emberr.domain.util.system.triggerHapticFeedback
 import com.emberr.domain.model.CodeBlock
 import com.emberr.domain.model.DatabaseBlock
 import com.emberr.domain.model.DocumentBlock
@@ -69,7 +69,7 @@ import com.emberr.domain.model.QuoteBlock
 import com.emberr.domain.model.TextBlock
 import com.emberr.domain.model.ToggleBlock
 import com.emberr.domain.model.VoiceBlock
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Clock

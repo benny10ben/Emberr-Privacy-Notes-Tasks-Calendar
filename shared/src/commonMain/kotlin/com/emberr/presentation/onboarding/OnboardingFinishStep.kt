@@ -35,9 +35,9 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.emberr.domain.util.AppPermission
-import com.emberr.domain.util.isDesktopPlatform
-import com.emberr.domain.util.rememberAppPermissionCoordinator
+import com.emberr.domain.util.system.AppPermission
+import com.emberr.domain.util.system.isDesktopPlatform
+import com.emberr.domain.util.system.rememberAppPermissionCoordinator
 import com.emberr.ui.theme.LocalAppIsDark
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.bell

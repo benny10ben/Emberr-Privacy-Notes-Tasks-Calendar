@@ -37,10 +37,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import com.emberr.domain.util.WidgetCalendarDateBus
-import com.emberr.domain.util.WidgetCalendarEventBus
-import com.emberr.domain.util.WidgetComposeRequest
-import com.emberr.domain.util.WidgetComposeRequestBus
+import com.emberr.domain.util.eventbus.WidgetCalendarDateBus
+import com.emberr.domain.util.eventbus.WidgetCalendarEventBus
+import com.emberr.domain.util.eventbus.WidgetComposeRequest
+import com.emberr.domain.util.eventbus.WidgetComposeRequestBus
 import com.emberr.presentation.shared.stableStatusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -86,7 +86,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.emberr.domain.model.RecurrenceEditScope
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.customEmberrShadow
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.components.EmberrBottomSheet

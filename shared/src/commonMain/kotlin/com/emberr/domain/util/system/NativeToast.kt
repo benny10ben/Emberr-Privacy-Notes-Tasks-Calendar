@@ -1,3 +1,3 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.system
 
 expect fun showNativeToast(message: String)

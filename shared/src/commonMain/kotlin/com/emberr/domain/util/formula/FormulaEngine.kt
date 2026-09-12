@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.formula
 
 import com.emberr.domain.model.CellData
 import com.emberr.domain.model.DatabaseColumn

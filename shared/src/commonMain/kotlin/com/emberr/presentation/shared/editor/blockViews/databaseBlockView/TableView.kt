@@ -70,7 +70,7 @@ import com.emberr.domain.model.DatabaseView
 import com.emberr.domain.model.InlineSpan
 import com.emberr.domain.model.TableCellStyle
 import com.emberr.domain.model.displayText
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.editor.components.DesktopCursor
 import com.emberr.presentation.shared.editor.components.desktopPointerCursor
 import com.emberr.presentation.shared.editor.EditorActions

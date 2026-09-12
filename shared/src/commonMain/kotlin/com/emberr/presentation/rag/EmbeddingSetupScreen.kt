@@ -59,7 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.onboarding.LocalOnboardingBarInsets
 import com.emberr.presentation.onboarding.OnboardingBackButton
 import com.emberr.presentation.onboarding.OnboardingBarInsets

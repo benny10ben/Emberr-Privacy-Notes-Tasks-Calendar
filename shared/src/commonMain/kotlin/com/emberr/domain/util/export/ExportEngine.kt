@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.export
 
 import com.emberr.domain.model.*
 import com.emberr.domain.vault.NoteMarkdownWriter

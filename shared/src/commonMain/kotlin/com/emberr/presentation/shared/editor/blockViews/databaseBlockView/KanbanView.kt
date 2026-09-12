@@ -67,7 +67,7 @@ import com.emberr.domain.model.DatabaseRow
 import com.emberr.domain.model.DatabaseView
 import com.emberr.domain.model.DEFAULT_STATUS_OPTIONS
 import com.emberr.domain.model.displayText
-import com.emberr.domain.util.triggerHapticFeedback
+import com.emberr.domain.util.system.triggerHapticFeedback
 import com.emberr.presentation.shared.editor.EditorActions
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.file_text

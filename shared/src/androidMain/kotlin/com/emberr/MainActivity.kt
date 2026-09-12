@@ -22,13 +22,13 @@ import coil3.compose.setSingletonImageLoaderFactory
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import com.emberr.domain.model.PendingShare
-import com.emberr.domain.util.WidgetComposeRequest
+import com.emberr.domain.util.eventbus.WidgetComposeRequest
 import com.emberr.domain.vault.VaultMirrorService
-import com.emberr.domain.util.WidgetComposeRequestBus
-import com.emberr.domain.util.WidgetCalendarDateBus
-import com.emberr.domain.util.WidgetCalendarEventBus
-import com.emberr.domain.util.WidgetNavigationBus
-import com.emberr.domain.util.ShareEventBus
+import com.emberr.domain.util.eventbus.WidgetComposeRequestBus
+import com.emberr.domain.util.eventbus.WidgetCalendarDateBus
+import com.emberr.domain.util.eventbus.WidgetCalendarEventBus
+import com.emberr.domain.util.eventbus.WidgetNavigationBus
+import com.emberr.domain.util.eventbus.ShareEventBus
 import com.emberr.presentation.shared.FirstContentRenderSignal
 import com.emberr.presentation.shared.editor.ActiveEditorRegistry
 import com.emberr.presentation.widget.calendar.refreshCalendarWidgets
@@ -81,7 +81,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import com.emberr.domain.model.NoteBlock
 import com.emberr.data.local.prefs.SettingsManager
-import com.emberr.domain.util.generateAndSaveAndroidPdf
+import com.emberr.domain.util.export.generateAndSaveAndroidPdf
 import com.emberr.presentation.navigation.Screen
 import kotlin.time.Duration.Companion.milliseconds
 import androidx.core.content.IntentCompat
@@ -105,7 +105,7 @@ class MainActivity : ComponentActivity() {
     private var takePhotoCallback: ((String) -> Unit)? = null
     private var currentPhotoUri: Uri? = null
 
-    private val mediaStorageHelper: com.emberr.domain.util.MediaStorageHelper by inject()
+    private val mediaStorageHelper: com.emberr.domain.util.media.MediaStorageHelper by inject()
     private val manualBackupExporter: com.emberr.domain.backup.manual.AndroidManualBackupExporter by inject()
     private val manualBackupImporter: com.emberr.domain.backup.manual.AndroidManualBackupImporter by inject()
 

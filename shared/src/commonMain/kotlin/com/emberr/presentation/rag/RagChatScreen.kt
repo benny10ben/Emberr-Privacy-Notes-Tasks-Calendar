@@ -44,8 +44,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.emberr.domain.util.AiEventBus
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.eventbus.AiEventBus
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.rag.chat.ChatBubble
 import com.emberr.presentation.rag.chat.ChatEmptyState
 import com.emberr.presentation.rag.chat.ChatInputBar

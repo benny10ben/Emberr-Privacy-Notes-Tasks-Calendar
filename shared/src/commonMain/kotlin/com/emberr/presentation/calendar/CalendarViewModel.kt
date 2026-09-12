@@ -12,8 +12,8 @@ import com.emberr.domain.model.RecurrenceRule
 import com.emberr.domain.model.markDeleted
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.repository.NoteRepository
-import com.emberr.domain.util.SyncCoordinator
-import com.emberr.domain.util.SyncEventBus
+import com.emberr.domain.util.sync.SyncCoordinator
+import com.emberr.domain.util.sync.SyncEventBus
 import com.emberr.presentation.reminders.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

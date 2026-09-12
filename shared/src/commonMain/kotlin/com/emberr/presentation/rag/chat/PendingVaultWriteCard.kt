@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.emberr.domain.ai.tools.VaultPendingWrite
 import com.emberr.domain.ai.tools.VaultPendingWriteKind
 import com.emberr.domain.ai.tools.VaultPendingWriteStatus
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.emberr.presentation.shared.components.EmberrButtonSecondary
 

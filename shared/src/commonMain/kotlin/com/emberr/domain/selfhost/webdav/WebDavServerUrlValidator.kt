@@ -1,6 +1,6 @@
 package com.emberr.domain.selfhost.webdav
 
-import com.emberr.domain.util.LocalNetworkHostValidator
+import com.emberr.domain.util.network.LocalNetworkHostValidator
 import io.ktor.http.Url
 
 object WebDavServerUrlValidator {

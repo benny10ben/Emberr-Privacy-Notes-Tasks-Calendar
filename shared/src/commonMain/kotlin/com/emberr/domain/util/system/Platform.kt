@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.system
 
 expect val isDesktopPlatform: Boolean
 expect fun showFeedback(message: String)

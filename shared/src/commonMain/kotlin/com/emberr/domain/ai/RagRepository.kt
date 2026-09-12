@@ -4,7 +4,7 @@ import com.emberr.domain.ai.chat.ChatTurn
 import com.emberr.domain.ai.external.AiSettingsRepository
 import com.emberr.domain.ai.external.ExternalAiEngine
 import com.emberr.database.EmberrDatabase
-import com.emberr.domain.util.AiEventBus
+import com.emberr.domain.util.eventbus.AiEventBus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first

@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.task
 
 import com.emberr.domain.model.ParsedTask
 import kotlinx.datetime.LocalDateTime

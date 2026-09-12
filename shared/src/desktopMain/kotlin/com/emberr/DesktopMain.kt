@@ -48,10 +48,10 @@ import com.emberr.ui.theme.FontSizePreference
 import com.emberr.ui.theme.FontStylePreference
 import com.emberr.ui.theme.ThemePreference
 import com.emberr.ui.theme.EmberrTheme
-import com.emberr.domain.util.handleExportBackup
-import com.emberr.domain.util.handleExportMarkdown
-import com.emberr.domain.util.handleExportPdf
-import com.emberr.domain.util.handleImportBackup
+import com.emberr.domain.util.export.handleExportBackup
+import com.emberr.domain.util.export.handleExportMarkdown
+import com.emberr.domain.util.export.handleExportPdf
+import com.emberr.domain.util.export.handleImportBackup
 import com.emberr.presentation.navigation.Screen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview

@@ -28,9 +28,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.emberr.domain.sync.SyncPairingData
-import com.emberr.domain.util.AppPermission
-import com.emberr.domain.util.isDesktopPlatform
-import com.emberr.domain.util.rememberAppPermissionCoordinator
+import com.emberr.domain.util.system.AppPermission
+import com.emberr.domain.util.system.isDesktopPlatform
+import com.emberr.domain.util.system.rememberAppPermissionCoordinator
 import com.emberr.presentation.shared.stableStatusBarsPadding
 import com.emberr.presentation.shared.components.EmberrBottomSheet
 import com.emberr.presentation.shared.components.EmberrButtonPrimary
@@ -41,7 +41,7 @@ import com.emberr.presentation.shared.components.TopBarIconButton
 import com.emberr.presentation.sync.SyncPairingDialog
 import com.emberr.presentation.sync.SyncScannerDialog
 import com.emberr.presentation.sync.SyncViewModel
-import com.emberr.domain.util.showNativeToast
+import com.emberr.domain.util.system.showNativeToast
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import com.emberr.ui.theme.FontStylePreference

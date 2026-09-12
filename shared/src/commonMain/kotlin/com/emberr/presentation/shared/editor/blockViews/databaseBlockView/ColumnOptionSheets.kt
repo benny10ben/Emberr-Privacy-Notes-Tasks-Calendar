@@ -46,7 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.emberr.domain.model.ColumnType
 import com.emberr.domain.model.propertyLabel
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrTextField
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.arrow_down

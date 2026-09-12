@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import com.emberr.domain.model.DocumentBlock
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.stableStatusBarsPadding
 import com.emberr.presentation.shared.editor.BlockSelectionPill
 import androidx.compose.ui.text.AnnotatedString

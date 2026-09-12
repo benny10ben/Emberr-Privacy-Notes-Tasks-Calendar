@@ -12,7 +12,7 @@ import com.emberr.domain.sync.SyncPairingData
 import com.emberr.domain.sync.SyncPairingState
 import com.emberr.domain.sync.SyncRepository
 import com.emberr.domain.sync.SyncServerStatus
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

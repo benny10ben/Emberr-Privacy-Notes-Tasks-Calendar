@@ -28,7 +28,7 @@ import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import com.emberr.domain.model.ImageBlock
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.components.KmpBackHandler
 import com.emberr.presentation.shared.stableStatusBarsPadding

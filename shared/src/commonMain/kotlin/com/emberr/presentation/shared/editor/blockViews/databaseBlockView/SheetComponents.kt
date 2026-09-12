@@ -31,7 +31,7 @@ import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.SelectedOptionBackground
 
 internal object NoRippleIndicationNodeFactory : IndicationNodeFactory {

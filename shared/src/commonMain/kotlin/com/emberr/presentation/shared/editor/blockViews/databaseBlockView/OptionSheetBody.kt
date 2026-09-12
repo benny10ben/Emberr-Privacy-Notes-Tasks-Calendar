@@ -18,7 +18,7 @@ import com.emberr.data.local.room.TagEntity
 import com.emberr.domain.model.DatabaseBlock
 import com.emberr.domain.model.DatabaseColumn
 import com.emberr.domain.model.DatabaseView
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.emberr.presentation.shared.components.EmberrButtonSecondary
 import com.emberr.presentation.shared.editor.EditorActions

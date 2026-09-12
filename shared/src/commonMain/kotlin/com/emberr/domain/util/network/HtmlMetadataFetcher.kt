@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.network
 
 data class UrlMetadata(
     val title: String?,

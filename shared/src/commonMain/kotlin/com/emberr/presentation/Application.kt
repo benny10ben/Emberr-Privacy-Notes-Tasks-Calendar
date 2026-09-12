@@ -28,8 +28,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.emberr.domain.util.AiEventBus
-import com.emberr.domain.util.isDesktopPlatform
+import com.emberr.domain.util.eventbus.AiEventBus
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.mobile.daily.DailyScreen
 import com.emberr.presentation.navigation.Screen
 import com.emberr.presentation.onboarding.OnboardingScreen
@@ -39,8 +39,8 @@ import dev.chrisbanes.haze.HazeState
 import com.emberr.presentation.splash.LoadingScreen
 import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.repository.EmojiRepository
-import com.emberr.domain.util.AppPermission
-import com.emberr.domain.util.rememberAppPermissionCoordinator
+import com.emberr.domain.util.system.AppPermission
+import com.emberr.domain.util.system.rememberAppPermissionCoordinator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -89,8 +89,8 @@ fun EmberrApp(
     val navController = rememberNavController()
 
     LaunchedEffect(Unit) {
-        com.emberr.domain.util.WidgetNavigationBus.requestedRoutes.collect { requestedRoute ->
-            com.emberr.domain.util.WidgetNavigationBus.consumeRequestedRoute()
+        com.emberr.domain.util.eventbus.WidgetNavigationBus.requestedRoutes.collect { requestedRoute ->
+            com.emberr.domain.util.eventbus.WidgetNavigationBus.consumeRequestedRoute()
             try {
                 val openEntry = navController.currentBackStackEntry
                 val openRoutePattern = openEntry?.destination?.route

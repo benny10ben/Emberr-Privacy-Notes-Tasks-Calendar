@@ -1,4 +1,4 @@
-package com.emberr.domain.util
+package com.emberr.domain.util.media
 
 import kotlin.math.log10
 import kotlin.math.pow
