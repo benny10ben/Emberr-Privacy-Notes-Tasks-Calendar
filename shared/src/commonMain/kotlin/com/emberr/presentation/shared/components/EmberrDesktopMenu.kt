@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
 
 private val DefaultMenuShape = RoundedCornerShape(18.dp)
+private val MenuEdgeWidth = 0.5.dp
+private const val MenuEdgeAlpha = 0.2f
 
 @Composable
 fun EmberrDesktopMenu(
@@ -27,7 +29,7 @@ fun EmberrDesktopMenu(
 ) {
     val blurSource = LocalEmberrBlurSource.current
     val surfaceColor = MaterialTheme.colorScheme.surface
-    val edgeColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+    val edgeColor = MaterialTheme.colorScheme.outline.copy(alpha = MenuEdgeAlpha)
 
     DropdownMenu(
         expanded = expanded,
@@ -40,7 +42,7 @@ fun EmberrDesktopMenu(
         modifier = if (blurSource != null) {
             modifier
                 .emberrBlur(blurSource, EmberrBlur.Thick)
-                .border(width = 1.dp, color = edgeColor, shape = DefaultMenuShape)
+                .border(width = MenuEdgeWidth, color = edgeColor, shape = DefaultMenuShape)
         } else {
             modifier.background(color = surfaceColor, shape = DefaultMenuShape)
         },

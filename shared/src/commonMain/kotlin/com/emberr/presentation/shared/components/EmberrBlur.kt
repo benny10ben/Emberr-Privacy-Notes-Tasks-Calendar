@@ -35,13 +35,13 @@ object EmberrBlur {
         @Composable
         @ReadOnlyComposable
         get() = HazeStyle(
-            backgroundColor = MaterialTheme.colorScheme.background,
+            backgroundColor = MaterialTheme.colorScheme.surface,
             tints = listOf(
-                HazeTint(MaterialTheme.colorScheme.background.copy(alpha = 0.72f))
+                HazeTint(MaterialTheme.colorScheme.surface.copy(alpha = 0.82f))
             ),
             blurRadius = 40.dp,
             noiseFactor = 0f,
-            fallbackTint = HazeTint(MaterialTheme.colorScheme.background.copy(alpha = 0.94f))
+            fallbackTint = HazeTint(MaterialTheme.colorScheme.surface)
         )
 
     /** Glass over a dark photo, where a surface-coloured tint would fight the image. */
@@ -56,7 +56,7 @@ object EmberrBlur {
             ),
             blurRadius = 36.dp,
             noiseFactor = 0f,
-            fallbackTint = HazeTint(Color.Black.copy(alpha = 0.45f))
+            fallbackTint = HazeTint(Color.Black)
         )
 }
 
