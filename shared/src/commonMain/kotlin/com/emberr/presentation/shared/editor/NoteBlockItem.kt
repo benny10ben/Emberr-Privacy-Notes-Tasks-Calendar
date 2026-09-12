@@ -332,6 +332,25 @@ fun NoteBlockItem(
     }
     val endPadding = (if (isDatabase || block is TableBlock) 0.dp else 16.dp) + desktopExtraPadding
 
+    val isSlashMenuActiveHere = isDesktopPlatform && isActiveBlock && showSlashMenu
+
+    val slashMenuSections = remember(slashQuery, isSlashMenuActiveHere) {
+        if (isSlashMenuActiveHere) {
+            filteredSlashMenuSections(
+                query = slashQuery,
+                onChangeBlockType = { actions.onChangeBlockType(it) },
+                onToggleFormat = { actions.onToggleFormat(it) },
+                onAdjustIndentation = { actions.onAdjustIndentation(it) },
+                onSetAlignment = { actions.onSetBlockAlignment(it) },
+                onInsertMediaBlock = { actions.onInsertMediaBlock(it) }
+            )
+        } else {
+            emptyList()
+        }
+    }
+    val slashMenuFilteredItems = remember(slashMenuSections) { slashMenuSections.flatMap { it.items } }
+    var slashMenuSelectedIndex by remember(slashQuery) { mutableIntStateOf(0) }
+
     // RENDER BLOCK CONTENT
     Box(
         modifier = modifier
@@ -345,7 +364,7 @@ fun NoteBlockItem(
             )
     ) {
         // Desktop slash menu
-        if (isDesktopPlatform && isActiveBlock && showSlashMenu) {
+        if (isSlashMenuActiveHere) {
             EmberrDesktopMenu(
                 expanded = true,
                 onDismissRequest = onDismissSlashMenu,
@@ -354,13 +373,9 @@ fun NoteBlockItem(
                     .width(290.dp)
                     .heightIn(max = 400.dp)
             ) {
-                DesktopSlashMenuContent(
-                    query = slashQuery,
-                    onChangeBlockType = { actions.onChangeBlockType(it) },
-                    onToggleFormat = { actions.onToggleFormat(it) },
-                    onAdjustIndentation = { actions.onAdjustIndentation(it) },
-                    onSetAlignment = { actions.onSetBlockAlignment(it) },
-                    onInsertMediaBlock = { actions.onInsertMediaBlock(it) }
+                SlashMenuList(
+                    sections = slashMenuSections,
+                    selectedIndex = slashMenuSelectedIndex
                 )
             }
         }
@@ -484,7 +499,18 @@ fun NoteBlockItem(
                                 visualTransformation = richTextTransformation,
                                 selectionRequest = selectionRequest,
                                 focusRequest = focusRequest,
-                                onTextLayout = { textLayoutResult = it }
+                                onTextLayout = { textLayoutResult = it },
+                                isSlashMenuOpen = isSlashMenuActiveHere,
+                                onSlashMenuNavigate = { delta ->
+                                    val count = slashMenuFilteredItems.size
+                                    if (count > 0) {
+                                        slashMenuSelectedIndex = ((slashMenuSelectedIndex + delta) % count + count) % count
+                                    }
+                                },
+                                onSlashMenuConfirm = {
+                                    slashMenuFilteredItems.getOrNull(slashMenuSelectedIndex)?.action?.invoke()
+                                },
+                                onSlashMenuDismiss = onDismissSlashMenu
                             )
 
                         }
@@ -864,7 +890,11 @@ fun IsolatedEditorTextField(
     onOpenNote: (String) -> Unit,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     selectionRequest: SelectionRequest? = null,
-    focusRequest: FocusRequest? = null
+    focusRequest: FocusRequest? = null,
+    isSlashMenuOpen: Boolean = false,
+    onSlashMenuNavigate: (delta: Int) -> Unit = {},
+    onSlashMenuConfirm: () -> Unit = {},
+    onSlashMenuDismiss: () -> Unit = {}
 ) {
     var tfv by remember { mutableStateOf(TextFieldValue(initialText, TextRange.Zero)) }
     var lastSentText by remember { mutableStateOf(initialText) }
@@ -1032,6 +1062,28 @@ fun IsolatedEditorTextField(
                 .onPreviewKeyEvent { event ->
                     val isBackspace = event.key == Key.Backspace
                     val isEnter = event.key == Key.Enter || event.key == Key.NumPadEnter
+
+                    if (isSlashMenuOpen && event.type == KeyEventType.KeyDown) {
+                        when (event.key) {
+                            Key.DirectionDown -> {
+                                onSlashMenuNavigate(1)
+                                return@onPreviewKeyEvent true
+                            }
+                            Key.DirectionUp -> {
+                                onSlashMenuNavigate(-1)
+                                return@onPreviewKeyEvent true
+                            }
+                            Key.Enter, Key.NumPadEnter -> {
+                                onSlashMenuConfirm()
+                                return@onPreviewKeyEvent true
+                            }
+                            Key.Escape -> {
+                                onSlashMenuDismiss()
+                                return@onPreviewKeyEvent true
+                            }
+                            else -> {}
+                        }
+                    }
 
                     if (isBackspace && event.type == KeyEventType.KeyDown) {
                         if (tfv.text.isEmpty()) {

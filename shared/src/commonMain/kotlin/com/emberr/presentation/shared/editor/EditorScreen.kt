@@ -37,6 +37,8 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
@@ -125,6 +127,7 @@ import kotlinx.collections.immutable.toImmutableSet
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 private val DefaultCornerShape = RoundedCornerShape(12.dp)
 
@@ -1124,6 +1127,70 @@ private fun MenuDragHandle(onClose: () -> Unit) {
     }
 }
 
+fun buildSlashMenuSections(
+    onChangeBlockType: (String) -> Unit,
+    onToggleFormat: (String) -> Unit,
+    onAdjustIndentation: (Boolean) -> Unit,
+    onSetAlignment: (TextAlignment) -> Unit,
+    onInsertMediaBlock: (String) -> Unit
+): List<SlashMenuSectionData> = listOf(
+    SlashMenuSectionData("Basic Blocks", listOf(
+        SlashMenuItemData("Text", Icons.AutoMirrored.Filled.Subject) { onChangeBlockType("text") },
+        SlashMenuItemData("Heading 1", SlashMenuIcon.Label("H1")) { onChangeBlockType("h1") },
+        SlashMenuItemData("Heading 2", SlashMenuIcon.Label("H2")) { onChangeBlockType("h2") },
+        SlashMenuItemData("To-do List", Res.drawable.check_square) { onChangeBlockType("checkbox") },
+        SlashMenuItemData("Bulleted List", Res.drawable.unordered_list, 15.dp) { onChangeBlockType("bullet") },
+        SlashMenuItemData("Numbered List", Res.drawable.ordered_list, 14.dp) { onChangeBlockType("number") },
+        SlashMenuItemData("Toggle List", Res.drawable.arrow_right2) { onChangeBlockType("toggle") },
+        SlashMenuItemData("Quote", Res.drawable.quote_down2, 14.dp) { onChangeBlockType("quote") },
+        SlashMenuItemData("Code Block", Res.drawable.code) { onChangeBlockType("code") }
+    )),
+    SlashMenuSectionData("Media & Links", listOf(
+        SlashMenuItemData("Voice Note", Res.drawable.microphone) { onChangeBlockType("voice") },
+        SlashMenuItemData("Image", Res.drawable.image) { onInsertMediaBlock("image") },
+        SlashMenuItemData("Document / File", Res.drawable.file_text) { onInsertMediaBlock("document") },
+        SlashMenuItemData("Web Bookmark", Res.drawable.bookmark) { onInsertMediaBlock("bookmark") },
+        SlashMenuItemData("Database / Table", Res.drawable.square_kanban) { onInsertMediaBlock("database") },
+        SlashMenuItemData("Simple Table", Res.drawable.table) { onInsertMediaBlock("table") },
+        SlashMenuItemData("Link to Note", Res.drawable.link) { onInsertMediaBlock("linked_note") }
+    )),
+    SlashMenuSectionData("Inline Text Formatting", listOf(
+        SlashMenuItemData("Bold Text", Res.drawable.format_bold, 13.dp) { onToggleFormat("bold") },
+        SlashMenuItemData("Italic Text", Res.drawable.italic, 13.dp) { onToggleFormat("italic") },
+        SlashMenuItemData("Underline Text", Res.drawable.underline, 15.dp) { onToggleFormat("underline") },
+        SlashMenuItemData("Strikethrough Text", Res.drawable.text_x, 15.dp) { onToggleFormat("strike") }
+    )),
+    SlashMenuSectionData("Alignment", listOf(
+        SlashMenuItemData("Align Left", Res.drawable.textalign_left2) { onSetAlignment(TextAlignment.LEFT) },
+        SlashMenuItemData("Align Right", Res.drawable.textalign_right2) { onSetAlignment(TextAlignment.RIGHT) },
+        SlashMenuItemData("Align Center", Res.drawable.textalign_center2) { onSetAlignment(TextAlignment.CENTER) },
+        SlashMenuItemData("Justify", Res.drawable.textalign_justifycenter2) { onSetAlignment(TextAlignment.JUSTIFY) }
+    )),
+    SlashMenuSectionData("Indentation", listOf(
+        SlashMenuItemData("Decrease Indent", Res.drawable.indent_right) { onAdjustIndentation(false) },
+        SlashMenuItemData("Increase Indent", Res.drawable.indent_left) { onAdjustIndentation(true) }
+    )),
+    SlashMenuSectionData("Dividers", listOf(
+        SlashMenuItemData("Solid Line", Res.drawable.minus) { onChangeBlockType("divider_solid") },
+        SlashMenuItemData("Three Dots", Res.drawable.ellipsis) { onChangeBlockType("divider_dots") }
+    )),
+)
+
+fun filteredSlashMenuSections(
+    query: String,
+    onChangeBlockType: (String) -> Unit,
+    onToggleFormat: (String) -> Unit,
+    onAdjustIndentation: (Boolean) -> Unit,
+    onSetAlignment: (TextAlignment) -> Unit,
+    onInsertMediaBlock: (String) -> Unit
+): List<SlashMenuSectionData> = buildSlashMenuSections(
+    onChangeBlockType, onToggleFormat, onAdjustIndentation, onSetAlignment, onInsertMediaBlock
+).map { section ->
+    section.copy(items = section.items.filter { item ->
+        query.isBlank() || item.label.contains(query, ignoreCase = true)
+    })
+}.filter { it.items.isNotEmpty() }
+
 @Composable
 fun DesktopSlashMenuContent(
     query: String,
@@ -1131,70 +1198,66 @@ fun DesktopSlashMenuContent(
     onToggleFormat: (String) -> Unit,
     onAdjustIndentation: (Boolean) -> Unit,
     onSetAlignment: (TextAlignment) -> Unit,
-    onInsertMediaBlock: (String) -> Unit
+    onInsertMediaBlock: (String) -> Unit,
+    selectedIndex: Int = -1
 ) {
-    val sections = remember(
+    val filteredSections = remember(
+        query,
         onChangeBlockType,
         onToggleFormat,
         onAdjustIndentation,
         onSetAlignment,
         onInsertMediaBlock
     ) {
-        listOf(
-            SlashMenuSectionData("Basic Blocks", listOf(
-                SlashMenuItemData("Text", Icons.AutoMirrored.Filled.Subject) { onChangeBlockType("text") },
-                SlashMenuItemData("Heading 1", SlashMenuIcon.Label("H1")) { onChangeBlockType("h1") },
-                SlashMenuItemData("Heading 2", SlashMenuIcon.Label("H2")) { onChangeBlockType("h2") },
-                SlashMenuItemData("To-do List", Res.drawable.check_square) { onChangeBlockType("checkbox") },
-                SlashMenuItemData("Bulleted List", Res.drawable.unordered_list, 15.dp) { onChangeBlockType("bullet") },
-                SlashMenuItemData("Numbered List", Res.drawable.ordered_list, 14.dp) { onChangeBlockType("number") },
-                SlashMenuItemData("Toggle List", Res.drawable.arrow_right2) { onChangeBlockType("toggle") },
-                SlashMenuItemData("Quote", Res.drawable.quote_down2, 14.dp) { onChangeBlockType("quote") },
-                SlashMenuItemData("Code Block", Res.drawable.code) { onChangeBlockType("code") }
-            )),
-            SlashMenuSectionData("Media & Links", listOf(
-                SlashMenuItemData("Voice Note", Res.drawable.microphone) { onChangeBlockType("voice") },
-                SlashMenuItemData("Image", Res.drawable.image) { onInsertMediaBlock("image") },
-                SlashMenuItemData("Document / File", Res.drawable.file_text) { onInsertMediaBlock("document") },
-                SlashMenuItemData("Web Bookmark", Res.drawable.bookmark) { onInsertMediaBlock("bookmark") },
-                SlashMenuItemData("Database / Table", Res.drawable.square_kanban) { onInsertMediaBlock("database") },
-                SlashMenuItemData("Simple Table", Res.drawable.table) { onInsertMediaBlock("table") },
-                SlashMenuItemData("Link to Note", Res.drawable.link) { onInsertMediaBlock("linked_note") }
-            )),
-            SlashMenuSectionData("Inline Text Formatting", listOf(
-                SlashMenuItemData("Bold Text", Res.drawable.format_bold, 13.dp) { onToggleFormat("bold") },
-                SlashMenuItemData("Italic Text", Res.drawable.italic, 13.dp) { onToggleFormat("italic") },
-                SlashMenuItemData("Underline Text", Res.drawable.underline, 15.dp) { onToggleFormat("underline") },
-                SlashMenuItemData("Strikethrough Text", Res.drawable.text_x, 15.dp) { onToggleFormat("strike") }
-            )),
-            SlashMenuSectionData("Alignment", listOf(
-                SlashMenuItemData("Align Left", Res.drawable.textalign_left2) { onSetAlignment(TextAlignment.LEFT) },
-                SlashMenuItemData("Align Right", Res.drawable.textalign_right2) { onSetAlignment(TextAlignment.RIGHT) },
-                SlashMenuItemData("Align Center", Res.drawable.textalign_center2) { onSetAlignment(TextAlignment.CENTER) },
-                SlashMenuItemData("Justify", Res.drawable.textalign_justifycenter2) { onSetAlignment(TextAlignment.JUSTIFY) }
-            )),
-            SlashMenuSectionData("Indentation", listOf(
-                SlashMenuItemData("Decrease Indent", Res.drawable.indent_right) { onAdjustIndentation(false) },
-                SlashMenuItemData("Increase Indent", Res.drawable.indent_left) { onAdjustIndentation(true) }
-            )),
-            SlashMenuSectionData("Dividers", listOf(
-                SlashMenuItemData("Solid Line", Res.drawable.minus) { onChangeBlockType("divider_solid") },
-                SlashMenuItemData("Three Dots", Res.drawable.ellipsis) { onChangeBlockType("divider_dots") }
-            )),
-//            SlashMenuSectionData("Plugins & Embeds", listOf(
-//                SlashMenuItemData("Sketch Board", Icons.Default.Draw) { onInsertMediaBlock("sketch") }
-//            )),
-        )
+        filteredSlashMenuSections(query, onChangeBlockType, onToggleFormat, onAdjustIndentation, onSetAlignment, onInsertMediaBlock)
     }
 
-    val filteredSections = sections.map { section ->
-        section.copy(items = section.items.filter { item ->
-            query.isBlank() || item.label.contains(query, ignoreCase = true)
-        })
-    }.filter { it.items.isNotEmpty() }
+    SlashMenuList(sections = filteredSections, selectedIndex = selectedIndex)
+}
 
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        if (filteredSections.isEmpty()) {
+@Composable
+fun SlashMenuList(sections: List<SlashMenuSectionData>, selectedIndex: Int = -1) {
+    val rows = remember(sections) {
+        buildList {
+            var flatIndex = 0
+            sections.forEachIndexed { sectionIndex, section ->
+                add(SlashMenuRow.SectionHeader(section.title))
+                section.items.forEach { menuItem ->
+                    add(SlashMenuRow.Entry(menuItem, flatIndex))
+                    flatIndex++
+                }
+                if (sectionIndex < sections.lastIndex) {
+                    add(SlashMenuRow.SectionSpacer)
+                }
+            }
+        }
+    }
+
+    val scrollState = rememberScrollState()
+    var viewportHeightPx by remember { mutableFloatStateOf(0f) }
+    val itemBoundsByFlatIndex = remember(sections) { mutableStateMapOf<Int, ClosedFloatingPointRange<Float>>() }
+
+    LaunchedEffect(selectedIndex, sections) {
+        val bounds = itemBoundsByFlatIndex[selectedIndex] ?: return@LaunchedEffect
+        val viewportStart = scrollState.value.toFloat()
+        val viewportEnd = viewportStart + viewportHeightPx
+
+        if (bounds.endInclusive > viewportEnd) {
+            scrollState.animateScrollTo((scrollState.value + (bounds.endInclusive - viewportEnd)).roundToInt())
+        } else if (bounds.start < viewportStart) {
+            scrollState.animateScrollTo(bounds.start.roundToInt())
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 320.dp)
+            .onGloballyPositioned { viewportHeightPx = it.size.height.toFloat() }
+            .verticalScroll(scrollState)
+            .padding(vertical = 4.dp)
+    ) {
+        if (sections.isEmpty()) {
             Text(
                 text = "No results found",
                 style = MaterialTheme.typography.labelSmall,
@@ -1202,36 +1265,47 @@ fun DesktopSlashMenuContent(
                 modifier = Modifier.padding(16.dp)
             )
         } else {
-            filteredSections.forEachIndexed { index, section ->
-                SlashMenuHeader(section.title)
-
-                section.items.forEach { item ->
-                    SlashMenuItem(
-                        text = item.label,
-                        icon = item.icon,
-                        onClick = item.action
+            rows.forEach { row ->
+                when (row) {
+                    is SlashMenuRow.SectionHeader -> SlashMenuHeader(row.title)
+                    is SlashMenuRow.Entry -> SlashMenuItem(
+                        text = row.item.label,
+                        icon = row.item.icon,
+                        isSelected = row.flatIndex == selectedIndex,
+                        onClick = row.item.action,
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            val top = coordinates.positionInParent().y
+                            val bottom = top + coordinates.size.height
+                            itemBoundsByFlatIndex[row.flatIndex] = top..bottom
+                        }
                     )
-                }
-
-                if (index < filteredSections.lastIndex) {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    SlashMenuRow.SectionSpacer -> Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }
     }
 }
 
+private sealed interface SlashMenuRow {
+    data class SectionHeader(val title: String) : SlashMenuRow
+    data class Entry(val item: SlashMenuItemData, val flatIndex: Int) : SlashMenuRow
+    data object SectionSpacer : SlashMenuRow
+}
+
 @Composable
 private fun SlashMenuItem(
     text: String,
     icon: SlashMenuIcon,
-    onClick: () -> Unit
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(10.dp))
+            .background(if (isSelected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f) else Color.Transparent)
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
