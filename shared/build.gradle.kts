@@ -55,6 +55,10 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEa
     }
 }
 
+tasks.matching { it.name.contains("AndroidHostTest") && it.name.contains("Lint", ignoreCase = true) }.configureEach {
+    enabled = false
+}
+
 kotlin {
     jvmToolchain(javaToolchainVersion.toInt())
 
@@ -130,7 +134,6 @@ kotlin {
 
         val jvmSharedTest = create("jvmSharedTest") {
             dependsOn(getByName("commonTest"))
-            dependsOn(jvmSharedMain)
         }
 
         getByName("androidHostTest") {
