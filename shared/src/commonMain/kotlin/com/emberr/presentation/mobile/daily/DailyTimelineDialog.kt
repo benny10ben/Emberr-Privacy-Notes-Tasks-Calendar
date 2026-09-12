@@ -213,11 +213,7 @@ fun DailyTimelineDialog(
                         .clip(DialogShape)
                         .emberrBlur(
                             ambientHazeState,
-                            EmberrBlur.Thick.copy(
-                                backgroundColor = MaterialTheme.colorScheme.surface,
-                                tints = listOf(HazeTint(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))),
-                                fallbackTint = HazeTint(MaterialTheme.colorScheme.surface)
-                            )
+                            EmberrBlur.Thick
                         )
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -290,7 +286,7 @@ private fun TimelineHeader(
             modifier = Modifier
                 .clip(CircleShape)
                 .border(
-                    width = 0.2.dp,
+                    width = 0.5.dp,
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
                     shape = CircleShape
                 )
@@ -552,7 +548,9 @@ private fun TimelineList(
             Text(
                 text = "Nothing written yet.",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp)
             )
         }
     }
