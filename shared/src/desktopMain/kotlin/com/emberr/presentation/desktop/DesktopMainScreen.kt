@@ -29,7 +29,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -83,6 +82,7 @@ import com.emberr.presentation.mobile.home.overview.tasks.TasksScreen
 import com.emberr.presentation.search.SearchDialog
 import com.emberr.presentation.trash.TrashScreen
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
 import kotlin.time.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -111,6 +111,7 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.onPointerEvent
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.components.LocalEmberrBlurSource
+import com.emberr.presentation.shared.components.emberrBlur
 import dev.chrisbanes.haze.hazeSource
 import emberr.shared.generated.resources.Res
 import emberr.shared.generated.resources.arrow_up_down
@@ -546,10 +547,8 @@ fun DesktopMainScreen(
                         TopBarIconButton(
                             icon = painterResource(Res.drawable.history2),
                             contentDescription = "Open timeline",
-                            bgColor = Color.Transparent,
+                            bgColor = MaterialTheme.colorScheme.background,
                             tint = MaterialTheme.colorScheme.primary,
-                            hazeState = hazeState,
-                            hazeStyle = EmberrBlur.Regular,
                             onClick = {
                                 dailyViewModel.loadTimeline()
                                 showTimelineDialog = true
@@ -558,10 +557,8 @@ fun DesktopMainScreen(
                     }
                     Box {
                         TopBarIconButtonGroup(
-                            bgColor = Color.Transparent,
+                            bgColor = MaterialTheme.colorScheme.background,
                             tint = MaterialTheme.colorScheme.primary,
-                            hazeState = hazeState,
-                            hazeStyle = EmberrBlur.Regular,
                             items = listOf(
                                 TopBarIconButtonItem(
                                     icon = painterResource(Res.drawable.calendar),
@@ -597,7 +594,6 @@ fun DesktopMainScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .hazeSource(hazeState)
-                        .background(MaterialTheme.colorScheme.surface)
                         .desktopListDragTracker(
                             dragState = dragState,
                             listState = sidebarListState,
@@ -1059,20 +1055,16 @@ fun DesktopMainScreen(
                 TopBarIconButton(
                     icon = painterResource(Res.drawable.search),
                     contentDescription = "Search",
-                    bgColor = Color.Transparent,
+                    bgColor = MaterialTheme.colorScheme.background,
                     tint = MaterialTheme.colorScheme.primary,
-                    hazeState = hazeState,
-                    hazeStyle = EmberrBlur.Regular,
                     onClick = { showSearchDialog = true }
                 )
                 if (!isAiDisabled) {
                     TopBarIconButton(
                         icon = painterResource(Res.drawable.astroid),
                         contentDescription = "Ask AI",
-                        bgColor = Color.Transparent,
+                        bgColor = MaterialTheme.colorScheme.background,
                         tint = MaterialTheme.colorScheme.primary,
-                        hazeState = hazeState,
-                        hazeStyle = EmberrBlur.Regular,
                         onClick = onAiIconTap
                     )
                 }
@@ -1082,22 +1074,24 @@ fun DesktopMainScreen(
 
     // RIGHT PANEL
     val rightPanel = @Composable {
-        Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN).hazeSource(state = hazeState)) {
+        Box(Modifier.fillMaxSize().hazeSource(state = hazeState)) {
             when (val d = detail) {
                 null -> Box(Modifier.fillMaxSize())
-                is DetailPane.Daily -> DailyEditorPane(
-                    viewModel = dailyViewModel,
-                    hazeState = hazeState,
-                    isSidebarVisible = isSidebarVisible,
-                    onPickImage = onPickImage,
-                    onTakePhoto = onTakePhoto,
-                    onPickDocument = onPickDocument,
-                    onOpenFile = onOpenFile,
-                    onNavigateToEditor = { openNote(it) },
-                    onExportMarkdown = onExportMarkdown,
-                    onExportPdf = onExportPdf,
-                    onSelectionModeChange = onSelectionModeChange
-                )
+                is DetailPane.Daily -> Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                    DailyEditorPane(
+                        viewModel = dailyViewModel,
+                        hazeState = hazeState,
+                        isSidebarVisible = isSidebarVisible,
+                        onPickImage = onPickImage,
+                        onTakePhoto = onTakePhoto,
+                        onPickDocument = onPickDocument,
+                        onOpenFile = onOpenFile,
+                        onNavigateToEditor = { openNote(it) },
+                        onExportMarkdown = onExportMarkdown,
+                        onExportPdf = onExportPdf,
+                        onSelectionModeChange = onSelectionModeChange
+                    )
+                }
                 is DetailPane.Note -> key(d.noteId) {
                     NoteScreen(
                         noteId = d.noteId,
@@ -1106,27 +1100,57 @@ fun DesktopMainScreen(
                         onSelectionModeChange = onSelectionModeChange,
                         onPickImage = onPickImage, onTakePhoto = onTakePhoto, onPickDocument = onPickDocument,
                         onOpenFile = onOpenFile, onExportMarkdown = onExportMarkdown, onExportPdf = onExportPdf,
-                        onNavigateToEditor = { openNote(it) }
+                        onNavigateToEditor = { openNote(it) },
+                        desktopTopMargin = PANEL_TOP_MARGIN
                     )
                 }
                 DetailPane.Settings -> key("settings") {
-                    SettingsScreen(
-                        onNavigateBack = { detail = DetailPane.Daily(selectedDate) },
-                        onExportReady = onExportBackup,
-                        onImportClick = onImportBackupClick,
-                        onNavigateToSelfHostSetup = { detail = DetailPane.SelfHostSetup },
-                        syncViewModel = syncViewModel
-                    )
+                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                        SettingsScreen(
+                            onNavigateBack = { detail = DetailPane.Daily(selectedDate) },
+                            onExportReady = onExportBackup,
+                            onImportClick = onImportBackupClick,
+                            onNavigateToSelfHostSetup = { detail = DetailPane.SelfHostSetup },
+                            showBackButton = isSidebarVisible,
+                            syncViewModel = syncViewModel
+                        )
+                    }
                 }
                 DetailPane.SelfHostSetup -> key("selfhost_setup") {
-                    SelfHostSetupScreen(onNavigateBack = { detail = DetailPane.Settings })
+                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                        SelfHostSetupScreen(onNavigateBack = { detail = DetailPane.Settings })
+                    }
                 }
-                DetailPane.Trash -> key("trash") { TrashScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }) }
-                DetailPane.Reminders -> key("reminders") { TasksScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }, onOpenFile = onOpenFile, onNavigateToEditor = { openNote(it) }) }
-                DetailPane.Images -> key("images") { ImagesScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }, onTriggerImagePicker = { onPickImage { } }) }
-                DetailPane.Documents -> key("documents") { DocumentsScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }, onTriggerDocumentPicker = { onPickDocument { } }, onOpenFile = onOpenFile) }
-                DetailPane.Bookmarks -> key("bookmarks") { BookmarksScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }) }
-                DetailPane.Calendar -> key("calendar") { CalendarScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }) }
+                DetailPane.Trash -> key("trash") {
+                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                        TrashScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) })
+                    }
+                }
+                DetailPane.Reminders -> key("reminders") {
+                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                        TasksScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }, onOpenFile = onOpenFile, onNavigateToEditor = { openNote(it) })
+                    }
+                }
+                DetailPane.Images -> key("images") {
+                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                        ImagesScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }, onTriggerImagePicker = { onPickImage { } })
+                    }
+                }
+                DetailPane.Documents -> key("documents") {
+                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                        DocumentsScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }, onTriggerDocumentPicker = { onPickDocument { } }, onOpenFile = onOpenFile)
+                    }
+                }
+                DetailPane.Bookmarks -> key("bookmarks") {
+                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                        BookmarksScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) })
+                    }
+                }
+                DetailPane.Calendar -> key("calendar") {
+                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                        CalendarScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) })
+                    }
+                }
             }
         }
     }
@@ -1183,7 +1207,7 @@ fun DesktopMainScreen(
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopStart)
-                                    .padding(start = 26.dp, top = 16.dp)
+                                    .padding(start = 26.dp, top = PANEL_TOP_MARGIN + 16.dp)
                                     .zIndex(10f)
                             ) {
                                 TopBarIconButton(
@@ -1287,9 +1311,15 @@ fun DesktopMainScreen(
                             .padding(start = PANEL_PADDING, top = PANEL_TOP_MARGIN, bottom = PANEL_TOP_MARGIN)
                             .width(panelWidth)
                             .fillMaxHeight()
-                            .shadow(16.dp, DesktopPanelShape)
                             .clip(DesktopPanelShape)
-                            .background(MaterialTheme.colorScheme.surface)
+                            .emberrBlur(
+                                hazeState,
+                                EmberrBlur.Thick.copy(
+                                    backgroundColor = MaterialTheme.colorScheme.surface,
+                                    tints = listOf(HazeTint(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))),
+                                    fallbackTint = HazeTint(MaterialTheme.colorScheme.surface)
+                                )
+                            )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null

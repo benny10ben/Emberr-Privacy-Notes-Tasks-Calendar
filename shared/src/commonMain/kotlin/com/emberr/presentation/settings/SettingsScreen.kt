@@ -79,6 +79,7 @@ fun SettingsScreen(
     onExportReady: () -> Unit = {},
     onRequestBackupFolder: () -> Unit = {},
     onNavigateToSelfHostSetup: () -> Unit = {},
+    showBackButton: Boolean = true,
     viewModel: SettingsViewModel = koinViewModel(),
     syncViewModel: SyncViewModel = koinViewModel()
 ) {
@@ -526,7 +527,7 @@ fun SettingsScreen(
                 .zIndex(10f)
                 .onGloballyPositioned { coordinates -> topBarHeightPx = coordinates.size.height.toFloat() }
         ) {
-            SettingsTopBar(onNavigateBack = onNavigateBack, hazeState = HazeState)
+            SettingsTopBar(onNavigateBack = onNavigateBack, hazeState = HazeState, showBackButton = showBackButton)
         }
 
         if (showImportExportSheet) {
@@ -979,7 +980,7 @@ fun SettingsSelectionRow(
 }
 
 @Composable
-private fun SettingsTopBar(onNavigateBack: () -> Unit, hazeState: HazeState) {
+private fun SettingsTopBar(onNavigateBack: () -> Unit, hazeState: HazeState, showBackButton: Boolean = true) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -992,15 +993,19 @@ private fun SettingsTopBar(onNavigateBack: () -> Unit, hazeState: HazeState) {
             ),
         contentAlignment = Alignment.CenterStart
     ) {
-        TopBarIconButton(
-            icon = painterResource(Res.drawable.chevron_left),
-            contentDescription = "Back",
-            bgColor = Color.Transparent,
-            tint = MaterialTheme.colorScheme.primary,
-            hazeState = hazeState,
-            hazeStyle = EmberrBlur.Regular,
-            onClick = onNavigateBack
-        )
+        if (showBackButton) {
+            TopBarIconButton(
+                icon = painterResource(Res.drawable.chevron_left),
+                contentDescription = "Back",
+                bgColor = Color.Transparent,
+                tint = MaterialTheme.colorScheme.primary,
+                hazeState = hazeState,
+                hazeStyle = EmberrBlur.Regular,
+                onClick = onNavigateBack
+            )
+        } else {
+            Spacer(Modifier.size(44.dp))
+        }
 
         Text(
             text = "Settings",

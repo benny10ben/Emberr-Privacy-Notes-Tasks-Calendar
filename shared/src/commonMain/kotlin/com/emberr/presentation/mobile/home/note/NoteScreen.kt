@@ -37,6 +37,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.viewmodel.koinViewModel
@@ -148,6 +149,7 @@ fun NoteScreen(
     externalHazeState: HazeState? = null,
     topBarBgColor: Color? = null,
     topBarContentColor: Color? = null,
+    desktopTopMargin: Dp = 0.dp,
     viewModel: NoteEditorViewModel = koinViewModel(key = noteId)
 ) {
 
@@ -533,7 +535,10 @@ fun NoteScreen(
                         )
                     },
                     globalTags = globalTags,
-                    modifier = Modifier.fillMaxSize().hazeSource(state = hazeState),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = if (coverImagePath != null) 0.dp else desktopTopMargin)
+                        .hazeSource(state = hazeState),
                     listState = editorListState,
                     onUndo = { viewModel.undo() },
                     onRedo = { viewModel.redo() }
@@ -624,6 +629,7 @@ fun NoteScreen(
                     collapsedTitle = noteTitle.ifBlank { "Untitled" },
                     collapsedTitleProgress = titleCollapseProgress,
                     onCollapsedTitleClick = onCollapsedTitleClick,
+                    topMargin = desktopTopMargin,
                     onPositioned = { topBarBottomPx = it.positionInRoot().y + it.size.height },
                     onBackClick = {
                         if (isSelectionMode) {
@@ -1193,6 +1199,7 @@ private fun NoteTopBar(
     collapsedTitle: String = "",
     collapsedTitleProgress: Float = 0f,
     onCollapsedTitleClick: () -> Unit = {},
+    topMargin: Dp = 0.dp,
     onPositioned: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit = {}
 ) {
     val defaultContentColor = topBarContentColor ?: MaterialTheme.colorScheme.onSurface
@@ -1201,7 +1208,7 @@ private fun NoteTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (isDesktopPlatform) Modifier else Modifier.stableStatusBarsPadding())
-            .padding(top = if (isDesktopPlatform) 16.dp else 10.dp).padding(horizontal = if (isDesktopPlatform) 22.dp else 16.dp)
+            .padding(top = topMargin + if (isDesktopPlatform) 16.dp else 10.dp).padding(horizontal = if (isDesktopPlatform) 22.dp else 16.dp)
             .onGloballyPositioned(onPositioned),
         contentAlignment = Alignment.Center
     ) {
