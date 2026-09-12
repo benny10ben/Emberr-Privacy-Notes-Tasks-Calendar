@@ -40,6 +40,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.emberr.domain.util.isDesktopPlatform
@@ -167,7 +173,23 @@ internal fun ChatInputBar(
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                     maxLines = 6,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (isDesktopPlatform) {
+                                Modifier.onPreviewKeyEvent { keyEvent ->
+                                    val isEnter = keyEvent.key == Key.Enter || keyEvent.key == Key.NumPadEnter
+                                    if (keyEvent.type == KeyEventType.KeyDown && isEnter && !keyEvent.isShiftPressed) {
+                                        onSubmit()
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+                            } else {
+                                Modifier
+                            }
+                        )
                 )
             }
 

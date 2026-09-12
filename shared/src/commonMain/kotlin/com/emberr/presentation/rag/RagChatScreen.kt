@@ -51,6 +51,7 @@ import com.emberr.presentation.rag.chat.ChatEmptyState
 import com.emberr.presentation.rag.chat.ChatInputBar
 import com.emberr.presentation.rag.chat.ModelUnavailablePrompt
 import com.emberr.presentation.rag.chat.ThinkingIndicator
+import com.emberr.presentation.rag.chat.VaultAccessPill
 import com.emberr.presentation.rag.history.ChatHistoryMenuContent
 import com.emberr.presentation.rag.history.ChatHistorySheet
 import com.emberr.presentation.rag.settings.AiSettingsSheet
@@ -70,6 +71,8 @@ import org.jetbrains.compose.resources.painterResource
 
 internal val DesktopPanelTopInset = 12.dp
 internal val DesktopPanelContentInset = 13.dp
+private val TopBarButtonSize = 44.dp
+private val VaultAccessPillGap = 4.dp
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -137,6 +140,8 @@ private fun RagChatContent(
     val isLoading by viewModel.isLoading.collectAsState()
     val isModelAvailable by viewModel.isModelAvailable.collectAsState()
     val embeddingSetupState by viewModel.embeddingSetupState.collectAsState()
+    val aiGenerationMode by viewModel.aiGenerationMode.collectAsState()
+    val externalAiReadOnly by viewModel.externalAiReadOnly.collectAsState()
     val localGeneratorDownloadProgress by viewModel.localGeneratorDownloadProgress.collectAsState()
     val listState = rememberLazyListState()
     val hazeState = remember { HazeState() }
@@ -258,7 +263,7 @@ private fun RagChatContent(
                         contentPadding = PaddingValues(
                             start = sidePadding,
                             end = sidePadding,
-                            top = rememberStableStatusBarsPadding().calculateTopPadding() + 70.dp,
+                            top = rememberStableStatusBarsPadding().calculateTopPadding() + 100.dp,
                             bottom = 140.dp
                         ),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -271,7 +276,9 @@ private fun RagChatContent(
                                         viewModel.beginEditingMessage(message.id)
                                         inputText = message.text
                                     }
-                                } else null
+                                } else null,
+                                onConfirmPendingWrite = { viewModel.confirmPendingWrite(message.id) },
+                                onRejectPendingWrite = { viewModel.rejectPendingWrite(message.id) }
                             )
                         }
                         if (isLoading && messages.lastOrNull()?.text?.isEmpty() == true) {
@@ -353,6 +360,22 @@ private fun RagChatContent(
                         }
                     }
                 }
+            }
+        }
+
+        if (embeddingSetupState == EmbeddingSetupState.Ready) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .then(if (isDesktopPlatform) Modifier else Modifier.stableStatusBarsPadding())
+                    .padding(
+                        top = (if (isDesktopPlatform) DesktopPanelTopInset else 10.dp) +
+                            TopBarButtonSize + 8.dp + VaultAccessPillGap
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                VaultAccessPill(aiGenerationMode = aiGenerationMode, externalAiReadOnly = externalAiReadOnly)
             }
         }
 
