@@ -5,6 +5,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.emberr.data.local.room.DatabaseTemplateEntity
+import com.emberr.data.local.room.FolderEntity
 import com.emberr.data.local.room.NoteMetadataEntity
 import com.emberr.data.local.room.TagEntity
 import com.emberr.domain.model.*
@@ -23,6 +24,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.time.Instant
@@ -2390,19 +2392,42 @@ abstract class BaseEditorViewModel(
         val now = System.currentTimeMillis()
 
         viewModelScope.launch(Dispatchers.IO) {
+            val othersFolderId = getOrCreateOthersFolder()
             val newMeta = NoteMetadataEntity(
                 noteId = newNoteId,
                 title = title,
-                folderId = null,
+                folderId = othersFolderId,
                 isDaily = false,
                 dateString = null,
                 createdAt = now,
                 updatedAt = now,
                 filePath = "note_$newNoteId.json",
-                isSubNote = true
+                isSubNote = false
             )
             repository.saveNote(newMeta, NoteContent(blocks = emptyList()))
         }
         return newNoteId
+    }
+
+    private suspend fun getOrCreateOthersFolder(): String = othersFolderMutex.withLock {
+        val existing = repository.getAllFolders().first()
+            .find { it.parentFolderId == null && it.name.equals(OTHERS_FOLDER_NAME, ignoreCase = true) }
+        if (existing != null) return@withLock existing.folderId
+
+        val folderId = UUID.randomUUID().toString()
+        repository.insertFolder(
+            FolderEntity(
+                folderId = folderId,
+                name = OTHERS_FOLDER_NAME,
+                parentFolderId = null,
+                createdAt = System.currentTimeMillis()
+            )
+        )
+        folderId
+    }
+
+    companion object {
+        private const val OTHERS_FOLDER_NAME = "Others"
+        private val othersFolderMutex = Mutex()
     }
 }
