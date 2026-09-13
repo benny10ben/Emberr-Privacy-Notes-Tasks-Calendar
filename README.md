@@ -1,62 +1,68 @@
-# Emberr: Local-First Productivity
+# Emberr
 
-Emberr started as a private project born out of a simple frustration: I couldn't find a single tool that allowed me to manage my life the way I wanted without compromising my privacy or my standards for design.
 
-As a developer focused on productivity, I found myself bouncing between apps. I wanted the powerful block-based organization of **Notion**, the immediacy of **system reminders**, the simplicity of **standard notes**, a place for **web bookmarks**, and a way to capture **voice notes** on the fly. 
 
-When I tried to find an app that combined all these, I realized most options either lacked features or, more importantly, were built on tracking, ads, and cloud-first models that harvested personal data.
 
-I built Emberr for myself. It is a mix of all these tools, designed for my own workflow. After using it, I realized there are likely others who want a powerful, unified workspace that respects their data sovereignty.
+Emberr is a local-first, privacy-focused, 100% open source notes and productivity app. It combines a **block-based editor, tasks, reminders, and a calendar** in one place, with your data stored on your device by default.
 
-## Modern Aesthetics Meet Absolute Privacy
+> **Beta:** Emberr is still in beta. Expect some rough edges and occasional bugs.
 
-The "privacy-first" software world often forces a choice: you can have your data protected, or you can have a beautiful, modern interface. **Emberr is built on the belief that you shouldn't have to choose.** Most privacy-focused apps prioritize function so heavily that the user experience feels dated or clinical. Emberr breaks that mold with a **modern, clean, and fluid look**. Utilizing glassmorphism, subtle animations, and a refined typography-first approach, Emberr is designed to be as enjoyable to look at as it is to use. It’s privacy software that feels like a premium consumer product.
+### Why I Built This
 
-## The Core Philosophy
+Why did I spend months building this project when there are already alternatives like Notion, Obsidian, AppFlowy, etc? Well, it comes down to a few reasons.
 
-Emberr is built for people who care about where their data goes and how their tools feel.
-* **No Trackers:** There is zero code in this app tracking your usage or behavior.
-* **No Ads:** This isn't a product to be monetized; it's a tool to be used.
-* **Local-First:** Everything—your thoughts, your tasks, your voice—is processed and stored directly on your device. 
-* **Local Sovereignty:** You own your data. It doesn't live on a server you don't control.
+Some of these apps aren't open source, so you have no real idea what happens to your data behind the scenes. Some are open source and private but neglect entire platforms, Linux and Android are often treated as second class citizens compared to iOS, macOS, and Windows. And some just have bad UI and UX, cluttered, slow, and stuck in a design language from a decade ago.
 
-## What Emberr Combines
+I started Emberr as a side project, mainly to learn more about full stack development and backend systems (a self hosted cloud backup and sync system is what I'm building next). It was also just for myself. I wanted something that respected my privacy, ran well on Linux and Android, and actually felt good to use every day.
 
-Emberr isn't just a notepad. It's a cohesive environment that blends:
-* **Block-Based Editing:** Every piece of content is a block (text, checklists, code snippets) that you can manipulate.
-* **Interactive Databases:** Create tables with formulas and filtering to track anything from finances to fitness.
-* **Daily Journaling:** A specialized view with automatic rollover that ensures unfinished tasks from yesterday are waiting for you today.
-* **Universal Reminders:** Every checkbox in any note can become a system-level reminder with exact-time notifications.
-* **Multimedia Capture:** Save rich web previews, record voice clips, and attach documents in context.
+After thinking about it for a while, I figured, why not put it out there? If you're like me, fed up with apps that don't respect your privacy, apps with bad UI and UX, or developers who treat Linux and Android as an afterthought, Emberr might be for you.
 
-## 🚀 The Roadmap
+## Features
 
-Emberr is just getting started. Here is the vision for the future:
+- Block-based editor for notes, checklists, tables, and more
+- Attach images, documents, and voice notes to any note
+- Daily notes with automatic task rollover
+- Built-in calendar and reminders
+- Mobile to desktop sync (the data is encrypted so don't worry about using through public wifi)
+- Self-host your it on your own server (the data is encrypted on the server)
+- (AI is off by default) Local AI that runs entirely on-device for more privacy or bring your own API key for cloud AI providers
+- End-to-end encryption for your data 
+- No trackers, no ads, no sharing data to third parties
 
-* **Next-Gen Databases:** Moving toward even more powerful tables with advanced relation support and richer formula capabilities.
-* **Optional Mod System:** A "choose your own adventure" approach to features. Need sports scores? Calendar integration? Specialized trackers? Users will be able to enable optional mods to customize the app to their specific needs.
-* **Homescreen Widgets:** Glanceable productivity with useful, beautifully designed widgets for your daily tasks and quick-capture notes.
-* **Encrypted Cloud Backup:** A privacy-respecting, end-to-end encrypted backup and sync solution for those who want their data available across devices without sacrificing security.
-* **Cross-Platform Expansion:** Bringing Emberr to the Desktop (Linux, macOS, Windows) and beyond to create a seamless, unified workspace.
+## Platforms
 
-## System Requirements
+Android and Desktop. Desktop currently targets Linux, with Windows and macOS support planned.
 
-**Android:** Android 12 (API 31) or newer. On-device AI runs on all common processors (arm64-v8a, armeabi-v7a, x86_64, x86).
+## Roadmap
 
-**Desktop:** Linux on a 64-bit Intel or AMD processor. Everything in Emberr works on other platforms, with one exception: the bundled on-device AI engine is a native library that currently ships only as a Linux x86-64 build. On ARM Linux (a Raspberry Pi, an Ampere or Snapdragon laptop, an aarch64 VM) the local AI options are hidden and Emberr tells you why — notes, reminders, sync and cloud AI providers are unaffected. Bring your own API key for OpenAI, Claude or Gemini to keep AI features on those machines.
+- More productive blocks
+- Improved UI and UX with better animations and overall user experience
+- Cloud backup (end to end encrypted)
 
-## Looking for Contributors
+## Installation
 
-Emberr is currently an Android-only, local-only application. To make this the ultimate productivity ecosystem, I am looking for open-source contributors to help expand the vision:
-* **Cloud Backend:** Building a privacy-respecting, perhaps encrypted, sync solution for users who want their data across devices.
-* **Desktop Applications:** Bringing the Emberr experience to Windows, macOS, and Linux to create a true multi-platform workspace.
+### Option 1: Download from GitHub
 
-If you believe in local-first software and want to build a tool that doesn't treat users as a product, I'd love your help.
+Go to the [Releases](../../releases) page and download the latest APK, then install it on your device.
+
+### Option 2: Obtainium
+
+Emberr can be tracked and auto-updated with [Obtainium](https://github.com/ImranR98/Obtainium):
+
+1. Open Obtainium and tap **Add App**.
+2. Paste this repository's URL: `https://github.com/benny10ben/Emberr-Privacy-Notes-Tasks-Calendar`
+3. Tap **Add** and Obtainium will pull the latest release and keep it updated.
+
+### Option 3: Build from source
+
+1. Clone the repository: `git clone https://github.com/benny10ben/Emberr-Privacy-Notes-Tasks-Calendar.git`
+2. Open the project in Android Studio and let Gradle sync.
+3. Run `./gradlew :app:assembleRelease` to build the APK, or run the `app` module directly from Android Studio.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) if you would like to help out.
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0.
-See the [LICENSE](LICENSE) file for details.
-
----
-*Built by Benny.*
+Emberr is licensed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE) for details.
