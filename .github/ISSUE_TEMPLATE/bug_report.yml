@@ -3,6 +3,18 @@ description: Report something that isn't working correctly
 title: "[Bug]: "
 labels: ["bug"]
 body:
+  - type: checkboxes
+    id: guidelines
+    attributes:
+      label: Guidelines
+      options:
+        - label: I have searched open and closed issues for duplicates
+          required: true
+        - label: I am submitting a bug report for existing functionality that does not work as intended
+          required: true
+        - label: This isn't a feature request or a discussion topic
+          required: true
+
   - type: textarea
     id: description
     attributes:

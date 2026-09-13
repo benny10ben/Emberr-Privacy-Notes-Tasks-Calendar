@@ -3,6 +3,16 @@ description: Suggest an idea or improvement
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
+  - type: checkboxes
+    id: guidelines
+    attributes:
+      label: Guidelines
+      options:
+        - label: I have searched open and closed issues for duplicates
+          required: true
+        - label: I am submitting a feature request, not a bug report or a discussion topic
+          required: true
+
   - type: textarea
     id: problem
     attributes:
