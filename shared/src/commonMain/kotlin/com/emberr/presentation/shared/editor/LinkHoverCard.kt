@@ -127,7 +127,7 @@ fun LinkHoverCard(
     onOpenNoteLink: (String) -> Unit = {},
     findNote: (String) -> NoteMetadataEntity? = { null }
 ) {
-    val hoveredLink = hoverState.hoveredLink
+    val hoveredLink = hoverState.hoveredLink.takeIf { it is HoveredLink.Web || it is HoveredLink.Note }
     val cardInteractionSource = remember { MutableInteractionSource() }
     val isPointerOverCard by cardInteractionSource.collectIsHoveredAsState()
 
@@ -209,12 +209,14 @@ fun LinkHoverCard(
                             when (link) {
                                 is HoveredLink.Web -> webLinkActions.openLink(link.url)
                                 is HoveredLink.Note -> onOpenNoteLink(link.noteId)
+                                is HoveredLink.Email, is HoveredLink.Phone -> {}
                             }
                         }
                 ) {
                     when (link) {
                         is HoveredLink.Web -> WebLinkCardContent(link.url)
                         is HoveredLink.Note -> NoteLinkCardContent(findNote(link.noteId))
+                        is HoveredLink.Email, is HoveredLink.Phone -> {}
                     }
                 }
             }

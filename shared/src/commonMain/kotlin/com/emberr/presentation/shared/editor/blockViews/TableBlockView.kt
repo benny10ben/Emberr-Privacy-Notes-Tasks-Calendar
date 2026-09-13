@@ -95,8 +95,8 @@ import com.emberr.presentation.shared.editor.LinkHoverCard
 import com.emberr.presentation.shared.editor.linkHover
 import com.emberr.presentation.shared.editor.openLinksOnPress
 import com.emberr.presentation.shared.editor.rememberLinkHoverState
-import com.emberr.presentation.shared.editor.rememberWebLinkColor
-import com.emberr.presentation.shared.editor.webLinkAtPosition
+import com.emberr.presentation.shared.editor.HoveredLink
+import com.emberr.presentation.shared.editor.hoveredLinkAt
 import com.emberr.presentation.shared.editor.components.DesktopCursor
 import com.emberr.presentation.shared.editor.components.desktopPointerCursor
 import com.emberr.presentation.shared.components.EmberrHorizontalScrollbar
@@ -687,8 +687,9 @@ private fun TableGridCell(
     val keyboardController = LocalSoftwareKeyboardController.current
     val webLinkActions = rememberWebLinkActions()
     val linkHoverState = rememberLinkHoverState()
-    val webLinkColor = rememberWebLinkColor()
-    val webLinkTransformation = remember(webLinkColor, spans) { WebLinkVisualTransformation(webLinkColor, spans) }
+    val webLinkTransformation = remember(spans, linkHoverState.hoveredLink) {
+        WebLinkVisualTransformation(spans, linkHoverState.hoveredLink)
+    }
 
     var editorValue by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
 
@@ -740,14 +741,18 @@ private fun TableGridCell(
                         currentEvent.changes.forEach { it.consume() }
                     }
                     if (isLongPress && !inSelectionMode) {
-                        val pressedWebLink = if (isFocused) {
+                        val pressedLink = if (isFocused) {
                             null
                         } else {
-                            textLayoutResult?.webLinkAtPosition(down.position - textAreaStart)
+                            textLayoutResult?.hoveredLinkAt(down.position - textAreaStart, emptySet())
                         }
 
-                        if (pressedWebLink != null) webLinkActions.copyLink(pressedWebLink)
-                        else onLongPress()
+                        when (pressedLink) {
+                            is HoveredLink.Web -> webLinkActions.copyLink(pressedLink.url)
+                            is HoveredLink.Email -> webLinkActions.copyLink(pressedLink.email)
+                            is HoveredLink.Phone -> webLinkActions.copyLink(pressedLink.phone)
+                            else -> onLongPress()
+                        }
                     }
                 }
             }
@@ -779,6 +784,8 @@ private fun TableGridCell(
                 .linkHover(linkHoverState) { textLayoutResult }
                 .openLinksOnPress(
                     onOpenWebLink = { webLinkActions.openLink(it) },
+                    onOpenEmail = { webLinkActions.openEmail(it) },
+                    onOpenPhone = { webLinkActions.openPhone(it) },
                     onRightClickLink = { link, at -> linkHoverState.openMenuFor(link, at) },
                     currentTextLayout = { textLayoutResult }
                 )
@@ -810,12 +817,14 @@ private fun TableGridCell(
                     .linkHover(linkHoverState) { textLayoutResult }
                     .pointerInput(Unit) {
                         detectTapGestures(onTap = { position ->
-                            val tappedWebLink = textLayoutResult?.webLinkAtPosition(position)
-                            if (tappedWebLink != null) {
-                                webLinkActions.openLink(tappedWebLink)
-                            } else {
-                                focusRequester.requestFocus()
-                                keyboardController?.show()
+                            when (val tappedLink = textLayoutResult?.hoveredLinkAt(position, emptySet())) {
+                                is HoveredLink.Web -> webLinkActions.openLink(tappedLink.url)
+                                is HoveredLink.Email -> webLinkActions.openEmail(tappedLink.email)
+                                is HoveredLink.Phone -> webLinkActions.openPhone(tappedLink.phone)
+                                else -> {
+                                    focusRequester.requestFocus()
+                                    keyboardController?.show()
+                                }
                             }
                         })
                     }

@@ -60,6 +60,26 @@ fun LinkContextMenu(
                             webLinkActions.copyLink("[$noteTitle](emberr://note/${link.noteId})")
                         }
                     }
+                    is HoveredLink.Email -> {
+                        EmberrPopupMenuRow("Send email") {
+                            hoverState.closeMenu()
+                            webLinkActions.openEmail(link.email)
+                        }
+                        EmberrPopupMenuRow("Copy email") {
+                            hoverState.closeMenu()
+                            webLinkActions.copyLink(link.email)
+                        }
+                    }
+                    is HoveredLink.Phone -> {
+                        EmberrPopupMenuRow("Call number") {
+                            hoverState.closeMenu()
+                            webLinkActions.openPhone(link.phone)
+                        }
+                        EmberrPopupMenuRow("Copy number") {
+                            hoverState.closeMenu()
+                            webLinkActions.copyLink(link.phone)
+                        }
+                    }
                 }
             }
         }

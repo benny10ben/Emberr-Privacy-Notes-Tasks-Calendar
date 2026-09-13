@@ -38,9 +38,8 @@ import com.emberr.ui.theme.LocalAppIsDark
 
 const val WEB_LINK_TAG = "WEB_LINK"
 const val NOTE_LINK_TAG = "NOTE_LINK"
-
-private val LinkBlueOnLightBackground = Color(0xFF1A56DB)
-private val LinkBlueOnDarkBackground = Color(0xFF74A9FF)
+const val EMAIL_LINK_TAG = "EMAIL_LINK"
+const val PHONE_LINK_TAG = "PHONE_LINK"
 
 private const val SHORTEST_POSSIBLE_LINK = 4
 private const val PUNCTUATION_THAT_ENDS_A_SENTENCE = ".,;:!?)]}\"'"
@@ -61,21 +60,49 @@ private val WebLinkPattern = Regex(
     RegexOption.IGNORE_CASE
 )
 
+private val EmailPattern = Regex(
+    "[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+)
+
+private const val SHORTEST_POSSIBLE_PHONE_DIGITS = 7
+private const val LONGEST_POSSIBLE_PHONE_DIGITS = 15
+private val PhonePattern = Regex("\\+?[0-9][0-9\\-.\\s()]{5,}[0-9]")
+private val PhoneSeparatorEdge = charArrayOf(' ', '-', '.', '(', ')')
+
 @Immutable
 data class WebLink(val start: Int, val end: Int, val url: String)
 
 @Immutable
-class WebLinkActions(val openLink: (String) -> Unit, val copyLink: (String) -> Unit)
+data class EmailLink(val start: Int, val end: Int, val email: String)
+
+@Immutable
+data class PhoneLink(val start: Int, val end: Int, val phone: String)
+
+@Immutable
+class WebLinkActions(
+    val openLink: (String) -> Unit,
+    val openEmail: (String) -> Unit,
+    val openPhone: (String) -> Unit,
+    val copyLink: (String) -> Unit
+)
 
 @Immutable
 sealed interface HoveredLink {
     val anchor: Rect
+    val start: Int
+    val end: Int
 
     @Immutable
-    data class Web(override val anchor: Rect, val url: String) : HoveredLink
+    data class Web(override val anchor: Rect, val url: String, override val start: Int, override val end: Int) : HoveredLink
 
     @Immutable
-    data class Note(override val anchor: Rect, val noteId: String) : HoveredLink
+    data class Note(override val anchor: Rect, val noteId: String, override val start: Int, override val end: Int) : HoveredLink
+
+    @Immutable
+    data class Email(override val anchor: Rect, val email: String, override val start: Int, override val end: Int) : HoveredLink
+
+    @Immutable
+    data class Phone(override val anchor: Rect, val phone: String, override val start: Int, override val end: Int) : HoveredLink
 }
 
 @Stable
@@ -133,29 +160,84 @@ private fun joinsTheWordBefore(character: Char): Boolean =
 private fun joinsTheWordAfter(character: Char): Boolean =
     character.isLetterOrDigit() || character == '-'
 
+fun findEmails(text: String): List<EmailLink> {
+    if (!text.contains('@')) return emptyList()
+
+    val foundEmails = mutableListOf<EmailLink>()
+    for (match in EmailPattern.findAll(text)) {
+        var end = match.range.last + 1
+        val start = match.range.first
+        while (end > start && text[end - 1] in PUNCTUATION_THAT_ENDS_A_SENTENCE) end--
+        if (end - start < SHORTEST_POSSIBLE_LINK) continue
+
+        foundEmails.add(EmailLink(start, end, text.substring(start, end)))
+    }
+    return foundEmails
+}
+
+fun findPhones(text: String): List<PhoneLink> {
+    val foundPhones = mutableListOf<PhoneLink>()
+    for (match in PhonePattern.findAll(text)) {
+        var start = match.range.first
+        var end = match.range.last + 1
+        while (end > start && text[end - 1] in PhoneSeparatorEdge) end--
+        while (start < end && text[start] in PhoneSeparatorEdge) start++
+        if (start >= end) continue
+
+        if (start > 0 && joinsTheWordBefore(text[start - 1])) continue
+        if (end < text.length && joinsTheWordAfter(text[end])) continue
+
+        val candidate = text.substring(start, end)
+        val digitCount = candidate.count { it.isDigit() }
+        if (digitCount !in SHORTEST_POSSIBLE_PHONE_DIGITS..LONGEST_POSSIBLE_PHONE_DIGITS) continue
+
+        foundPhones.add(PhoneLink(start, end, candidate))
+    }
+    return foundPhones
+}
+
 fun toOpenableWebLink(url: String): String = if (url.contains("://")) url else "https://$url"
 
-fun AnnotatedString.withWebLinksHighlighted(webLinkColor: Color): AnnotatedString {
-    val webLinks = findWebLinks(text)
-    if (webLinks.isEmpty()) return this
+private fun overlapsAny(start: Int, end: Int, ranges: List<Pair<Int, Int>>): Boolean =
+    ranges.any { start < it.second && end > it.first }
 
-    val noteLinks = getStringAnnotations(NOTE_LINK_TAG, 0, text.length)
-    val builder = AnnotatedString.Builder(this)
-    webLinks.forEach { webLink ->
-        val sitsInsideANoteLink = noteLinks.any { webLink.start < it.end && webLink.end > it.start }
-        if (!sitsInsideANoteLink) {
-            builder.addStyle(
-                SpanStyle(
-                    color = webLinkColor,
-                    fontStyle = FontStyle.Italic,
-                    textDecoration = TextDecoration.Underline
-                ),
-                webLink.start,
-                webLink.end
-            )
-            builder.addStringAnnotation(WEB_LINK_TAG, webLink.url, webLink.start, webLink.end)
-        }
+private fun isCurrentlyHovered(hoveredLink: HoveredLink?, tag: String, start: Int, end: Int): Boolean {
+    if (hoveredLink == null || hoveredLink.start != start || hoveredLink.end != end) return false
+    return when (hoveredLink) {
+        is HoveredLink.Web -> tag == WEB_LINK_TAG
+        is HoveredLink.Email -> tag == EMAIL_LINK_TAG
+        is HoveredLink.Phone -> tag == PHONE_LINK_TAG
+        is HoveredLink.Note -> false
     }
+}
+
+fun AnnotatedString.withInteractiveLinksHighlighted(hoveredLink: HoveredLink? = null): AnnotatedString {
+    val noteLinkRanges = getStringAnnotations(NOTE_LINK_TAG, 0, text.length).map { it.start to it.end }
+
+    val webLinks = findWebLinks(text).filterNot { overlapsAny(it.start, it.end, noteLinkRanges) }
+    val webLinkRanges = webLinks.map { it.start to it.end }
+
+    val emails = findEmails(text).filterNot { overlapsAny(it.start, it.end, noteLinkRanges + webLinkRanges) }
+    val emailRanges = emails.map { it.start to it.end }
+
+    val phones = findPhones(text).filterNot {
+        overlapsAny(it.start, it.end, noteLinkRanges + webLinkRanges + emailRanges)
+    }
+
+    if (webLinks.isEmpty() && emails.isEmpty() && phones.isEmpty()) return this
+
+    val builder = AnnotatedString.Builder(this)
+    fun tagSpan(tag: String, start: Int, end: Int, value: String) {
+        if (isCurrentlyHovered(hoveredLink, tag, start, end)) {
+            builder.addStyle(SpanStyle(textDecoration = TextDecoration.Underline), start, end)
+        }
+        builder.addStringAnnotation(tag, value, start, end)
+    }
+
+    webLinks.forEach { tagSpan(WEB_LINK_TAG, it.start, it.end, it.url) }
+    emails.forEach { tagSpan(EMAIL_LINK_TAG, it.start, it.end, it.email) }
+    phones.forEach { tagSpan(PHONE_LINK_TAG, it.start, it.end, it.phone) }
+
     return builder.toAnnotatedString()
 }
 
@@ -174,12 +256,20 @@ fun TextLayoutResult.hoveredLinkAt(position: Offset, validNoteIds: Set<String>):
     val end = minOf(laidOutText.length, offset + 1)
 
     laidOutText.getStringAnnotations(WEB_LINK_TAG, start, end).firstOrNull()?.let { webLink ->
-        return HoveredLink.Web(anchorAround(webLink.start, webLink.end), webLink.item)
+        return HoveredLink.Web(anchorAround(webLink.start, webLink.end), webLink.item, webLink.start, webLink.end)
+    }
+
+    laidOutText.getStringAnnotations(EMAIL_LINK_TAG, start, end).firstOrNull()?.let { emailLink ->
+        return HoveredLink.Email(anchorAround(emailLink.start, emailLink.end), emailLink.item, emailLink.start, emailLink.end)
+    }
+
+    laidOutText.getStringAnnotations(PHONE_LINK_TAG, start, end).firstOrNull()?.let { phoneLink ->
+        return HoveredLink.Phone(anchorAround(phoneLink.start, phoneLink.end), phoneLink.item, phoneLink.start, phoneLink.end)
     }
 
     laidOutText.getStringAnnotations(NOTE_LINK_TAG, start, end).firstOrNull()?.let { noteLink ->
         if (validNoteIds.contains(noteLink.item)) {
-            return HoveredLink.Note(anchorAround(noteLink.start, noteLink.end), noteLink.item)
+            return HoveredLink.Note(anchorAround(noteLink.start, noteLink.end), noteLink.item, noteLink.start, noteLink.end)
         }
     }
 
@@ -250,6 +340,8 @@ fun Modifier.openLinksOnPress(
     validNoteIds: Set<String> = emptySet(),
     onOpenWebLink: (String) -> Unit,
     onOpenNoteLink: (String) -> Unit = {},
+    onOpenEmail: (String) -> Unit = {},
+    onOpenPhone: (String) -> Unit = {},
     onRightClickLink: (HoveredLink, Offset) -> Unit = { _, _ -> },
     currentTextLayout: () -> TextLayoutResult?
 ): Modifier {
@@ -277,12 +369,17 @@ fun Modifier.openLinksOnPress(
                     when (link) {
                         is HoveredLink.Web -> onOpenWebLink(link.url)
                         is HoveredLink.Note -> onOpenNoteLink(link.noteId)
+                        is HoveredLink.Email -> onOpenEmail(link.email)
+                        is HoveredLink.Phone -> onOpenPhone(link.phone)
                     }
                 }
             }
         }
     }
 }
+
+private val LinkBlueOnLightBackground = Color(0xFF1A56DB)
+private val LinkBlueOnDarkBackground = Color(0xFF74A9FF)
 
 @Composable
 fun rememberWebLinkColor(): Color =
@@ -304,6 +401,20 @@ fun rememberWebLinkActions(): WebLinkActions {
                     }
                 }
             },
+            openEmail = { email ->
+                try {
+                    uriHandler.openUri("mailto:$email")
+                } catch (_: Exception) {
+                    showNativeToast("could not open email")
+                }
+            },
+            openPhone = { phone ->
+                try {
+                    uriHandler.openUri("tel:$phone")
+                } catch (_: Exception) {
+                    showNativeToast("could not open phone")
+                }
+            },
             copyLink = { url ->
                 try {
                     clipboardManager.setText(AnnotatedString(url))
@@ -318,11 +429,11 @@ fun rememberWebLinkActions(): WebLinkActions {
 }
 
 data class WebLinkVisualTransformation(
-    private val webLinkColor: Color,
-    private val inlineSpans: List<InlineSpan> = emptyList()
+    private val inlineSpans: List<InlineSpan> = emptyList(),
+    private val hoveredLink: HoveredLink? = null
 ) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
-        val highlighted = text.withWebLinksHighlighted(webLinkColor)
+        val highlighted = text.withInteractiveLinksHighlighted(hoveredLink)
         if (inlineSpans.isEmpty()) return TransformedText(highlighted, OffsetMapping.Identity)
 
         val builder = AnnotatedString.Builder(highlighted)
