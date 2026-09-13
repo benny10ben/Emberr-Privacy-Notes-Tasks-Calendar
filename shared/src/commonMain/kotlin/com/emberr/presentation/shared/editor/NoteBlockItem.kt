@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -90,7 +91,6 @@ import com.emberr.domain.model.ThreeDotDividerBlock
 import com.emberr.domain.model.inlineSpansOrEmpty
 import com.emberr.domain.model.textAlignmentOrNull
 import com.emberr.presentation.shared.components.MinimalDatePickerDialog
-import com.emberr.presentation.shared.components.NotePickerDialog
 import com.emberr.presentation.shared.components.MinimalTimePickerDialog
 import com.emberr.presentation.shared.components.ReminderPresetMenu
 import com.emberr.presentation.shared.components.TimePresetMenu
@@ -149,6 +149,8 @@ fun NoteBlockItem(
     slashQuery: String = "",
     allLinkableNotes: List<NoteMetadataEntity> = emptyList(),
     onDismissSlashMenu: () -> Unit = {},
+    showNoteLinkMenu: Boolean = false,
+    onDismissNoteLinkMenu: () -> Unit = {},
     isFirstToggleChild: Boolean = false,
     selectionRequest: SelectionRequest? = null,
     validNoteIds: Set<String> = emptySet(),
@@ -331,6 +333,7 @@ fun NoteBlockItem(
     val endPadding = (if (isDatabase || block is TableBlock) 0.dp else 16.dp) + desktopExtraPadding
 
     val isSlashMenuActiveHere = isDesktopPlatform && isActiveBlock && showSlashMenu
+    val isNoteLinkMenuActiveHere = isDesktopPlatform && isActiveBlock && showNoteLinkMenu
 
     val slashMenuSections = remember(slashQuery, isSlashMenuActiveHere) {
         if (isSlashMenuActiveHere) {
@@ -376,6 +379,29 @@ fun NoteBlockItem(
                     selectedIndex = slashMenuSelectedIndex
                 )
             }
+        }
+
+        if (isNoteLinkMenuActiveHere) {
+            NoteLinkMenu(
+                expanded = true,
+                onDismissRequest = onDismissNoteLinkMenu,
+                allLinkableNotes = allLinkableNotes,
+                onNoteSelected = { noteId ->
+                    actions.onInsertLinkedNoteBlock(noteId)
+                    onDismissNoteLinkMenu()
+                },
+                onCreateNote = { title ->
+                    val newNoteId = actions.onCreateLinkedNote(title)
+                    actions.onInsertLinkedNoteBlock(newNoteId)
+                    onDismissNoteLinkMenu()
+                },
+                onCreateBlankNote = {
+                    val newNoteId = actions.onCreateLinkedNote("Untitled")
+                    actions.onInsertLinkedNoteBlock(newNoteId)
+                    onDismissNoteLinkMenu()
+                    actions.onNoteLinkClick(newNoteId)
+                }
+            )
         }
 
         Row(
@@ -455,13 +481,13 @@ fun NoteBlockItem(
 
             val linkColor = MaterialTheme.colorScheme.primary
             val fadedLinkColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-            val webLinkColor = rememberWebLinkColor()
             val inlineSpans = block.inlineSpansOrEmpty()
+            val noteTitlesById = remember(allLinkableNotes) { allLinkableNotes.associate { it.noteId to it.title } }
             val richTextTransformation: VisualTransformation = remember(
-                block is CodeBlock, linkColor, fadedLinkColor, webLinkColor, validNoteIds, inlineSpans
+                block is CodeBlock, linkColor, fadedLinkColor, validNoteIds, inlineSpans, linkHoverState.hoveredLink, noteTitlesById
             ) {
                 if (block is CodeBlock) VisualTransformation.None
-                else RichTextVisualTransformation(linkColor, fadedLinkColor, webLinkColor, validNoteIds, inlineSpans)
+                else RichTextVisualTransformation(linkColor, fadedLinkColor, validNoteIds, inlineSpans, linkHoverState.hoveredLink, noteTitlesById)
             }
 
             Column(modifier = textFieldWrapperModifier) {
@@ -474,6 +500,8 @@ fun NoteBlockItem(
                                 validNoteIds = validNoteIds,
                                 onOpenWebLink = { webLinkActions.openLink(it) },
                                 onOpenNoteLink = { actions.onNoteLinkClick(it) },
+                                onOpenEmail = { webLinkActions.openEmail(it) },
+                                onOpenPhone = { webLinkActions.openPhone(it) },
                                 onRightClickLink = { link, at -> linkHoverState.openMenuFor(link, at) },
                                 currentTextLayout = { textLayoutResult }
                             )
@@ -521,22 +549,14 @@ fun NoteBlockItem(
                                         detectTapGestures(
                                             onTap = { pos ->
                                                 val layoutResult = textLayoutResult
-                                                val tappedWebLink = layoutResult?.webLinkAtPosition(pos)
-                                                val tappedNoteId = layoutResult?.let { result ->
-                                                    val offset = result.getOffsetForPosition(pos)
-                                                    val start = maxOf(0, offset - 1)
-                                                    val end = minOf(result.layoutInput.text.length, offset + 1)
-                                                    result.layoutInput.text
-                                                        .getStringAnnotations(NOTE_LINK_TAG, start, end)
-                                                        .firstOrNull()
-                                                        ?.item
-                                                }
+                                                val tappedLink = layoutResult?.hoveredLinkAt(pos, validNoteIds)
 
-                                                when {
-                                                    tappedWebLink != null -> webLinkActions.openLink(tappedWebLink)
-                                                    tappedNoteId != null && validNoteIds.contains(tappedNoteId) ->
-                                                        actions.onNoteLinkClick(tappedNoteId)
-                                                    else -> {
+                                                when (tappedLink) {
+                                                    is HoveredLink.Web -> webLinkActions.openLink(tappedLink.url)
+                                                    is HoveredLink.Email -> webLinkActions.openEmail(tappedLink.email)
+                                                    is HoveredLink.Phone -> webLinkActions.openPhone(tappedLink.phone)
+                                                    is HoveredLink.Note -> actions.onNoteLinkClick(tappedLink.noteId)
+                                                    null -> {
                                                         focusRequester.requestFocus()
                                                         keyboardController?.show()
                                                         layoutResult?.getOffsetForPosition(pos)?.let {
@@ -551,9 +571,12 @@ fun NoteBlockItem(
                                                 textLayoutResult?.getOffsetForPosition(pos)?.let { actions.onRequestCursorPosition(block.id, it) }
                                             },
                                             onLongPress = { pos ->
-                                                val pressedWebLink = textLayoutResult?.webLinkAtPosition(pos)
-                                                if (pressedWebLink != null) webLinkActions.copyLink(pressedWebLink)
-                                                else actions.onToggleSelection(block.id)
+                                                when (val pressedLink = textLayoutResult?.hoveredLinkAt(pos, validNoteIds)) {
+                                                    is HoveredLink.Web -> webLinkActions.copyLink(pressedLink.url)
+                                                    is HoveredLink.Email -> webLinkActions.copyLink(pressedLink.email)
+                                                    is HoveredLink.Phone -> webLinkActions.copyLink(pressedLink.phone)
+                                                    else -> actions.onToggleSelection(block.id)
+                                                }
                                             }
                                         )
                                     }
@@ -901,29 +924,7 @@ fun IsolatedEditorTextField(
     val density = LocalDensity.current
     val imeBottom = WindowInsets.ime.getBottom(density)
 
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val imeInsets = WindowInsets.ime
-    var pickerVisible by remember { mutableStateOf(false) }
-
-    // ModalBottomSheet lives in its own window, so mounting it steals window focus and the IME
-    // drops with no animation while the sheet is mid-slide. Hiding the keyboard ourselves first
-    // and waiting for the insets to settle turns one collision into two sequential animations.
-    LaunchedEffect(mentionQuery != null) {
-        if (mentionQuery == null) {
-            pickerVisible = false
-            return@LaunchedEffect
-        }
-        if (isDesktopPlatform) {
-            pickerVisible = true
-            return@LaunchedEffect
-        }
-        keyboardController?.hide()
-        // Timeout guards against devices that never report a zero ime inset.
-        withTimeoutOrNull(350.milliseconds) {
-            snapshotFlow { imeInsets.getBottom(density) }.first { it == 0 }
-        }
-        pickerVisible = true
-    }
+    var mentionSelectedIndex by remember(mentionQuery) { mutableIntStateOf(0) }
 
     LaunchedEffect(isFieldFocused, imeBottom, tfv.selection.end) {
         if (!isFieldFocused || imeBottom <= 0) return@LaunchedEffect
@@ -949,26 +950,25 @@ fun IsolatedEditorTextField(
 
     // Toolbar "@" press. Mirrors exactly what typing '@' does in onValueChange: insert the
     // character at the cursor, record where the mention starts, open the picker with an empty query.
-    LaunchedEffect(blockId) {
-        EditorEventBus.insertMentionEvent.collect { targetId ->
-            if (targetId != blockId) return@collect
+    LaunchedEffect(EditorEventBus.insertMentionSignal) {
+        val (targetId, _) = EditorEventBus.insertMentionSignal ?: return@LaunchedEffect
+        if (targetId != blockId || !isFieldFocused) return@LaunchedEffect
 
-            val cursor = tfv.selection.start.coerceIn(0, tfv.text.length)
-            // onValueChange only treats '@' as a mention at index 0 or after whitespace,
-            // so pad it here or the picker would open and immediately fail to re-match on the
-            // next keystroke.
-            val needsSpace = cursor > 0 && !tfv.text[cursor - 1].isWhitespace()
-            val insert = if (needsSpace) " @" else "@"
+        val cursor = tfv.selection.start.coerceIn(0, tfv.text.length)
+        // onValueChange only treats '@' as a mention at index 0 or after whitespace,
+        // so pad it here or the picker would open and immediately fail to re-match on the
+        // next keystroke.
+        val needsSpace = cursor > 0 && !tfv.text[cursor - 1].isWhitespace()
+        val insert = if (needsSpace) " @" else "@"
 
-            val newText = tfv.text.substring(0, cursor) + insert + tfv.text.substring(cursor)
-            val newCursor = cursor + insert.length
+        val newText = tfv.text.substring(0, cursor) + insert + tfv.text.substring(cursor)
+        val newCursor = cursor + insert.length
 
-            tfv = tfv.copy(text = newText, selection = TextRange(newCursor), composition = null)
-            lastSentText = newText          // keeps LaunchedEffect(initialText) from clobbering us
-            mentionStartIndex = newCursor - 1
-            mentionQuery = ""
-            onUpdateText(blockId, newText)
-        }
+        tfv = tfv.copy(text = newText, selection = TextRange(newCursor), composition = null)
+        lastSentText = newText          // keeps LaunchedEffect(initialText) from clobbering us
+        mentionStartIndex = newCursor - 1
+        mentionQuery = ""
+        onUpdateText(blockId, newText)
     }
 
 // Updates cursor placement when a FocusRequest targets this block with placeCursorAtEnd = true.
@@ -990,6 +990,84 @@ fun IsolatedEditorTextField(
                 composition = null
             )
             lastSentText = initialText
+        }
+    }
+
+    fun insertNoteLink(safeTitle: String, noteId: String) {
+        val lastAt = mentionStartIndex
+        if (lastAt != -1) {
+            val cursor = tfv.selection.start.coerceIn(0, tfv.text.length)
+            val markdownLink = "[$safeTitle](emberr://note/$noteId) "
+
+            val textBefore = tfv.text.substring(0, lastAt)
+            val textAfter = tfv.text.substring(cursor)
+
+            val newText = textBefore + markdownLink + textAfter
+            val newCursor = textBefore.length + markdownLink.length
+
+            tfv = tfv.copy(text = newText, selection = TextRange(newCursor), composition = null)
+            onUpdateText(blockId, newText)
+        }
+        mentionQuery = null
+        mentionStartIndex = -1
+    }
+
+    LaunchedEffect(blockId) {
+        EditorEventBus.confirmMentionEvent.collect { (safeTitle, noteId) ->
+            if (mentionQuery == null || !isFieldFocused) return@collect
+            insertNoteLink(safeTitle, noteId)
+        }
+    }
+
+    LaunchedEffect(blockId) {
+        EditorEventBus.confirmMentionAndOpenEvent.collect { (safeTitle, noteId) ->
+            if (mentionQuery == null || !isFieldFocused) return@collect
+            insertNoteLink(safeTitle, noteId)
+            onOpenNote(noteId)
+        }
+    }
+
+    LaunchedEffect(blockId) {
+        EditorEventBus.cancelMentionEvent.collect {
+            if (mentionQuery == null || !isFieldFocused) return@collect
+            mentionQuery = null
+            mentionStartIndex = -1
+        }
+    }
+
+    val filteredMentionNotes = remember(mentionQuery, allLinkableNotes) {
+        val query = mentionQuery.orEmpty()
+        allLinkableNotes.filter { it.title.contains(query, ignoreCase = true) }
+    }
+
+    val mentionMenuEntries = remember(mentionQuery, filteredMentionNotes) {
+        val query = mentionQuery.orEmpty()
+        buildList {
+            add(
+                SlashMenuItemData("Create new note", SlashMenuIcon.Vector(Icons.AutoMirrored.Filled.NoteAdd)) {
+                    val newNoteId = onCreateLinkedNote("Untitled")
+                    insertNoteLink("Untitled", newNoteId)
+                    onOpenNote(newNoteId)
+                }
+            )
+            filteredMentionNotes.forEach { note ->
+                val icon = note.icon?.let { SlashMenuIcon.Label(it) } ?: SlashMenuIcon.Vector(Icons.Default.Description)
+                add(
+                    SlashMenuItemData(note.title.ifEmpty { "Untitled" }, icon) {
+                        val safeTitle = note.title.replace("[", "").replace("]", "").ifEmpty { "Untitled" }
+                        insertNoteLink(safeTitle, note.noteId)
+                    }
+                )
+            }
+            if (query.isNotBlank()) {
+                add(
+                    SlashMenuItemData("New \"$query\" note", SlashMenuIcon.Vector(Icons.Default.Add)) {
+                        val safeTitle = query.replace("[", "").replace("]", "").trim().ifEmpty { "Untitled" }
+                        val newNoteId = onCreateLinkedNote(safeTitle)
+                        insertNoteLink(safeTitle, newNoteId)
+                    }
+                )
+            }
         }
     }
 
@@ -1077,6 +1155,30 @@ fun IsolatedEditorTextField(
                         }
                     }
 
+                    if (mentionQuery != null && event.type == KeyEventType.KeyDown) {
+                        val entryCount = mentionMenuEntries.size
+                        when (event.key) {
+                            Key.DirectionDown -> {
+                                if (entryCount > 0) mentionSelectedIndex = (mentionSelectedIndex + 1) % entryCount
+                                return@onPreviewKeyEvent true
+                            }
+                            Key.DirectionUp -> {
+                                if (entryCount > 0) mentionSelectedIndex = (mentionSelectedIndex - 1 + entryCount) % entryCount
+                                return@onPreviewKeyEvent true
+                            }
+                            Key.Enter, Key.NumPadEnter -> {
+                                mentionMenuEntries.getOrNull(mentionSelectedIndex)?.action?.invoke()
+                                return@onPreviewKeyEvent true
+                            }
+                            Key.Escape -> {
+                                mentionQuery = null
+                                mentionStartIndex = -1
+                                return@onPreviewKeyEvent true
+                            }
+                            else -> {}
+                        }
+                    }
+
                     if (isBackspace && event.type == KeyEventType.KeyDown) {
                         if (tfv.text.isEmpty()) {
                             if (!isPendingDeletion) {
@@ -1103,7 +1205,6 @@ fun IsolatedEditorTextField(
                         }
                     }
                     if (isEnter && !isCodeBlock) {
-                        if (mentionQuery != null) return@onPreviewKeyEvent true
                         if (event.type == KeyEventType.KeyDown) {
                             val cursor = tfv.selection.start
                             val textBefore = tfv.text.substring(0, cursor)
@@ -1119,45 +1220,21 @@ fun IsolatedEditorTextField(
             enabled = !inSelectionMode
         )
 
-        fun insertNoteLink(safeTitle: String, noteId: String) {
-            val lastAt = mentionStartIndex
-            if (lastAt != -1) {
-                val cursor = tfv.selection.start.coerceIn(0, tfv.text.length)
-                val markdownLink = "[$safeTitle](emberr://note/$noteId) "
-
-                val textBefore = tfv.text.substring(0, lastAt)
-                val textAfter = tfv.text.substring(cursor)
-
-                val newText = textBefore + markdownLink + textAfter
-                val newCursor = textBefore.length + markdownLink.length
-
-                tfv = tfv.copy(text = newText, selection = TextRange(newCursor), composition = null)
-                onUpdateText(blockId, newText)
+        if (isDesktopPlatform && mentionQuery != null) {
+            EmberrDesktopMenu(
+                expanded = true,
+                onDismissRequest = { mentionQuery = null; mentionStartIndex = -1 },
+                properties = PopupProperties(focusable = false),
+                modifier = Modifier
+                    .width(290.dp)
+                    .heightIn(max = 400.dp)
+            ) {
+                SlashMenuList(
+                    sections = listOf(SlashMenuSectionData("Link to Note", mentionMenuEntries)),
+                    selectedIndex = mentionSelectedIndex
+                )
             }
-            mentionQuery = null
-            mentionStartIndex = -1
         }
-
-        NotePickerDialog(
-            expanded = pickerVisible,
-            onDismiss = { mentionQuery = null; mentionStartIndex = -1 },
-            allLinkableNotes = allLinkableNotes,
-            onNoteSelected = { noteId ->
-                val note = allLinkableNotes.find { it.noteId == noteId }
-                val safeTitle = (note?.title ?: "").replace("[", "").replace("]", "").ifEmpty { "Untitled" }
-                insertNoteLink(safeTitle, noteId)
-            },
-            onCreateNote = { title ->
-                val safeTitle = title.replace("[", "").replace("]", "").trim().ifEmpty { "Untitled" }
-                val newNoteId = onCreateLinkedNote(safeTitle)
-                insertNoteLink(safeTitle, newNoteId)
-            },
-            onCreateBlankNote = {
-                mentionQuery = null
-                mentionStartIndex = -1
-                onOpenNote(onCreateLinkedNote("Untitled"))
-            }
-        )
     }
 }
 
@@ -1167,20 +1244,21 @@ fun IsolatedEditorTextField(
 data class RichTextVisualTransformation(
     private val linkColor: Color,
     private val fadedColor: Color,
-    private val webLinkColor: Color,
     private val validNoteIds: Set<String>,
-    private val inlineSpans: List<InlineSpan> = emptyList()
+    private val inlineSpans: List<InlineSpan> = emptyList(),
+    private val hoveredLink: HoveredLink? = null,
+    private val noteTitlesById: Map<String, String> = emptyMap()
 ) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val originalText = text.text
 
         if (inlineSpans.isEmpty() && !originalText.contains(NOTE_LINK_MARKER)) {
-            return TransformedText(text.withWebLinksHighlighted(webLinkColor), OffsetMapping.Identity)
+            return TransformedText(text.withInteractiveLinksHighlighted(hoveredLink), OffsetMapping.Identity)
         }
 
         val matches = NoteLinkRegex.findAll(originalText).toList()
         if (matches.isEmpty() && inlineSpans.isEmpty()) {
-            return TransformedText(text.withWebLinksHighlighted(webLinkColor), OffsetMapping.Identity)
+            return TransformedText(text.withInteractiveLinksHighlighted(hoveredLink), OffsetMapping.Identity)
         }
 
         val builder = AnnotatedString.Builder()
@@ -1201,8 +1279,8 @@ data class RichTextVisualTransformation(
                 transformedIndex++
             }
 
-            val title = match.groupValues[1]
             val noteId = match.groupValues[2]
+            val title = noteTitlesById[noteId]?.ifEmpty { "Untitled" } ?: match.groupValues[1]
             val linkText = "@$title"
             val isMissing = !validNoteIds.contains(noteId)
 
@@ -1267,7 +1345,7 @@ data class RichTextVisualTransformation(
         }
 
         return TransformedText(
-            builder.toAnnotatedString().withWebLinksHighlighted(webLinkColor),
+            builder.toAnnotatedString().withInteractiveLinksHighlighted(hoveredLink),
             object : OffsetMapping {
                 override fun originalToTransformed(offset: Int): Int {
                     if (offset <= 0) return 0

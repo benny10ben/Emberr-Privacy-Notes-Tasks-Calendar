@@ -13,6 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
@@ -33,8 +35,8 @@ import com.emberr.presentation.shared.editor.EditorScreen
 import com.emberr.presentation.shared.editor.EditorToolbar
 import com.emberr.presentation.shared.editor.GlobalEditorState
 import com.emberr.presentation.shared.editor.MobileMenuState
+import com.emberr.presentation.shared.editor.EditorEventBus
 import com.emberr.presentation.shared.editor.blockViews.databaseBlockView.DatabaseTemplatePickerSheet
-import com.emberr.presentation.shared.components.NotePickerDialog
 import com.emberr.presentation.mobile.home.note.SubNotePanel
 import com.emberr.presentation.calendar.EventEditorSheetHost
 import com.emberr.presentation.calendar.RecurrenceScopeChooser
@@ -86,7 +88,7 @@ fun DailyEditorPane(
     val canRedo by viewModel.canRedo.collectAsState()
     val pendingRecurringDeletion by viewModel.pendingRecurringDeletion.collectAsState()
     var showDatabasePicker by remember { mutableStateOf(false) }
-    var showNotePickerDialog by remember { mutableStateOf(false) }
+    var showNoteLinkMenu by remember { mutableStateOf(false) }
 
     val isSelectionMode = selectedBlockIds.isNotEmpty()
     val selectedBlocksList = blocks.filter { it.id in selectedBlockIds }
@@ -118,14 +120,24 @@ fun DailyEditorPane(
 
     var mobileMenuState by remember { mutableStateOf(MobileMenuState.MAIN) }
     var slashQuery by remember { mutableStateOf("") }
+    var mentionQuery by remember { mutableStateOf<String?>(null) }
+
+    val onMobileMenuStateChange: (MobileMenuState) -> Unit = { newState ->
+        if (mobileMenuState == MobileMenuState.MENTION && newState != MobileMenuState.MENTION) {
+            EditorEventBus.cancelMentionEvent.tryEmit(Unit)
+        }
+        mobileMenuState = newState
+    }
 
     LaunchedEffect(isKeyboardOpen) {
+        if (isKeyboardOpen) return@LaunchedEffect
+        delay(250.milliseconds)
         if (!isKeyboardOpen && mobileMenuState != MobileMenuState.MAIN) {
-            mobileMenuState = MobileMenuState.MAIN
+            onMobileMenuStateChange(MobileMenuState.MAIN)
         }
     }
 
-    val showToolbar = !isSelectionMode && (isKeyboardOpen || isDesktopPlatform)
+    val showToolbar = !isSelectionMode && (isKeyboardOpen || isDesktopPlatform || mobileMenuState != MobileMenuState.MAIN)
 
     var subNotePanelId by remember { mutableStateOf<String?>(null) }
 
@@ -170,10 +182,12 @@ fun DailyEditorPane(
             override fun onInsertMediaBlock(type: String) {
                 when (type) {
                     "database" -> showDatabasePicker = true
-                    "linked_note" -> showNotePickerDialog = true
+                    "linked_note" -> showNoteLinkMenu = true
                     else -> viewModel.insertNewMediaBlock(type)
                 }
             }
+            override fun onInsertLinkedNoteBlock(noteId: String) =
+                viewModel.insertNewMediaBlock("linked_note", linkedNoteId = noteId)
             override fun onSaveDatabaseAsTemplate(blockId: String, templateName: String) =
                 viewModel.saveDatabaseAsTemplate(blockId, templateName)
             override fun onOutsideTap() {}
@@ -291,9 +305,21 @@ fun DailyEditorPane(
             selectionRequest = if (isSelectedDayLive) selectionRequest else null,
             selectedBlockIds = selectedBlockIds,
             mobileMenuState = mobileMenuState,
-            onMobileMenuStateChange = { mobileMenuState = it },
+            onMobileMenuStateChange = onMobileMenuStateChange,
             slashQuery = slashQuery,
             onSlashQueryChange = { slashQuery = it },
+            showNoteLinkMenu = showNoteLinkMenu,
+            onDismissNoteLinkMenu = { showNoteLinkMenu = false },
+            onMentionQueryChange = { newQuery ->
+                mentionQuery = newQuery
+                if (!isDesktopPlatform) {
+                    mobileMenuState = when {
+                        newQuery != null -> MobileMenuState.MENTION
+                        mobileMenuState == MobileMenuState.MENTION -> MobileMenuState.MAIN
+                        else -> mobileMenuState
+                    }
+                }
+            },
             bottomContentPadding = bottomContentPadding,
             topContentPadding = if (isDesktopPlatform) {
                 if (!isSidebarVisible) 72.dp else 16.dp
@@ -323,7 +349,7 @@ fun DailyEditorPane(
         ) {
             EditorToolbar(
                 mobileMenuState = mobileMenuState,
-                onMenuStateChange = { mobileMenuState = it },
+                onMenuStateChange = onMobileMenuStateChange,
                 query = slashQuery,
                 hazeState = hazeState,
                 onChangeBlockType = { actions.onChangeBlockType(it) },
@@ -331,6 +357,32 @@ fun DailyEditorPane(
                 onAdjustIndentation = { actions.onAdjustIndentation(it) },
                 onSetAlignment = { actions.onSetBlockAlignment(it) },
                 onInsertMediaBlock = { actions.onInsertMediaBlock(it) },
+                allLinkableNotes = allLinkableNotes,
+                mentionQuery = mentionQuery ?: "",
+                onMentionNoteSelected = { noteId ->
+                    val note = allLinkableNotes.find { it.noteId == noteId }
+                    val safeTitle = (note?.title ?: "").replace("[", "").replace("]", "").ifEmpty { "Untitled" }
+                    EditorEventBus.confirmMentionEvent.tryEmit(safeTitle to noteId)
+                },
+                onMentionCreateNote = { title ->
+                    val safeTitle = title.replace("[", "").replace("]", "").trim().ifEmpty { "Untitled" }
+                    val newNoteId = actions.onCreateLinkedNote(safeTitle)
+                    EditorEventBus.confirmMentionEvent.tryEmit(safeTitle to newNoteId)
+                },
+                onMentionCreateBlank = {
+                    val newNoteId = actions.onCreateLinkedNote("Untitled")
+                    EditorEventBus.confirmMentionAndOpenEvent.tryEmit("Untitled" to newNoteId)
+                },
+                onNoteLinkSelected = { noteId -> actions.onInsertLinkedNoteBlock(noteId) },
+                onNoteLinkCreateNote = { title ->
+                    val newNoteId = actions.onCreateLinkedNote(title)
+                    actions.onInsertLinkedNoteBlock(newNoteId)
+                },
+                onNoteLinkCreateBlank = {
+                    val newNoteId = actions.onCreateLinkedNote("Untitled")
+                    actions.onInsertLinkedNoteBlock(newNoteId)
+                    actions.onNoteLinkClick(newNoteId)
+                },
                 onSelectCurrentBlock = {
                     GlobalEditorState.currentlyFocusedBlockId?.let { id ->
                         actions.onToggleSelection(id)
@@ -408,30 +460,6 @@ fun DailyEditorPane(
             onDismiss = { showDatabasePicker = false },
             onCreateBlank = { viewModel.insertNewMediaBlock("database") },
             onSelectTemplate = { viewModel.insertNewMediaBlock("database", it) }
-        )
-
-        NotePickerDialog(
-            expanded = showNotePickerDialog,
-            onDismiss = { showNotePickerDialog = false },
-            allLinkableNotes = allLinkableNotes,
-            onNoteSelected = { noteId ->
-                viewModel.insertNewMediaBlock("linked_note", linkedNoteId = noteId)
-                showNotePickerDialog = false
-            },
-            onCreateNote = { title ->
-                val newNoteId = viewModel.createLinkedNote(title)
-                viewModel.insertNewMediaBlock("linked_note", linkedNoteId = newNoteId)
-                showNotePickerDialog = false
-            },
-            onCreateBlankNote = {
-                val newNoteId = viewModel.createLinkedNote("Untitled")
-                showNotePickerDialog = false
-                if (isDesktopPlatform) {
-                    subNotePanelId = newNoteId
-                } else {
-                    onNavigateToEditor(newNoteId)
-                }
-            }
         )
 
         EventEditorSheetHost(

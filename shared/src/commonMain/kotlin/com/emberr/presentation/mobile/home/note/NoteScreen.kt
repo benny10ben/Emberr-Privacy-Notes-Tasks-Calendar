@@ -60,9 +60,9 @@ import com.emberr.presentation.shared.editor.EditorToolbar
 import dev.chrisbanes.haze.HazeState
 import coil3.compose.AsyncImage
 import com.emberr.presentation.shared.components.KmpBackHandler
-import com.emberr.presentation.shared.components.NotePickerDialog
 import com.emberr.presentation.shared.editor.GlobalEditorState
 import com.emberr.presentation.shared.editor.MobileMenuState
+import com.emberr.presentation.shared.editor.EditorEventBus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -178,6 +178,14 @@ fun NoteScreen(
 
     var mobileMenuState by remember { mutableStateOf(MobileMenuState.MAIN) }
     var slashQuery by remember { mutableStateOf("") }
+    var mentionQuery by remember { mutableStateOf<String?>(null) }
+
+    val onMobileMenuStateChange: (MobileMenuState) -> Unit = { newState ->
+        if (mobileMenuState == MobileMenuState.MENTION && newState != MobileMenuState.MENTION) {
+            EditorEventBus.cancelMentionEvent.tryEmit(Unit)
+        }
+        mobileMenuState = newState
+    }
 
     val allLinkableNotes by viewModel.allLinkableNotes.collectAsState()
 
@@ -216,7 +224,7 @@ fun NoteScreen(
     val globalTags by viewModel.globalTags.collectAsState()
     val databaseTemplates by viewModel.databaseTemplates.collectAsState()
     var showDatabasePicker by remember { mutableStateOf(false) }
-    var showNotePickerDialog by remember { mutableStateOf(false) }
+    var showNoteLinkMenu by remember { mutableStateOf(false) }
     var eventOptionsTargetBlockId by remember { mutableStateOf<String?>(null) }
     var eventOptionsOccurrenceDate by remember { mutableStateOf<String?>(null) }
 
@@ -227,8 +235,10 @@ fun NoteScreen(
     var previousImeBottom by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(isKeyboardOpen) {
+        if (isKeyboardOpen) return@LaunchedEffect
+        delay(250.milliseconds)
         if (!isKeyboardOpen && mobileMenuState != MobileMenuState.MAIN) {
-            mobileMenuState = MobileMenuState.MAIN
+            onMobileMenuStateChange(MobileMenuState.MAIN)
         }
     }
 
@@ -255,7 +265,7 @@ fun NoteScreen(
     }
 
     KmpBackHandler(enabled = mobileMenuState != MobileMenuState.MAIN) {
-        mobileMenuState = MobileMenuState.MAIN
+        onMobileMenuStateChange(MobileMenuState.MAIN)
     }
 
     val isLoading by viewModel.isLoading.collectAsState()
@@ -388,10 +398,12 @@ fun NoteScreen(
             override fun onInsertMediaBlock(type: String) {
                 when (type) {
                     "database" -> handoff.run { showDatabasePicker = true }
-                    "linked_note" -> handoff.run { showNotePickerDialog = true }
+                    "linked_note" -> showNoteLinkMenu = true
                     else -> viewModel.insertNewMediaBlock(type)
                 }
             }
+            override fun onInsertLinkedNoteBlock(noteId: String) =
+                viewModel.insertNewMediaBlock("linked_note", linkedNoteId = noteId)
             override fun onSaveDatabaseAsTemplate(blockId: String, templateName: String) =
                 viewModel.saveDatabaseAsTemplate(blockId, templateName)
             override fun onOutsideTap() {}
@@ -519,9 +531,21 @@ fun NoteScreen(
                     topBarClearancePx = topBarBottomPx,
                     selectedBlockIds = selectedBlockIds,
                     mobileMenuState = mobileMenuState,
-                    onMobileMenuStateChange = { mobileMenuState = it },
+                    onMobileMenuStateChange = onMobileMenuStateChange,
                     slashQuery = slashQuery,
                     onSlashQueryChange = { slashQuery = it },
+                    showNoteLinkMenu = showNoteLinkMenu,
+                    onDismissNoteLinkMenu = { showNoteLinkMenu = false },
+                    onMentionQueryChange = { newQuery ->
+                        mentionQuery = newQuery
+                        if (!isDesktopPlatform) {
+                            mobileMenuState = when {
+                                newQuery != null -> MobileMenuState.MENTION
+                                mobileMenuState == MobileMenuState.MENTION -> MobileMenuState.MAIN
+                                else -> mobileMenuState
+                            }
+                        }
+                    },
                     headerContent = {
                         NoteHeader(
                             noteIcon = noteIcon,
@@ -564,7 +588,7 @@ fun NoteScreen(
                     EditorToolbar(
                         onClearSlashQuery = { editorActions.onClearSlashQuery() },
                         mobileMenuState = mobileMenuState,
-                        onMenuStateChange = { mobileMenuState = it },
+                        onMenuStateChange = onMobileMenuStateChange,
                         query = slashQuery,
                         hazeState = hazeState,
                         onChangeBlockType = { editorActions.onChangeBlockType(it) },
@@ -572,6 +596,32 @@ fun NoteScreen(
                         onAdjustIndentation = { editorActions.onAdjustIndentation(it) },
                         onSetAlignment = { editorActions.onSetBlockAlignment(it) },
                         onInsertMediaBlock = { editorActions.onInsertMediaBlock(it) },
+                        allLinkableNotes = allLinkableNotes,
+                        mentionQuery = mentionQuery ?: "",
+                        onMentionNoteSelected = { noteId ->
+                            val note = allLinkableNotes.find { it.noteId == noteId }
+                            val safeTitle = (note?.title ?: "").replace("[", "").replace("]", "").ifEmpty { "Untitled" }
+                            EditorEventBus.confirmMentionEvent.tryEmit(safeTitle to noteId)
+                        },
+                        onMentionCreateNote = { title ->
+                            val safeTitle = title.replace("[", "").replace("]", "").trim().ifEmpty { "Untitled" }
+                            val newNoteId = editorActions.onCreateLinkedNote(safeTitle)
+                            EditorEventBus.confirmMentionEvent.tryEmit(safeTitle to newNoteId)
+                        },
+                        onMentionCreateBlank = {
+                            val newNoteId = editorActions.onCreateLinkedNote("Untitled")
+                            EditorEventBus.confirmMentionAndOpenEvent.tryEmit("Untitled" to newNoteId)
+                        },
+                        onNoteLinkSelected = { noteId -> editorActions.onInsertLinkedNoteBlock(noteId) },
+                        onNoteLinkCreateNote = { title ->
+                            val newNoteId = editorActions.onCreateLinkedNote(title)
+                            editorActions.onInsertLinkedNoteBlock(newNoteId)
+                        },
+                        onNoteLinkCreateBlank = {
+                            val newNoteId = editorActions.onCreateLinkedNote("Untitled")
+                            editorActions.onInsertLinkedNoteBlock(newNoteId)
+                            editorActions.onNoteLinkClick(newNoteId)
+                        },
                         onSelectCurrentBlock = {
                             GlobalEditorState.currentlyFocusedBlockId?.let { id ->
                                 editorActions.onToggleSelection(id)
@@ -757,30 +807,6 @@ fun NoteScreen(
                         onScopeSelected = { scope -> viewModel.confirmRecurringDeletion(scope) }
                     )
                 }
-
-                NotePickerDialog(
-                    expanded = showNotePickerDialog,
-                    onDismiss = { showNotePickerDialog = false },
-                    allLinkableNotes = allLinkableNotes,
-                    onNoteSelected = { noteId ->
-                        viewModel.insertNewMediaBlock("linked_note", linkedNoteId = noteId)
-                        showNotePickerDialog = false
-                    },
-                    onCreateNote = { title ->
-                        val newNoteId = viewModel.createLinkedNote(title)
-                        viewModel.insertNewMediaBlock("linked_note", linkedNoteId = newNoteId)
-                        showNotePickerDialog = false
-                    },
-                    onCreateBlankNote = {
-                        val newNoteId = viewModel.createLinkedNote("Untitled")
-                        showNotePickerDialog = false
-                        if (isDesktopPlatform) {
-                            subNotePanelId = newNoteId
-                        } else {
-                            onNavigateToEditor(newNoteId)
-                        }
-                    }
-                )
 
                 if (subNotePanelId != null) {
                     SubNotePanel(

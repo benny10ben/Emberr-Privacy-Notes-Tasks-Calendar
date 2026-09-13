@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -45,6 +47,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupProperties
 import com.emberr.data.local.room.TagEntity
 import com.emberr.domain.model.BookmarkBlock
 import com.emberr.domain.model.BulletedListBlock
@@ -67,6 +70,8 @@ import com.emberr.domain.model.ToggleBlock
 import com.emberr.domain.model.ViewType
 import com.emberr.domain.model.VoiceBlock
 import com.emberr.domain.util.system.isDesktopPlatform
+import com.emberr.presentation.shared.components.EmberrDesktopMenu
+import com.emberr.presentation.shared.components.EmberrTextField
 import com.emberr.presentation.shared.components.KmpBackHandler
 import com.emberr.presentation.shared.editor.blockViews.LinkedNoteOptionsMenu
 import dev.chrisbanes.haze.HazeState
@@ -190,7 +195,7 @@ data class SlashMenuSectionData(
 // MAIN  = the quick-action strip
 // SLASH = the menu shown while typing "/" (driven by the typed query)
 // MENU  = the full "everything" menu opened from the + button
-enum class MobileMenuState { MAIN, SLASH, MENU }
+enum class MobileMenuState { MAIN, SLASH, MENU, MENTION, LINK_TO_NOTE }
 
 object GlobalEditorState {
     var currentlyFocusedBlockId: String? = null
@@ -206,7 +211,18 @@ object GlobalEditorState {
 object EditorEventBus {
     val insertSlashEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val cleanupSlashEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val insertMentionEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+    var insertMentionSignal by mutableStateOf<Pair<String, Long>?>(null)
+        private set
+    private var insertMentionNonce = 0L
+    fun requestInsertMention(blockId: String) {
+        insertMentionNonce++
+        insertMentionSignal = blockId to insertMentionNonce
+    }
+
+    val confirmMentionEvent = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 1)
+    val confirmMentionAndOpenEvent = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 1)
+    val cancelMentionEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 }
 
 @Stable
@@ -294,6 +310,7 @@ interface EditorActions {
     fun onSaveDatabaseAsTemplate(blockId: String, templateName: String)
     suspend fun getNoteTitle(noteId: String): String
     fun onCreateLinkedNote(title: String): String
+    fun onInsertLinkedNoteBlock(noteId: String) {}
     fun onRequestCamera(blockId: String)
     suspend fun getNoteMetadata(noteId: String): NoteMetadataEntity?
     fun onUpdateLinkedNoteOptions(id: String, showIcon: Boolean, showCoverImage: Boolean)
@@ -318,6 +335,9 @@ fun EditorScreen(
     onMobileMenuStateChange: (MobileMenuState) -> Unit = {},
     slashQuery: String = "",
     onSlashQueryChange: (String) -> Unit = {},
+    showNoteLinkMenu: Boolean = false,
+    onDismissNoteLinkMenu: () -> Unit = {},
+    onMentionQueryChange: (String?) -> Unit = {},
     allLinkableNotes: List<NoteMetadataEntity> = emptyList(),
     isCurrentActivePage: Boolean = true,
     onScrollStateChange: (Boolean) -> Unit = {},
@@ -397,6 +417,7 @@ fun EditorScreen(
     val latestMobileMenuState by rememberUpdatedState(mobileMenuState)
     val latestOnMobileMenuStateChange by rememberUpdatedState(onMobileMenuStateChange)
     val latestOnSlashQueryChange by rememberUpdatedState(onSlashQueryChange)
+    val latestOnMentionQueryChange by rememberUpdatedState(onMentionQueryChange)
     val latestOnUndo by rememberUpdatedState(onUndo)
     val latestOnRedo by rememberUpdatedState(onRedo)
 
@@ -467,6 +488,22 @@ fun EditorScreen(
                     }
                     latestOnSlashQueryChange("")
                 }
+
+                val lastAtIndex = text.lastIndexOf('@')
+                val opensAMention = lastAtIndex != -1 && (
+                    lastAtIndex == 0 || text[lastAtIndex - 1] == ' ' || text[lastAtIndex - 1] == '\n'
+                    )
+                val textAfterAt = if (opensAMention) text.substring(lastAtIndex + 1) else ""
+                val mentionActive = opensAMention && !textAfterAt.contains(' ')
+
+                if (!isDesktopPlatform) {
+                    if (mentionActive) {
+                        latestOnMobileMenuStateChange(MobileMenuState.MENTION)
+                    } else if (latestMobileMenuState == MobileMenuState.MENTION) {
+                        latestOnMobileMenuStateChange(MobileMenuState.MAIN)
+                    }
+                }
+                latestOnMentionQueryChange(if (mentionActive) textAfterAt else null)
             }
             override fun onChangeBlockType(type: String) = clearSlashAndExecute { actions.onChangeBlockType(type) }
             override fun onToggleFormat(format: String) = clearSlashAndExecute { actions.onToggleFormat(format) }
@@ -765,6 +802,8 @@ fun EditorScreen(
                             showSlashMenu = showSlashMenu,
                             slashQuery = slashQuery,
                             onDismissSlashMenu = onDismissSlash,
+                            showNoteLinkMenu = showNoteLinkMenu,
+                            onDismissNoteLinkMenu = onDismissNoteLinkMenu,
                             isFirstToggleChild = isFirstToggleChild,
                             selectionRequest = selectionRequest,
                             validNoteIds = validNoteIds
@@ -846,6 +885,14 @@ fun EditorToolbar(
     onRedo: () -> Unit = {},
     showHistory: Boolean = false,
     onClearSlashQuery: () -> Unit = {},
+    allLinkableNotes: List<NoteMetadataEntity> = emptyList(),
+    mentionQuery: String = "",
+    onMentionNoteSelected: (String) -> Unit = {},
+    onMentionCreateNote: (String) -> Unit = {},
+    onMentionCreateBlank: () -> Unit = {},
+    onNoteLinkSelected: (String) -> Unit = {},
+    onNoteLinkCreateNote: (String) -> Unit = {},
+    onNoteLinkCreateBlank: () -> Unit = {},
     hazeState: HazeState
 ) {
     if (isDesktopPlatform) return
@@ -902,7 +949,7 @@ fun EditorToolbar(
 
                                 ToolbarButton(onClick = {
                                     GlobalEditorState.currentlyFocusedBlockId?.let {
-                                        EditorEventBus.insertMentionEvent.tryEmit(it)
+                                        EditorEventBus.requestInsertMention(it)
                                     }
                                 }) {
                                     Icon(painterResource(Res.drawable.at), "Link to note", tint = tint, modifier = Modifier.size(customIconSize))
@@ -1013,7 +1060,9 @@ fun EditorToolbar(
                                     onInsertMediaBlock = {
                                         onClearSlashQuery()
                                         onInsertMediaBlock(it)
-                                        onMenuStateChange(MobileMenuState.MAIN)
+                                        onMenuStateChange(
+                                            if (it == "linked_note") MobileMenuState.LINK_TO_NOTE else MobileMenuState.MAIN
+                                        )
                                     }
                                 )
                             }
@@ -1043,10 +1092,64 @@ fun EditorToolbar(
                                     },
                                     onInsertMediaBlock = {
                                         onInsertMediaBlock(it)
-                                        onMenuStateChange(MobileMenuState.MAIN)
+                                        onMenuStateChange(
+                                            if (it == "linked_note") MobileMenuState.LINK_TO_NOTE else MobileMenuState.MAIN
+                                        )
                                     }
                                 )
                             }
+                        }
+                    }
+                    MobileMenuState.MENTION -> {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            MenuDragHandle(onClose = { onMenuStateChange(MobileMenuState.MAIN) })
+                            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp).verticalScroll(rememberScrollState())) {
+                                val filteredNotes = remember(mentionQuery, allLinkableNotes) {
+                                    allLinkableNotes.filter { it.title.contains(mentionQuery, ignoreCase = true) }
+                                }
+                                val entries = remember(mentionQuery, filteredNotes) {
+                                    buildList {
+                                        add(
+                                            SlashMenuItemData("Create new note", SlashMenuIcon.Vector(Icons.AutoMirrored.Filled.NoteAdd)) {
+                                                onMentionCreateBlank()
+                                            }
+                                        )
+                                        filteredNotes.forEach { note ->
+                                            val icon = note.icon?.let { SlashMenuIcon.Label(it) } ?: SlashMenuIcon.Vector(Icons.Default.Description)
+                                            add(SlashMenuItemData(note.title.ifEmpty { "Untitled" }, icon) { onMentionNoteSelected(note.noteId) })
+                                        }
+                                        if (mentionQuery.isNotBlank()) {
+                                            add(
+                                                SlashMenuItemData("New \"$mentionQuery\" note", SlashMenuIcon.Vector(Icons.Default.Add)) {
+                                                    onMentionCreateNote(mentionQuery)
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                                SlashMenuList(sections = listOf(SlashMenuSectionData("Link to Note", entries)))
+                            }
+                        }
+                    }
+                    MobileMenuState.LINK_TO_NOTE -> {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            MenuDragHandle(onClose = { onMenuStateChange(MobileMenuState.MAIN) })
+                            NoteLinkMenuContent(
+                                allLinkableNotes = allLinkableNotes,
+                                onNoteSelected = {
+                                    onNoteLinkSelected(it)
+                                    onMenuStateChange(MobileMenuState.MAIN)
+                                },
+                                onCreateNote = {
+                                    onNoteLinkCreateNote(it)
+                                    onMenuStateChange(MobileMenuState.MAIN)
+                                },
+                                onCreateBlankNote = {
+                                    onNoteLinkCreateBlank()
+                                    onMenuStateChange(MobileMenuState.MAIN)
+                                },
+                                autoFocusSearch = false
+                            )
                         }
                     }
                 }
@@ -1351,6 +1454,114 @@ private fun SlashMenuHeader(title: String) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 6.dp)
+    )
+}
+
+@Composable
+fun NoteLinkMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    allLinkableNotes: List<NoteMetadataEntity>,
+    onNoteSelected: (noteId: String) -> Unit,
+    onCreateNote: (title: String) -> Unit,
+    onCreateBlankNote: () -> Unit
+) {
+    if (!expanded) return
+
+    EmberrDesktopMenu(
+        expanded = true,
+        onDismissRequest = onDismissRequest,
+        properties = PopupProperties(focusable = true),
+        modifier = Modifier
+            .width(290.dp)
+            .heightIn(max = 400.dp)
+    ) {
+        NoteLinkMenuContent(
+            allLinkableNotes = allLinkableNotes,
+            onNoteSelected = onNoteSelected,
+            onCreateNote = onCreateNote,
+            onCreateBlankNote = onCreateBlankNote,
+            onDismissRequest = onDismissRequest
+        )
+    }
+}
+
+@Composable
+fun NoteLinkMenuContent(
+    allLinkableNotes: List<NoteMetadataEntity>,
+    onNoteSelected: (noteId: String) -> Unit,
+    onCreateNote: (title: String) -> Unit,
+    onCreateBlankNote: () -> Unit,
+    onDismissRequest: () -> Unit = {},
+    autoFocusSearch: Boolean = true
+) {
+    var query by remember { mutableStateOf("") }
+    var selectedIndex by remember(query) { mutableIntStateOf(0) }
+
+    val filteredNotes = remember(query, allLinkableNotes) {
+        allLinkableNotes.filter { it.title.contains(query, ignoreCase = true) }
+    }
+
+    val entries = remember(query, filteredNotes) {
+        buildList {
+            add(
+                SlashMenuItemData("Create new note", SlashMenuIcon.Vector(Icons.AutoMirrored.Filled.NoteAdd)) {
+                    onCreateBlankNote()
+                }
+            )
+            filteredNotes.forEach { note ->
+                val icon = note.icon?.let { SlashMenuIcon.Label(it) } ?: SlashMenuIcon.Vector(Icons.Default.Description)
+                add(SlashMenuItemData(note.title.ifEmpty { "Untitled" }, icon) { onNoteSelected(note.noteId) })
+            }
+            if (query.isNotBlank()) {
+                add(
+                    SlashMenuItemData("New \"$query\" note", SlashMenuIcon.Vector(Icons.Default.Add)) {
+                        onCreateNote(query.trim())
+                    }
+                )
+            }
+        }
+    }
+
+    val searchFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(autoFocusSearch) {
+        if (autoFocusSearch) searchFocusRequester.requestFocus()
+    }
+
+    EmberrTextField(
+        value = query,
+        onValueChange = { query = it },
+        placeholder = "Search notes...",
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .focusRequester(searchFocusRequester)
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.DirectionDown -> {
+                        if (entries.isNotEmpty()) selectedIndex = (selectedIndex + 1) % entries.size
+                        true
+                    }
+                    Key.DirectionUp -> {
+                        if (entries.isNotEmpty()) selectedIndex = (selectedIndex - 1 + entries.size) % entries.size
+                        true
+                    }
+                    Key.Enter, Key.NumPadEnter -> {
+                        entries.getOrNull(selectedIndex)?.action?.invoke()
+                        true
+                    }
+                    Key.Escape -> {
+                        onDismissRequest()
+                        true
+                    }
+                    else -> false
+                }
+            }
+    )
+    SlashMenuList(
+        sections = listOf(SlashMenuSectionData("Link to Note", entries)),
+        selectedIndex = selectedIndex
     )
 }
 

@@ -35,16 +35,18 @@ import com.emberr.domain.model.NoteBlock
 import com.emberr.domain.model.TextAlignment
 import com.emberr.domain.model.ViewType
 import com.emberr.presentation.shared.components.KmpBackHandler
-import com.emberr.presentation.shared.components.NotePickerDialog
 import com.emberr.presentation.shared.editor.BlockSelectionPill
 import com.emberr.presentation.shared.editor.EditorActions
 import com.emberr.presentation.shared.editor.EditorScreen
 import com.emberr.presentation.shared.editor.SelectionModeObserver
 import com.emberr.presentation.shared.editor.MobileMenuState
+import com.emberr.presentation.shared.editor.EditorEventBus
 import com.emberr.presentation.shared.editor.blockViews.databaseBlockView.DatabaseTemplatePickerSheet
 import com.emberr.presentation.shared.editor.blockViews.databaseBlockView.NoteLinkText
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
@@ -56,6 +58,7 @@ import com.emberr.presentation.shared.editor.GlobalEditorState
 import kotlinx.datetime.LocalDate
 import kotlin.math.abs
 import com.emberr.data.local.room.CalendarTaskEntity
+import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.calendar.CalendarViewModel
 import com.emberr.presentation.calendar.EventEditorSheetHost
 import com.emberr.presentation.calendar.RecurrenceScopeChooser
@@ -191,7 +194,7 @@ fun DailyScreen(
     val calendarTaskMap by viewModel.calendarTaskMap.collectAsState()
     val databaseTemplates by viewModel.databaseTemplates.collectAsState()
     var showDatabasePicker by remember { mutableStateOf(false) }
-    var showNotePickerDialog by remember { mutableStateOf(false) }
+    var showNoteLinkMenu by remember { mutableStateOf(false) }
     val handoff = rememberKeyboardHandoff()
 
     var eventOptionsTargetBlockId by remember { mutableStateOf<String?>(null) }
@@ -261,10 +264,12 @@ fun DailyScreen(
             override fun onInsertMediaBlock(type: String) {
                 when (type) {
                     "database" -> handoff.run { showDatabasePicker = true }
-                    "linked_note" -> handoff.run { showNotePickerDialog = true }
+                    "linked_note" -> showNoteLinkMenu = true
                     else -> viewModel.insertNewMediaBlock(type)
                 }
             }
+            override fun onInsertLinkedNoteBlock(noteId: String) =
+                viewModel.insertNewMediaBlock("linked_note", linkedNoteId = noteId)
             override fun onSaveDatabaseAsTemplate(blockId: String, templateName: String) =
                 viewModel.saveDatabaseAsTemplate(blockId, templateName)
             override fun onOutsideTap() {}
@@ -361,12 +366,24 @@ fun DailyScreen(
     val rightPanelContent = @Composable {
         var mobileMenuState by remember { mutableStateOf(MobileMenuState.MAIN) }
         var slashQuery by remember { mutableStateOf("") }
+        var mentionQuery by remember { mutableStateOf<String?>(null) }
+
+        val onMobileMenuStateChange: (MobileMenuState) -> Unit = { newState ->
+            if (mobileMenuState == MobileMenuState.MENTION && newState != MobileMenuState.MENTION) {
+                EditorEventBus.cancelMentionEvent.tryEmit(Unit)
+            }
+            mobileMenuState = newState
+        }
 
         LaunchedEffect(isKeyboardOpen) {
+            if (isKeyboardOpen) return@LaunchedEffect
+            delay(250.milliseconds)
             if (!isKeyboardOpen && mobileMenuState != MobileMenuState.MAIN) {
-                mobileMenuState = MobileMenuState.MAIN
+                onMobileMenuStateChange(MobileMenuState.MAIN)
             }
         }
+
+        val showToolbar = showToolbar || mobileMenuState != MobileMenuState.MAIN
 
         Box(
             modifier = Modifier
@@ -418,9 +435,21 @@ fun DailyScreen(
                             listState = pageListState,
                             selectedBlockIds = selectedBlockIds,
                             mobileMenuState = mobileMenuState,
-                            onMobileMenuStateChange = { mobileMenuState = it },
+                            onMobileMenuStateChange = onMobileMenuStateChange,
                             slashQuery = slashQuery,
                             onSlashQueryChange = { slashQuery = it },
+                            showNoteLinkMenu = showNoteLinkMenu,
+                            onDismissNoteLinkMenu = { showNoteLinkMenu = false },
+                            onMentionQueryChange = { newQuery ->
+                                mentionQuery = newQuery
+                                if (!isDesktopPlatform) {
+                                    mobileMenuState = when {
+                                        newQuery != null -> MobileMenuState.MENTION
+                                        mobileMenuState == MobileMenuState.MENTION -> MobileMenuState.MAIN
+                                        else -> mobileMenuState
+                                    }
+                                }
+                            },
                             bottomContentPadding = bottomContentPadding +
                                 if (bottomContentPadding > 0.dp) 60.dp else 0.dp,
                             isCurrentActivePage = isCurrentActivePage,
@@ -450,7 +479,7 @@ fun DailyScreen(
             ) {
                 EditorToolbar(
                     mobileMenuState = mobileMenuState,
-                    onMenuStateChange = { mobileMenuState = it },
+                    onMenuStateChange = onMobileMenuStateChange,
                     query = slashQuery,
                     hazeState = hazeState,
                     onChangeBlockType = { sharedEditorActions.onChangeBlockType(it) },
@@ -458,6 +487,32 @@ fun DailyScreen(
                     onAdjustIndentation = { sharedEditorActions.onAdjustIndentation(it) },
                     onSetAlignment = { sharedEditorActions.onSetBlockAlignment(it) },
                     onInsertMediaBlock = { sharedEditorActions.onInsertMediaBlock(it) },
+                    allLinkableNotes = allLinkableNotes,
+                    mentionQuery = mentionQuery ?: "",
+                    onMentionNoteSelected = { noteId ->
+                        val note = allLinkableNotes.find { it.noteId == noteId }
+                        val safeTitle = (note?.title ?: "").replace("[", "").replace("]", "").ifEmpty { "Untitled" }
+                        EditorEventBus.confirmMentionEvent.tryEmit(safeTitle to noteId)
+                    },
+                    onMentionCreateNote = { title ->
+                        val safeTitle = title.replace("[", "").replace("]", "").trim().ifEmpty { "Untitled" }
+                        val newNoteId = sharedEditorActions.onCreateLinkedNote(safeTitle)
+                        EditorEventBus.confirmMentionEvent.tryEmit(safeTitle to newNoteId)
+                    },
+                    onMentionCreateBlank = {
+                        val newNoteId = sharedEditorActions.onCreateLinkedNote("Untitled")
+                        EditorEventBus.confirmMentionAndOpenEvent.tryEmit("Untitled" to newNoteId)
+                    },
+                    onNoteLinkSelected = { noteId -> sharedEditorActions.onInsertLinkedNoteBlock(noteId) },
+                    onNoteLinkCreateNote = { title ->
+                        val newNoteId = sharedEditorActions.onCreateLinkedNote(title)
+                        sharedEditorActions.onInsertLinkedNoteBlock(newNoteId)
+                    },
+                    onNoteLinkCreateBlank = {
+                        val newNoteId = sharedEditorActions.onCreateLinkedNote("Untitled")
+                        sharedEditorActions.onInsertLinkedNoteBlock(newNoteId)
+                        sharedEditorActions.onNoteLinkClick(newNoteId)
+                    },
                     onSelectCurrentBlock = {
                         GlobalEditorState.currentlyFocusedBlockId?.let { id ->
                             sharedEditorActions.onToggleSelection(id)
@@ -519,26 +574,6 @@ fun DailyScreen(
                 onDismiss = { showDatabasePicker = false },
                 onCreateBlank = { viewModel.insertNewMediaBlock("database") },
                 onSelectTemplate = { viewModel.insertNewMediaBlock("database", it) }
-            )
-
-            NotePickerDialog(
-                expanded = showNotePickerDialog,
-                onDismiss = { showNotePickerDialog = false },
-                allLinkableNotes = allLinkableNotes,
-                onNoteSelected = { noteId ->
-                    viewModel.insertNewMediaBlock("linked_note", linkedNoteId = noteId)
-                    showNotePickerDialog = false
-                },
-                onCreateNote = { title ->
-                    val newNoteId = viewModel.createLinkedNote(title)
-                    viewModel.insertNewMediaBlock("linked_note", linkedNoteId = newNoteId)
-                    showNotePickerDialog = false
-                },
-                onCreateBlankNote = {
-                    val newNoteId = viewModel.createLinkedNote("Untitled")
-                    showNotePickerDialog = false
-                    onNavigateToEditor(newNoteId)
-                }
             )
 
             EventEditorSheetHost(
