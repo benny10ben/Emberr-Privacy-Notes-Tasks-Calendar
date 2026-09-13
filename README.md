@@ -66,3 +66,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) if you would like to help out.
 ## License
 
 Emberr is licensed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE) for details.
+
+
+Made by - [Benny](https://github.com/benny10ben)
