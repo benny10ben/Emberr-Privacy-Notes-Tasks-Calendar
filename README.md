@@ -36,7 +36,7 @@ Android and Desktop. Desktop currently targets Linux, with Windows and macOS sup
 ## Roadmap
 
 - More productive blocks
-- Improved UI and UX with better animations and overall user experience
+- Improved UI and UX with better animations
 - Cloud backup (end to end encrypted)
 
 ## Installation
