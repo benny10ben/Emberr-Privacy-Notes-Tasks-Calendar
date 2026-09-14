@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.emberr.data.local.room.NoteMetadataEntity
@@ -28,9 +29,9 @@ import com.emberr.presentation.shared.components.EmberrBottomSheet
 import com.emberr.presentation.shared.components.EmberrButtonPrimary
 import com.emberr.presentation.shared.components.TopBarIconButton
 import com.emberr.presentation.shared.stableStatusBarsPadding
+import com.emberr.presentation.topEdgeFadeBackground
 import com.emberr.presentation.mobile.home.NoteCard
 import com.emberr.presentation.shared.components.EmberrBlur
-import com.emberr.presentation.shared.components.emberrBlur
 import com.emberr.presentation.shared.components.EmberrVerticalScrollbar
 import com.emberr.presentation.shared.components.smoothWheelScroll
 import dev.chrisbanes.haze.HazeState
@@ -54,20 +55,19 @@ fun TrashScreen(
     var selectedNoteToManage by remember { mutableStateOf<NoteMetadataEntity?>(null) }
     var showEmptyTrashConfirm by remember { mutableStateOf(false) }
 
-    val hazeState = remember { HazeState() }
-    var isScrolled by remember { mutableStateOf(false) }
-
     val density = LocalDensity.current
     var topBarHeightPx by remember { mutableFloatStateOf(0f) }
     val topBarHeightDp = with(density) { topBarHeightPx.toDp() }
 
     val backgroundColor = if (isDesktopPlatform) Color.Transparent else MaterialTheme.colorScheme.background
+    val hazeState = remember { HazeState() }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (trashedNotes.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .hazeSource(state = hazeState)
                     .background(backgroundColor)
                     .padding(top = topBarHeightDp),
                 contentAlignment = Alignment.Center
@@ -80,7 +80,6 @@ fun TrashScreen(
             }
         } else {
             val gridState = rememberLazyGridState()
-            reportGridScrollState(gridState) { isScrolled = it }
 
             LazyVerticalGrid(
                 state = gridState,
@@ -124,20 +123,12 @@ fun TrashScreen(
                 .fillMaxWidth()
                 .zIndex(10f)
                 .onGloballyPositioned { coordinates -> topBarHeightPx = coordinates.size.height.toFloat() }
-                .then(
-                    if (isScrolled) {
-                        Modifier
-                            .emberrBlur(hazeState, EmberrBlur.Regular)
-                            .background(Color.Transparent)
-                    } else {
-                        Modifier
-                    }
-                )
         ) {
             TrashTopBar(
                 onNavigateBack = onNavigateBack,
                 showEmptyAction = trashedNotes.isNotEmpty(),
-                onEmptyTrashClick = { showEmptyTrashConfirm = true }
+                onEmptyTrashClick = { showEmptyTrashConfirm = true },
+                hazeState = hazeState
             )
         }
 
@@ -168,26 +159,18 @@ fun TrashScreen(
 }
 
 @Composable
-private fun reportGridScrollState(gridState: LazyGridState, onScrolledChanged: (Boolean) -> Unit) {
-    val isScrolled by remember(gridState) {
-        derivedStateOf { gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0 }
-    }
-    LaunchedEffect(isScrolled) { onScrolledChanged(isScrolled) }
-}
-
-@Composable
 private fun TrashTopBar(
     onNavigateBack: () -> Unit,
     showEmptyAction: Boolean,
     onEmptyTrashClick: () -> Unit,
+    hazeState: HazeState,
 ) {
-    val defaultBgColor = MaterialTheme.colorScheme.background.copy(alpha = 0.65f)
     val defaultContentColor = MaterialTheme.colorScheme.onSurface
-    val hazeState = remember { HazeState() }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (isDesktopPlatform) Modifier else Modifier.topEdgeFadeBackground())
             .then(if (isDesktopPlatform) Modifier else Modifier.stableStatusBarsPadding())
             .padding(
                 top = if (isDesktopPlatform) 16.dp else 10.dp,
@@ -209,7 +192,8 @@ private fun TrashTopBar(
 
         Text(
             text = "Trash",
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
             color = defaultContentColor,
             modifier = Modifier.align(Alignment.Center)
         )
@@ -219,8 +203,10 @@ private fun TrashTopBar(
                 TopBarIconButton(
                     icon = Icons.Default.DeleteSweep,
                     contentDescription = "Empty Trash",
-                    bgColor = defaultBgColor,
+                    bgColor = Color.Transparent,
                     tint = MaterialTheme.colorScheme.error,
+                    hazeState = hazeState,
+                    hazeStyle = EmberrBlur.Regular,
                     onClick = onEmptyTrashClick
                 )
             }
