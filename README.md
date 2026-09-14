@@ -1,7 +1,7 @@
 # Emberr: Private Productivity
 
-
-
+<img src=".github/assets/mobile_screenshots.png" width="100%" />
+<img src=".github/assets/desktop_screenshots.png" width="100%" />
 
 Emberr is a local-first, privacy-focused, 100% open source notes and productivity app. It combines a **block-based editor, tasks, reminders, and a calendar** in one place, with your data stored on your device by default.
 
