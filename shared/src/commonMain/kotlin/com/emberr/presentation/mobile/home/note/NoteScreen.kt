@@ -562,7 +562,6 @@ fun NoteScreen(
                     globalTags = globalTags,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = if (coverImagePath != null) 0.dp else desktopTopMargin)
                         .hazeSource(state = hazeState),
                     listState = editorListState,
                     onUndo = { viewModel.undo() },

@@ -770,7 +770,7 @@ private fun TableGridCell(
             visualTransformation = webLinkTransformation,
             onTextLayout = { textLayoutResult = it },
             textStyle = TextStyle(
-                fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                fontSize = MaterialTheme.typography.bodyLarge.fontSize,
                 fontFamily = if (style.isCode) FontFamily.Monospace else FontFamily.Default,
                 fontWeight = if (style.isBold) FontWeight.Bold else FontWeight.Normal,
                 fontStyle = if (style.isItalic) FontStyle.Italic else FontStyle.Normal,

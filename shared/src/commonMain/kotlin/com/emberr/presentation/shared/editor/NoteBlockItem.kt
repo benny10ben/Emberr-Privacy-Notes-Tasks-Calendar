@@ -458,13 +458,14 @@ fun NoteBlockItem(
             }
 
             val primaryColor = MaterialTheme.colorScheme.primary
+            val quoteAccentColor = Color(0xFFFFD54F)
             val DefaultBlockShape = RoundedCornerShape(12.dp)
             val textFieldWrapperModifier = (if (block is CodeBlock) {
                 Modifier.weight(1f).padding(horizontal = 4.dp)
                     .background(MaterialTheme.colorScheme.surface, DefaultBlockShape).padding(12.dp)
             } else if (block is QuoteBlock) {
                 Modifier.weight(1f).padding(horizontal = 4.dp).drawBehind {
-                    drawLine(color = primaryColor, start = Offset(0f, 0f), end = Offset(0f, size.height), strokeWidth = 4.dp.toPx())
+                    drawLine(color = quoteAccentColor, start = Offset(0f, 0f), end = Offset(0f, size.height), strokeWidth = 2.dp.toPx())
                 }.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)
             } else if (isDatabase || block is TableBlock) {
                 Modifier.weight(1f)

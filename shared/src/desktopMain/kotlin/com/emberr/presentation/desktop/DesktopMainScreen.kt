@@ -1076,7 +1076,7 @@ fun DesktopMainScreen(
         Box(Modifier.fillMaxSize().hazeSource(state = hazeState)) {
             when (val d = detail) {
                 null -> Box(Modifier.fillMaxSize())
-                is DetailPane.Daily -> Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                is DetailPane.Daily -> Box(Modifier.fillMaxSize()) {
                     DailyEditorPane(
                         viewModel = dailyViewModel,
                         hazeState = hazeState,
@@ -1100,11 +1100,11 @@ fun DesktopMainScreen(
                         onPickImage = onPickImage, onTakePhoto = onTakePhoto, onPickDocument = onPickDocument,
                         onOpenFile = onOpenFile, onExportMarkdown = onExportMarkdown, onExportPdf = onExportPdf,
                         onNavigateToEditor = { openNote(it) },
-                        desktopTopMargin = PANEL_TOP_MARGIN
+                        desktopTopMargin = 0.dp
                     )
                 }
                 DetailPane.Settings -> key("settings") {
-                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                    Box(Modifier.fillMaxSize()) {
                         SettingsScreen(
                             onNavigateBack = { detail = DetailPane.Daily(selectedDate) },
                             onExportReady = onExportBackup,
@@ -1116,37 +1116,37 @@ fun DesktopMainScreen(
                     }
                 }
                 DetailPane.SelfHostSetup -> key("selfhost_setup") {
-                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                    Box(Modifier.fillMaxSize()) {
                         SelfHostSetupScreen(onNavigateBack = { detail = DetailPane.Settings })
                     }
                 }
                 DetailPane.Trash -> key("trash") {
-                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                    Box(Modifier.fillMaxSize()) {
                         TrashScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) })
                     }
                 }
                 DetailPane.Reminders -> key("reminders") {
-                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                    Box(Modifier.fillMaxSize()) {
                         TasksScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }, onOpenFile = onOpenFile, onNavigateToEditor = { openNote(it) })
                     }
                 }
                 DetailPane.Images -> key("images") {
-                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                    Box(Modifier.fillMaxSize()) {
                         ImagesScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }, onTriggerImagePicker = { onPickImage { } })
                     }
                 }
                 DetailPane.Documents -> key("documents") {
-                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                    Box(Modifier.fillMaxSize()) {
                         DocumentsScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) }, onTriggerDocumentPicker = { onPickDocument { } }, onOpenFile = onOpenFile)
                     }
                 }
                 DetailPane.Bookmarks -> key("bookmarks") {
-                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                    Box(Modifier.fillMaxSize()) {
                         BookmarksScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) })
                     }
                 }
                 DetailPane.Calendar -> key("calendar") {
-                    Box(Modifier.fillMaxSize().padding(top = PANEL_TOP_MARGIN)) {
+                    Box(Modifier.fillMaxSize()) {
                         CalendarScreen(onNavigateBack = { detail = DetailPane.Daily(selectedDate) })
                     }
                 }
@@ -1166,10 +1166,8 @@ fun DesktopMainScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .padding(start = PANEL_PADDING, top = PANEL_TOP_MARGIN, bottom = PANEL_TOP_MARGIN)
                                 .width(panelWidth)
                                 .fillMaxHeight()
-                                .clip(DesktopPanelShape)
                                 .background(MaterialTheme.colorScheme.surface)
                         ) {
                             leftPanel(5.dp, 5.dp)
@@ -1201,12 +1199,18 @@ fun DesktopMainScreen(
                         )
                     }
 
-                    Box(modifier = Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.background)) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(top = 2.dp)
+                            .background(MaterialTheme.colorScheme.background)
+                    ) {
                         if (!isSidebarVisible) {
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopStart)
-                                    .padding(start = 26.dp, top = PANEL_TOP_MARGIN + 16.dp)
+                                    .padding(start = 26.dp, top = PANEL_TOP_MARGIN + 2.dp)
                                     .zIndex(10f)
                             ) {
                                 TopBarIconButton(
