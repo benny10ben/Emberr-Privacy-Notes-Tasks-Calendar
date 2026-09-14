@@ -1,4 +1,4 @@
-# Emberr
+# Emberr: Private Productivity
 
 
 
@@ -13,7 +13,7 @@ Why did I spend months building this project when there are already alternatives
 
 Some of these apps aren't open source, so you have no real idea what happens to your data behind the scenes. Some are open source and private but neglect entire platforms, Linux and Android are often treated as second class citizens compared to iOS, macOS, and Windows. And some just have bad UI and UX, cluttered, slow, and stuck in a design language from a decade ago.
 
-I started Emberr as a side project, mainly to learn more about full stack development and backend systems (a self hosted cloud backup and sync system is what I'm building next). It was also just for myself. I wanted something that respected my privacy, ran well on Linux and Android, and actually felt good to use every day.
+I started Emberr as a side project, mainly to learn more about full stack development and backend systems (a cloud backup is what I'm building next). It was also just for myself. I wanted something that respected my privacy, ran well on Linux and Android, and actually felt good to use every day.
 
 After thinking about it for a while, I figured, why not put it out there? If you're like me, fed up with apps that don't respect your privacy, apps with bad UI and UX, or developers who treat Linux and Android as an afterthought, Emberr might be for you.
 
@@ -29,15 +29,25 @@ After thinking about it for a while, I figured, why not put it out there? If you
 - End-to-end encryption for your data 
 - No trackers, no ads, no sharing data to third parties
 
-## Platforms
-
-Android and Desktop. Desktop currently targets Linux, with Windows and macOS support planned.
-
 ## Roadmap
 
 - More productive blocks
 - Improved UI and UX with better animations
+- Make each note shareable online
 - Cloud backup (end to end encrypted)
+
+## Platforms
+
+Android and Desktop. Desktop currently targets Linux, with Windows and macOS support planned.
+
+## Tech Stack
+
+- **UI:** Compose Multiplatform (Android & Desktop)
+- **Language:** Kotlin, with Coroutines and Flow for async work
+- **Local storage:** Room (KMP) for metadata, SQLCipher for encrypted on-device data
+- **Dependency injection:** Koin
+- **Networking:** Ktor
+- **On-device AI:** llama.cpp based local inference (via llamatik)
 
 ## Installation
 
