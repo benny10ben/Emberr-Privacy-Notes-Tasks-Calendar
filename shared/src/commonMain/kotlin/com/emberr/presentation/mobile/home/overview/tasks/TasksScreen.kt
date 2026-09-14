@@ -31,6 +31,9 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import org.koin.compose.viewmodel.koinViewModel
 import com.emberr.presentation.shared.stableStatusBarsPadding
+import com.emberr.presentation.edgeFadeBrush
+import com.emberr.presentation.topEdgeFadeBackground
+import com.emberr.ui.theme.LocalAppIsDark
 import com.emberr.domain.model.CellData
 import com.emberr.domain.model.ColumnType
 import com.emberr.domain.model.FilterConfig
@@ -315,6 +318,22 @@ fun TasksScreen(
                 )
             }
 
+            val isDarkTheme = LocalAppIsDark.current
+            if (!isDesktopPlatform && isDarkTheme) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp)
+                        .background(
+                            brush = edgeFadeBrush(
+                                baseColor = MaterialTheme.colorScheme.background,
+                                opaqueAtTop = false
+                            )
+                        )
+                )
+            }
+
             RemindersTopBar(
                 modifier = Modifier.align(Alignment.TopCenter),
                 hazeState = hazeState,
@@ -411,6 +430,7 @@ private fun RemindersTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .then(if (isDesktopPlatform) Modifier else Modifier.topEdgeFadeBackground())
             .then(if (isDesktopPlatform) Modifier else Modifier.stableStatusBarsPadding())
             .padding(top = if (isDesktopPlatform) 16.dp else 10.dp, start = 16.dp, end = 16.dp)
             .onGloballyPositioned(onPositioned),

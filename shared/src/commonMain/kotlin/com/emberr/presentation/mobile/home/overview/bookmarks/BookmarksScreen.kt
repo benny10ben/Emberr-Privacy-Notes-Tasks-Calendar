@@ -56,6 +56,9 @@ import com.emberr.domain.model.BookmarkBlock
 import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBlur
 import com.emberr.presentation.shared.stableStatusBarsPadding
+import com.emberr.presentation.edgeFadeBrush
+import com.emberr.presentation.topEdgeFadeBackground
+import com.emberr.ui.theme.LocalAppIsDark
 import com.emberr.presentation.shared.components.KmpBackHandler
 import com.emberr.presentation.shared.components.TopBarIconButton
 import com.emberr.presentation.shared.components.customEmberrShadow
@@ -287,6 +290,22 @@ fun BookmarksScreen(
                 modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().padding(top = 80.dp, bottom = 24.dp)
             )
 
+            val isDarkTheme = LocalAppIsDark.current
+            if (!isDesktopPlatform && isDarkTheme) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp)
+                        .background(
+                            brush = edgeFadeBrush(
+                                baseColor = MaterialTheme.colorScheme.background,
+                                opaqueAtTop = false
+                            )
+                        )
+                )
+            }
+
             BookmarksTopBar(
                 modifier = Modifier.align(Alignment.TopCenter),
                 isSelectionMode = isSelectionMode,
@@ -515,6 +534,7 @@ private fun BookmarksTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .then(if (isDesktopPlatform) Modifier else Modifier.topEdgeFadeBackground())
             .then(if (isDesktopPlatform) Modifier else Modifier.stableStatusBarsPadding())
             .padding(top = if (isDesktopPlatform) 16.dp else 10.dp, start = 16.dp, end = 16.dp)
             .onGloballyPositioned(onPositioned),
