@@ -2,6 +2,7 @@ package com.emberr.presentation
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -70,6 +71,22 @@ fun edgeFadeBrush(baseColor: Color, opaqueAtTop: Boolean, peakAlpha: Float = 0.6
 
 val LocalImageOverlay = staticCompositionLocalOf<( (@Composable () -> Unit)? ) -> Unit> { {} }
 val LocalIsScrolledAwayFromTop = staticCompositionLocalOf { false }
+
+@Composable
+fun Modifier.topEdgeFadeBackground(scrollGated: Boolean = false): Modifier {
+    val isDarkTheme = LocalAppIsDark.current
+    val isScrolledAwayFromTop = LocalIsScrolledAwayFromTop.current
+    val targetAlpha = if (isDarkTheme && (!scrollGated || isScrolledAwayFromTop)) 0.85f else 0f
+    val animatedAlpha by animateFloatAsState(targetValue = targetAlpha, animationSpec = tween(220))
+    val backgroundColor = MaterialTheme.colorScheme.background
+    return this.background(
+        brush = edgeFadeBrush(
+            baseColor = backgroundColor,
+            opaqueAtTop = true,
+            peakAlpha = animatedAlpha
+        )
+    )
+}
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
