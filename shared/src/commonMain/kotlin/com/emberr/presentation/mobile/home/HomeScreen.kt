@@ -34,8 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import com.emberr.presentation.shared.rememberStableStatusBarsPadding
 import com.emberr.presentation.shared.stableStatusBarsPadding
-import com.emberr.presentation.LocalIsScrolledAwayFromTop
 import com.emberr.presentation.edgeFadeBrush
+import com.emberr.presentation.topEdgeFadeBackground
 import com.emberr.ui.theme.LocalAppIsDark
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
@@ -1122,23 +1122,10 @@ private fun HomeTopBar(
 ) {
     var showNotesMenu by remember { mutableStateOf(false) }
 
-    val isDarkTheme = LocalAppIsDark.current
-    val isScrolledAwayFromTop = LocalIsScrolledAwayFromTop.current
-    val topFadeVisibility by animateFloatAsState(
-        targetValue = if (isDarkTheme && isScrolledAwayFromTop) 1f else 0f,
-        animationSpec = tween(220)
-    )
-
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                brush = edgeFadeBrush(
-                    baseColor = MaterialTheme.colorScheme.background,
-                    opaqueAtTop = true,
-                    peakAlpha = 0.85f * topFadeVisibility
-                )
-            )
+            .topEdgeFadeBackground()
             .pointerInput(Unit) { detectTapGestures {} }
     ) {
         Row(
