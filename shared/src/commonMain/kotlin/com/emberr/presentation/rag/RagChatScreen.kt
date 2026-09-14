@@ -63,6 +63,7 @@ import com.emberr.presentation.shared.components.EmberrDesktopMenu
 import com.emberr.presentation.shared.components.TopBarIconButton
 import com.emberr.presentation.shared.rememberStableStatusBarsPadding
 import com.emberr.presentation.shared.stableStatusBarsPadding
+import com.emberr.presentation.topEdgeFadeBackground
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import emberr.shared.generated.resources.Res
@@ -293,6 +294,7 @@ private fun RagChatContent(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
+                .then(if (isDesktopPlatform) Modifier else Modifier.topEdgeFadeBackground())
                 .then(if (isDesktopPlatform) Modifier else Modifier.stableStatusBarsPadding())
                 .padding(
                     start = if (isDesktopPlatform) DesktopPanelContentInset else 16.dp,
