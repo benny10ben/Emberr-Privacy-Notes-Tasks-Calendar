@@ -34,6 +34,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import com.emberr.presentation.shared.rememberStableStatusBarsPadding
 import com.emberr.presentation.shared.stableStatusBarsPadding
+import com.emberr.presentation.LocalIsScrolledAwayFromTop
+import com.emberr.presentation.edgeFadeBrush
+import com.emberr.ui.theme.LocalAppIsDark
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
@@ -371,7 +374,12 @@ fun HomeScreen(
         ) {
             val cardWidth = (maxWidth - (HORIZONTAL_PADDING * 2) - 10.dp) / 2
 
-            if (isLoading) {
+            Crossfade(
+                targetState = isLoading,
+                animationSpec = tween(250, easing = FastOutSlowInEasing),
+                label = "homeContentLoading"
+            ) { loading ->
+            if (loading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
@@ -733,7 +741,13 @@ fun HomeScreen(
                     if (isNotesExpanded) {
                         if (treeRows.isEmpty()) {
                             item(span = StaggeredGridItemSpan.FullLine, key = "home_empty_state") {
-                                HomeEmptyState()
+                                HomeEmptyState(
+                                    modifier = Modifier.animateItem(
+                                        fadeInSpec = tween(200, easing = FastOutSlowInEasing),
+                                        fadeOutSpec = tween(160, easing = FastOutSlowInEasing),
+                                        placementSpec = null
+                                    )
+                                )
                             }
                         }
 
@@ -861,6 +875,11 @@ fun HomeScreen(
                             ) { note ->
                                 Box(
                                     modifier = Modifier
+                                        .animateItem(
+                                            fadeInSpec = tween(200, easing = FastOutSlowInEasing),
+                                            fadeOutSpec = tween(160, easing = FastOutSlowInEasing),
+                                            placementSpec = null
+                                        )
                                         .padding(horizontal = HORIZONTAL_PADDING)
                                         .cardGestures(
                                             enabled = true,
@@ -882,6 +901,7 @@ fun HomeScreen(
                         }
                     }
                 }
+            }
             }
 
             val floatingRow = treeDragState.draggedKey?.let { key ->
@@ -942,6 +962,22 @@ fun HomeScreen(
         ) {
 
             homeGridContent()
+
+            val isDarkTheme = LocalAppIsDark.current
+            if (isDarkTheme) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp)
+                        .background(
+                            brush = edgeFadeBrush(
+                                baseColor = MaterialTheme.colorScheme.background,
+                                opaqueAtTop = false
+                            )
+                        )
+                )
+            }
 
             NotesSelectionPill(
                 isVisible = isSelectionMode,
@@ -1086,9 +1122,23 @@ private fun HomeTopBar(
 ) {
     var showNotesMenu by remember { mutableStateOf(false) }
 
+    val isDarkTheme = LocalAppIsDark.current
+    val isScrolledAwayFromTop = LocalIsScrolledAwayFromTop.current
+    val topFadeVisibility by animateFloatAsState(
+        targetValue = if (isDarkTheme && isScrolledAwayFromTop) 1f else 0f,
+        animationSpec = tween(220)
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .background(
+                brush = edgeFadeBrush(
+                    baseColor = MaterialTheme.colorScheme.background,
+                    opaqueAtTop = true,
+                    peakAlpha = 0.85f * topFadeVisibility
+                )
+            )
             .pointerInput(Unit) { detectTapGestures {} }
     ) {
         Row(

@@ -435,10 +435,10 @@ class HomeViewModel(
     }
 
     init {
+        _isLoading.value = false
         viewModelScope.launch(Dispatchers.IO) {
             repository.cleanupOldTrashedNotes()
             templateSeeder.seedIfMissing()
-            _isLoading.value = false
         }
         viewModelScope.launch(Dispatchers.IO) {
             delay(2_000.milliseconds)

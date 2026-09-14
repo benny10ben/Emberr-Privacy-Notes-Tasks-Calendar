@@ -1,6 +1,7 @@
 package com.emberr.presentation.mobile.home.note
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -57,6 +58,9 @@ import com.emberr.domain.model.ViewType
 import com.emberr.domain.util.system.isDesktopPlatform
 import com.emberr.presentation.shared.components.EmberrBottomSheet
 import com.emberr.presentation.shared.editor.EditorToolbar
+import com.emberr.presentation.LocalIsScrolledAwayFromTop
+import com.emberr.presentation.edgeFadeBrush
+import com.emberr.ui.theme.LocalAppIsDark
 import dev.chrisbanes.haze.HazeState
 import coil3.compose.AsyncImage
 import com.emberr.presentation.shared.components.KmpBackHandler
@@ -567,6 +571,22 @@ fun NoteScreen(
                     onUndo = { viewModel.undo() },
                     onRedo = { viewModel.redo() }
                 )
+
+                val isDarkTheme = LocalAppIsDark.current
+                if (!isDesktopPlatform && isDarkTheme) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp)
+                            .background(
+                                brush = edgeFadeBrush(
+                                    baseColor = MaterialTheme.colorScheme.background,
+                                    opaqueAtTop = false
+                                )
+                            )
+                    )
+                }
 
                 AnimatedVisibility(
                     visible = showToolbar,
@@ -1230,9 +1250,23 @@ private fun NoteTopBar(
 ) {
     val defaultContentColor = topBarContentColor ?: MaterialTheme.colorScheme.onSurface
 
+    val isDarkTheme = LocalAppIsDark.current
+    val isScrolledAwayFromTop = LocalIsScrolledAwayFromTop.current
+    val topFadeVisibility by animateFloatAsState(
+        targetValue = if (!isDesktopPlatform && isDarkTheme && isScrolledAwayFromTop) 1f else 0f,
+        animationSpec = tween(220)
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .background(
+                brush = edgeFadeBrush(
+                    baseColor = MaterialTheme.colorScheme.background,
+                    opaqueAtTop = true,
+                    peakAlpha = 0.85f * topFadeVisibility
+                )
+            )
             .then(if (isDesktopPlatform) Modifier else Modifier.stableStatusBarsPadding())
             .padding(top = topMargin + if (isDesktopPlatform) 16.dp else 10.dp).padding(horizontal = if (isDesktopPlatform) 22.dp else 16.dp)
             .onGloballyPositioned(onPositioned),

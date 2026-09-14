@@ -49,6 +49,7 @@ import com.emberr.presentation.mobile.home.HomeScreen
 import com.emberr.presentation.search.SearchDialog
 import com.emberr.presentation.share.ShareReceiverSheet
 import com.emberr.presentation.share.ShareViewModel
+import com.emberr.ui.theme.LocalAppIsDark
 import dev.chrisbanes.haze.hazeSource
 import emberr.shared.generated.resources.Res.readBytes
 import kotlinx.coroutines.withContext
@@ -56,7 +57,19 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private val DESKTOP_SIDEBAR_WIDTH = 340.dp
 
+fun edgeFadeBrush(baseColor: Color, opaqueAtTop: Boolean, peakAlpha: Float = 0.60f): Brush {
+    val sampleCount = 24
+    val stops = Array(sampleCount + 1) { index ->
+        val position = index / sampleCount.toFloat()
+        val distanceFromOpaqueEdge = if (opaqueAtTop) position else 1f - position
+        val smoothedAlpha = peakAlpha * (1f - distanceFromOpaqueEdge * distanceFromOpaqueEdge * (3f - 2f * distanceFromOpaqueEdge))
+        position to baseColor.copy(alpha = smoothedAlpha)
+    }
+    return Brush.verticalGradient(colorStops = stops)
+}
+
 val LocalImageOverlay = staticCompositionLocalOf<( (@Composable () -> Unit)? ) -> Unit> { {} }
+val LocalIsScrolledAwayFromTop = staticCompositionLocalOf { false }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -154,11 +167,16 @@ fun EmberrApp(
     var isBottomBarCompact by remember { mutableStateOf(false) }
     var showSearchDialog by remember { mutableStateOf(false) }
 
+    var isScrolledAwayFromTop by remember { mutableStateOf(false) }
+    val topFadeScrollDistance = remember { FloatArray(1) }
+
     LaunchedEffect(currentRoute) {
         if (currentRoute == Screen.Daily.route || currentRoute == Screen.Home.route) {
             activeTab = currentRoute
         }
         isBottomBarCompact = false
+        topFadeScrollDistance[0] = 0f
+        isScrolledAwayFromTop = false
     }
 
     // AI chat ViewModel
@@ -210,6 +228,10 @@ fun EmberrApp(
                     isBottomBarCompact = false
                     bottomBarScrollAccumulator[0] = 0f
                 }
+
+                topFadeScrollDistance[0] = (topFadeScrollDistance[0] - delta).coerceAtLeast(0f)
+                isScrolledAwayFromTop = topFadeScrollDistance[0] > 0f
+
                 return Offset.Zero
             }
         }
@@ -277,7 +299,8 @@ fun EmberrApp(
 
     CompositionLocalProvider(
         LocalImageOverlay provides { content -> fullScreenContent = content },
-        LocalEmberrBlurSource provides if (isDesktopPlatform) null else hazeState
+        LocalEmberrBlurSource provides if (isDesktopPlatform) null else hazeState,
+        LocalIsScrolledAwayFromTop provides isScrolledAwayFromTop
     ) {
         if (isDesktopPlatform) {
             var isOnboardingCompleted by remember { mutableStateOf(settingsManager.isOnboardingCompleted()) }
@@ -319,6 +342,8 @@ fun EmberrApp(
             )
             return@CompositionLocalProvider
         }
+
+        val isDarkTheme = LocalAppIsDark.current
 
         val shareViewModel: ShareViewModel = koinViewModel()
         val currentShare by shareViewModel.currentShare.collectAsState()
@@ -819,22 +844,20 @@ fun EmberrApp(
                             )
                         }
                     }
-                    // top progressive fade
-//                    Box(
-//                        modifier = Modifier
-//                            .align(Alignment.TopCenter)
-//                            .fillMaxWidth()
-//                            .height(rememberStableStatusBarsPadding().calculateTopPadding() + 36.dp)
-//                            .background(
-//                                brush = Brush.verticalGradient(
-//                                    colors = listOf(
-//                                        MaterialTheme.colorScheme.background.copy(alpha = 1f),
-//                                        MaterialTheme.colorScheme.background.copy(alpha = 0.5f),
-//                                        MaterialTheme.colorScheme.background.copy(alpha = 0f)
-//                                    )
-//                                )
-//                            )
-//                    )
+                    if (isDarkTheme) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .height(navigationBarBottomInset + 76.dp)
+                                .background(
+                                    brush = edgeFadeBrush(
+                                        baseColor = MaterialTheme.colorScheme.background,
+                                        opaqueAtTop = false
+                                    )
+                                )
+                        )
+                    }
 
                     if (!isDesktopPlatform) {
                         AnimatedVisibility(
